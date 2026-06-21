@@ -187,7 +187,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
   return (
     <>
       <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{isEdit ? "編輯客戶" : "新增客戶"}</DialogTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -195,7 +195,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
             </p>
           </DialogHeader>
 
-          <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
+          <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-5 py-2">
 
             {/* 名稱 */}
             <div>
@@ -208,7 +208,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
                 ref={nameRefCallback}
                 {...enterProps}
                 placeholder="請輸入客戶名稱"
-                className="mt-1"
+                className="mt-2"
                 autoComplete="off"
               />
               {errors.name && (
@@ -225,7 +225,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
                 {...enterProps}
                 placeholder="8 碼數字"
                 maxLength={8}
-                className="mt-1 font-mono"
+                className="mt-2 font-mono"
                 inputMode="numeric"
               />
               {errors.taxId && (
@@ -241,13 +241,13 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
                 {...register("industry")}
                 {...enterProps}
                 placeholder="例：製造業、服務業、農業"
-                className="mt-1"
+                className="mt-2"
                 autoComplete="off"
               />
             </div>
 
             {/* 合約狀態 + 定價級距 */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>
                   合約狀態 <span className="text-destructive">*</span>
@@ -256,7 +256,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
                   value={watch("contractStatus")}
                   onValueChange={(v) => { setValue("contractStatus", v); clearErrors("contractStatus"); }}
                 >
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger className="mt-2">
                     <SelectValue placeholder="請選擇" />
                   </SelectTrigger>
                   <SelectContent>
@@ -277,7 +277,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
                   value={watch("pricingTier")}
                   onValueChange={(v) => { setValue("pricingTier", v); clearErrors("pricingTier"); }}
                 >
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger className="mt-2">
                     <SelectValue placeholder="請選擇" />
                   </SelectTrigger>
                   <SelectContent>
@@ -301,7 +301,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
                 value={watch("managerId")}
                 onValueChange={(v) => { setValue("managerId", v); clearErrors("managerId"); }}
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger className="mt-2">
                   <SelectValue placeholder="請選擇負責人" />
                 </SelectTrigger>
                 <SelectContent>
@@ -316,7 +316,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
             </div>
 
             {/* 聯絡窗口 */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="c-contactName">聯絡窗口姓名</Label>
                 <Input
@@ -324,7 +324,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
                   {...register("contactName")}
                   {...enterProps}
                   placeholder="姓名"
-                  className="mt-1"
+                  className="mt-2"
                   autoComplete="off"
                 />
               </div>
@@ -335,7 +335,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
                   {...register("contactPhone")}
                   {...enterProps}
                   placeholder="0912-345-678"
-                  className="mt-1"
+                  className="mt-2"
                   inputMode="tel"
                 />
                 {errors.contactPhone && (
@@ -351,7 +351,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
                 id="c-notes"
                 {...register("notes")}
                 placeholder="備註說明（Enter 換行）"
-                className="mt-1 resize-none"
+                className="mt-2 resize-none"
                 rows={3}
               />
             </div>

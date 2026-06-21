@@ -198,7 +198,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "編輯移工" : "新增移工"}</DialogTitle>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -206,7 +206,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
           </p>
         </DialogHeader>
 
-        <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
+        <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-5 py-2">
 
           {/* 姓名 */}
           <div>
@@ -219,7 +219,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
               ref={nameRefCallback}
               {...enterProps}
               placeholder="請輸入姓名"
-              className="mt-1"
+              className="mt-2"
               autoComplete="off"
             />
             {errors.name && (
@@ -235,7 +235,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
               {...register("nationality")}
               {...enterProps}
               placeholder="例：越南、印尼、泰國"
-              className="mt-1"
+              className="mt-2"
               autoComplete="off"
             />
           </div>
@@ -254,7 +254,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
                   clearErrors("idNumber");
                 }}
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger className="mt-2">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -273,7 +273,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
                 {...register("idNumber")}
                 {...enterProps}
                 placeholder={idType === "resident_permit" ? "例：A123456789" : "例：AB1234567"}
-                className="mt-1 font-mono"
+                className="mt-2 font-mono"
                 autoComplete="off"
                 autoCapitalize="characters"
               />
@@ -284,7 +284,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
           </div>
 
           {/* 生命週期狀態 + 文件狀態 */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>
                 生命週期狀態 <span className="text-destructive">*</span>
@@ -296,7 +296,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
                   clearErrors("lifecycleStatus");
                 }}
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger className="mt-2">
                   <SelectValue placeholder="請選擇" />
                 </SelectTrigger>
                 <SelectContent>
@@ -320,7 +320,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
                   clearErrors("documentStatus");
                 }}
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger className="mt-2">
                   <SelectValue placeholder="請選擇" />
                 </SelectTrigger>
                 <SelectContent>
@@ -347,7 +347,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
                 clearErrors("managerId");
               }}
             >
-              <SelectTrigger className="mt-1">
+              <SelectTrigger className="mt-2">
                 <SelectValue placeholder="請選擇負責人" />
               </SelectTrigger>
               <SelectContent>
@@ -369,7 +369,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
               {...register("phone")}
               {...enterProps}
               placeholder="例：0912-345-678"
-              className="mt-1"
+              className="mt-2"
               inputMode="tel"
             />
             {errors.phone && (
@@ -378,7 +378,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
           </div>
 
           {/* 入境日期 + 證件到期日 */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="w-entryDate">入境日期</Label>
               <Input
@@ -386,7 +386,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
                 type="date"
                 {...register("entryDate")}
                 {...enterProps}
-                className="mt-1"
+                className="mt-2"
                 max={new Date().toISOString().split("T")[0]}
               />
               {errors.entryDate && (
@@ -403,7 +403,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
                 type="date"
                 {...register("idExpiryDate")}
                 {...enterProps}
-                className="mt-1"
+                className="mt-2"
               />
               {errors.idExpiryDate && (
                 <p className="field-error" data-field-error>{errors.idExpiryDate.message}</p>
@@ -418,7 +418,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
               id="w-notes"
               {...register("notes")}
               placeholder="備註說明（Enter 換行）"
-              className="mt-1 resize-none"
+              className="mt-2 resize-none"
               rows={3}
             />
           </div>

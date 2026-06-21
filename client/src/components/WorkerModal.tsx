@@ -19,6 +19,7 @@ import {
   validateTwPhone, validateResidentPermit, validatePassport, validateNotFutureDate,
 } from "@/lib/validation";
 import { useFormEnterNav } from "@/hooks/useFormEnterNav";
+import { ExternalLink } from "lucide-react";
 
 interface WorkerFormData {
   name: string;
@@ -31,6 +32,7 @@ interface WorkerFormData {
   phone: string;
   entryDate: string;
   idExpiryDate: string;
+  externalLink: string;
   notes: string;
 }
 
@@ -61,7 +63,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
     defaultValues: {
       name: "", nationality: "", idType: "resident_permit", idNumber: "",
       lifecycleStatus: "", documentStatus: "", managerId: "",
-      phone: "", entryDate: "", idExpiryDate: "", notes: "",
+      phone: "", entryDate: "", idExpiryDate: "", externalLink: "", notes: "",
     },
   });
 
@@ -96,13 +98,14 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
         phone: existingWorker.phone ?? "",
         entryDate: existingWorker.entryDate ?? "",
         idExpiryDate: existingWorker.idExpiryDate ?? "",
+        externalLink: existingWorker.externalLink ?? "",
         notes: existingWorker.notes ?? "",
       });
     } else if (open && !editId) {
       reset({
         name: "", nationality: "", idType: "resident_permit", idNumber: "",
         lifecycleStatus: "", documentStatus: "", managerId: "",
-        phone: "", entryDate: "", idExpiryDate: "", notes: "",
+        phone: "", entryDate: "", idExpiryDate: "", externalLink: "", notes: "",
       });
     }
   }, [open, existingWorker, editId, reset]);
@@ -153,7 +156,17 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
       setError("phone", { message: "電話格式不正確（手機 09 開頭 10 碼，或市話格式）" }); hasError = true;
     }
     if (data.entryDate && !validateNotFutureDate(data.entryDate)) {
-      setError("entryDate", { message: "入境日期不可晚於今天" }); hasError = true;
+      setError("entryDate", { message: "入境日期不可晒於今天" }); hasError = true;
+    }
+    if (data.externalLink.trim()) {
+      try {
+        const url = new URL(data.externalLink.trim());
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          setError("externalLink", { message: "連結必須以 http:// 或 https:// 開頭" }); hasError = true;
+        }
+      } catch {
+        setError("externalLink", { message: "連結格式不正確，請輸入完整 URL（例：https://drive.google.com/...）" }); hasError = true;
+      }
     }
     if (
       data.lifecycleStatus === "employed" &&
@@ -181,6 +194,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
       phone: data.phone.trim() || undefined,
       entryDate: data.entryDate || undefined,
       idExpiryDate: data.idExpiryDate || undefined,
+      externalLink: data.externalLink.trim() || undefined,
       notes: data.notes.trim() || undefined,
     };
 
@@ -409,6 +423,40 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
                 <p className="field-error" data-field-error>{errors.idExpiryDate.message}</p>
               )}
             </div>
+          </div>
+
+          {/* 外部連結 */}
+          <div>
+            <Label htmlFor="w-externalLink">
+              連結
+              <span className="ml-1 text-[10px] text-muted-foreground font-normal">（Google Drive / Sheets 等外部連結）</span>
+            </Label>
+            <div className="flex gap-2 mt-2">
+              <Input
+                id="w-externalLink"
+                {...register("externalLink")}
+                {...enterProps}
+                placeholder="https://drive.google.com/..."
+                className="flex-1 font-mono text-sm"
+                autoComplete="off"
+                inputMode="url"
+              />
+              {watch("externalLink")?.trim() && (
+                <a
+                  href={watch("externalLink").trim()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-3 py-2 text-xs border border-border rounded-md bg-background hover:bg-accent text-foreground transition-colors shrink-0"
+                  tabIndex={-1}
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  開啟
+                </a>
+              )}
+            </div>
+            {errors.externalLink && (
+              <p className="field-error" data-field-error>{errors.externalLink.message}</p>
+            )}
           </div>
 
           {/* 備註 — Textarea: Enter = newline, Shift+Enter also fine */}

@@ -87,3 +87,14 @@
 - [x] 底部顯示已過期/30天內分類計數 + 查看全部連結
 - [x] 無到期通知時顯示空狀態（CheckCheck 圖示）
 - [x] Escape 鍵與點擊外部自動關閉下拉
+
+## 連結欄位與 CSV 匯入（v1.4）
+- [x] Schema 新增 externalLink 欄位（varchar(500), nullable）並執行遷移
+- [x] 後端 routers.ts 支援 externalLink 讀寫與 URL 格式驗證（http/https）
+- [x] WorkerModal 新增「連結」欄位（URL 格式驗證、旁邊顯示「開啟」按鈕）
+- [x] Workers.tsx 列表頁姓名旁顯示連結小圖示（可點擊開新分頁）
+- [x] CSV 匯入：後端 workers.import 批次寫入 procedure（逐筆驗證，回傳成功/失敗明細）
+- [x] CSV 匯入：前端 ImportWorkerModal 元件（上傳/拖放 → 解析預覽 → 確認匯入）
+- [x] CSV 範本下載（含欄位說明、中文映射表、超前 BOM UTF-8）
+- [x] 匯入結果回報（成功 N 筆、失敗 N 筆與原因明細）
+- [x] 25 個 Vitest 測試全部通過

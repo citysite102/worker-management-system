@@ -129,6 +129,116 @@ describe("workers.create validation", () => {
   });
 });
 
+describe("workers.create externalLink validation", () => {
+  it("rejects invalid URL (no protocol)", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    await expect(
+      caller.workers.create({
+        name: "測試",
+        idType: "resident_permit",
+        idNumber: "A123456789",
+        lifecycleStatus: "employed",
+        documentStatus: "complete",
+        managerId: 1,
+        externalLink: "drive.google.com/file", // missing https://
+      })
+    ).rejects.toThrow("連結格式不正確");
+  });
+
+  it("accepts valid https URL", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.workers.create({
+      name: "測試",
+      idType: "resident_permit",
+      idNumber: "A123456789",
+      lifecycleStatus: "employed",
+      documentStatus: "complete",
+      managerId: 1,
+      externalLink: "https://drive.google.com/file/d/abc123",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects non-http protocol", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    await expect(
+      caller.workers.create({
+        name: "測試",
+        idType: "resident_permit",
+        idNumber: "A123456789",
+        lifecycleStatus: "employed",
+        documentStatus: "complete",
+        managerId: 1,
+        externalLink: "ftp://example.com/file",
+      })
+    ).rejects.toThrow("連結格式不正確");
+  });
+});
+
+describe("workers.import batch import", () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    // Reset mocks to default state (no duplicate, create succeeds)
+    const db = await import("./db");
+    vi.mocked(db.getWorkerByIdNumber).mockResolvedValue(undefined);
+    vi.mocked(db.createWorker).mockResolvedValue({} as any);
+  });
+
+  it("imports valid rows and returns successCount", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.workers.import({
+      rows: [
+        {
+          name: "測試一",
+          idType: "resident_permit",
+          idNumber: "A123456789",
+          lifecycleStatus: "employed",
+          documentStatus: "complete",
+          managerId: 1,
+        },
+        {
+          name: "測試二",
+          idType: "passport",
+          idNumber: "VN123456",
+          lifecycleStatus: "recruiting",
+          documentStatus: "not_started",
+          managerId: 1,
+        },
+      ],
+    });
+    expect(result.successCount).toBe(2);
+    expect(result.failCount).toBe(0);
+  });
+
+  it("reports failure for invalid rows and continues", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.workers.import({
+      rows: [
+        {
+          name: "測試一",
+          idType: "resident_permit",
+          idNumber: "INVALID", // bad format
+          lifecycleStatus: "employed",
+          documentStatus: "complete",
+          managerId: 1,
+        },
+        {
+          name: "測試二",
+          idType: "passport",
+          idNumber: "VN123456",
+          lifecycleStatus: "recruiting",
+          documentStatus: "not_started",
+          managerId: 1,
+        },
+      ],
+    });
+    expect(result.successCount).toBe(1);
+    expect(result.failCount).toBe(1);
+    expect(result.results[0].success).toBe(false);
+    expect(result.results[1].success).toBe(true);
+  });
+});
+
 describe("customers.create validation", () => {
   it("rejects invalid tax ID", async () => {
     const caller = appRouter.createCaller(createCtx());

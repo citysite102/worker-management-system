@@ -25,6 +25,7 @@ const workerInput = z.object({
   phone: z.string().optional().transform(s => s?.trim() || undefined),
   entryDate: z.string().optional().transform(s => s?.trim() || undefined),
   idExpiryDate: z.string().optional().transform(s => s?.trim() || undefined),
+  externalLink: z.string().max(500).optional().transform(s => s?.trim() || undefined),
   notes: z.string().optional().transform(s => s?.trim() || undefined),
 });
 
@@ -64,6 +65,17 @@ function validateWorkerData(data: z.infer<typeof workerInput>, excludeId?: numbe
     if (data.entryDate) {
       if (!validateNotFutureDate(data.entryDate)) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "入境日期不可晚於今天" });
+      }
+    }
+    // 外部連結：URL 格式驗證
+    if (data.externalLink) {
+      try {
+        const url = new URL(data.externalLink);
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "連結必須以 http:// 或 https:// 開頭" });
+        }
+      } catch {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "連結格式不正確，請輸入完整 URL（例：https://drive.google.com/...）" });
       }
     }
     // 證件到期日：格式驗證（YYYY-MM-DD）
@@ -167,6 +179,7 @@ export const appRouter = router({
           phone: phone || null,
           entryDate: input.entryDate || null,
           idExpiryDate: input.idExpiryDate || null,
+          externalLink: input.externalLink || null,
           notes: input.notes || null,
         });
         return { success: true };
@@ -188,6 +201,7 @@ export const appRouter = router({
           phone: phone || null,
           entryDate: data.entryDate || null,
           idExpiryDate: data.idExpiryDate || null,
+          externalLink: data.externalLink || null,
           notes: data.notes || null,
         });
         return { success: true };
@@ -197,6 +211,41 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         await deleteWorker(input.id);
         return { success: true };
+      }),
+    // CSV 批次匯入
+    import: publicProcedure
+      .input(z.object({
+        rows: z.array(workerInput),
+      }))
+      .mutation(async ({ input }) => {
+        const results: { index: number; name: string; success: boolean; error?: string }[] = [];
+        for (let i = 0; i < input.rows.length; i++) {
+          const row = input.rows[i];
+          try {
+            await validateWorkerData(row)();
+            const phone = row.phone ? normalizePhone(row.phone) : undefined;
+            await createWorker({
+              name: row.name,
+              nationality: row.nationality || null,
+              idType: row.idType,
+              idNumber: row.idNumber,
+              lifecycleStatus: row.lifecycleStatus,
+              documentStatus: row.documentStatus,
+              managerId: row.managerId,
+              phone: phone || null,
+              entryDate: row.entryDate || null,
+              idExpiryDate: row.idExpiryDate || null,
+              externalLink: row.externalLink || null,
+              notes: row.notes || null,
+            });
+            results.push({ index: i, name: row.name, success: true });
+          } catch (err: any) {
+            results.push({ index: i, name: row.name, success: false, error: err?.message || '未知錯誤' });
+          }
+        }
+        const successCount = results.filter(r => r.success).length;
+        const failCount = results.filter(r => !r.success).length;
+        return { successCount, failCount, results };
       }),
   }),
 

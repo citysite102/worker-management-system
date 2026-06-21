@@ -56,6 +56,7 @@ export const workers = mysqlTable("workers", {
   phone: varchar("phone", { length: 20 }),
   entryDate: varchar("entryDate", { length: 10 }),
   idExpiryDate: varchar("idExpiryDate", { length: 10 }),
+  externalLink: varchar("externalLink", { length: 500 }),
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

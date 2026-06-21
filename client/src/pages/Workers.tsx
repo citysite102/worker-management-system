@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { WorkerModal } from "@/components/WorkerModal";
+import { ImportWorkerModal } from "@/components/ImportWorkerModal";
 import { getStatusLabel, LIFECYCLE_STATUS_OPTIONS, DOCUMENT_STATUS_OPTIONS } from "@/lib/constants";
 import { toast } from "sonner";
-import { Plus, Search, Pencil, Trash2, Users, Briefcase, FileWarning, UserSearch, X, CalendarClock } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Users, Briefcase, FileWarning, UserSearch, X, CalendarClock, ExternalLink, Upload } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -64,6 +65,7 @@ export default function Workers() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // 讀取 URL 參數，支援通知鈴鐺點擊自動篩選
@@ -180,10 +182,21 @@ export default function Workers() {
           <h1 className="text-xl font-semibold text-foreground">移工管理</h1>
           <p className="text-sm text-muted-foreground mt-0.5">管理所有移工資料與狀態</p>
         </div>
-        <Button onClick={openCreate} size="sm" className="gap-1.5">
-          <Plus className="w-4 h-4" />
-          新增移工
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setImportModalOpen(true)}
+            className="gap-1.5"
+          >
+            <Upload className="w-4 h-4" />
+            匯入 CSV
+          </Button>
+          <Button onClick={openCreate} size="sm" className="gap-1.5">
+            <Plus className="w-4 h-4" />
+            新增移工
+          </Button>
+        </div>
       </div>
 
       {/* 統計卡 — 可點擊快速篩選（5 張） */}
@@ -433,6 +446,18 @@ export default function Workers() {
                               到期
                             </span>
                           )}
+                          {w.externalLink && (
+                            <a
+                              href={w.externalLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={e => e.stopPropagation()}
+                              title="開啟外部連結"
+                              className="inline-flex items-center text-muted-foreground hover:text-blue-500 transition-colors"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3.5 hidden md:table-cell text-muted-foreground">{w.nationality || "—"}</td>
@@ -510,7 +535,14 @@ export default function Workers() {
         editId={editId}
       />
 
-      {/* 刪除確認 */}
+      {/* CSV 匯入 Modal */}
+      <ImportWorkerModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onSuccess={() => utils.workers.list.invalidate()}
+      />
+
+      {/* 删除確認 */}
       <AlertDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

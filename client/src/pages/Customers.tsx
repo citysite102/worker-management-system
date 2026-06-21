@@ -1,13 +1,13 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CustomerModal } from "@/components/CustomerModal";
-import { getStatusLabel } from "@/lib/constants";
+import { getStatusLabel, CONTRACT_STATUS_OPTIONS, PRICING_TIER_OPTIONS } from "@/lib/constants";
 import { toast } from "sonner";
-import { Plus, Search, Pencil, Trash2, Building2, CheckCircle, MessageSquare, RefreshCw } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Building2, CheckCircle, MessageSquare, RefreshCw, X } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -16,9 +16,12 @@ import {
 export default function Customers() {
   const [search, setSearch] = useState("");
   const [managerFilter, setManagerFilter] = useState("all");
+  const [contractFilter, setContractFilter] = useState("all");
+  const [pricingFilter, setPricingFilter] = useState("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const utils = trpc.useUtils();
   const { data: customers = [], isLoading } = trpc.customers.list.useQuery();
@@ -41,11 +44,19 @@ export default function Customers() {
 
   const filtered = useMemo(() => {
     return customers.filter(c => {
-      const matchSearch = !search || c.name.toLowerCase().includes(search.toLowerCase());
+      const q = search.trim().toLowerCase();
+      const matchSearch = !q ||
+        c.name.toLowerCase().includes(q) ||
+        (c.taxId ?? "").toLowerCase().includes(q) ||
+        (c.industry ?? "").toLowerCase().includes(q) ||
+        (c.contactName ?? "").toLowerCase().includes(q) ||
+        (managerMap[c.managerId] ?? "").toLowerCase().includes(q);
       const matchManager = managerFilter === "all" || String(c.managerId) === managerFilter;
-      return matchSearch && matchManager;
+      const matchContract = contractFilter === "all" || c.contractStatus === contractFilter;
+      const matchPricing = pricingFilter === "all" || c.pricingTier === pricingFilter;
+      return matchSearch && matchManager && matchContract && matchPricing;
     });
-  }, [customers, search, managerFilter]);
+  }, [customers, search, managerFilter, contractFilter, pricingFilter, managerMap]);
 
   // 統計卡
   const stats = useMemo(() => ({
@@ -55,11 +66,26 @@ export default function Customers() {
     pendingRenewal: customers.filter(c => c.contractStatus === "pending_renewal").length,
   }), [customers]);
 
+  const hasActiveFilter = search || managerFilter !== "all" || contractFilter !== "all" || pricingFilter !== "all";
+
+  const clearAllFilters = useCallback(() => {
+    setSearch("");
+    setManagerFilter("all");
+    setContractFilter("all");
+    setPricingFilter("all");
+  }, []);
+
   const openEdit = (id: number) => { setEditId(id); setModalOpen(true); };
   const openCreate = () => { setEditId(null); setModalOpen(true); };
 
+  // Stat card click → quick filter
+  const handleStatClick = (type: "in_service" | "negotiating" | "pending_renewal") => {
+    clearAllFilters();
+    setContractFilter(type);
+  };
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-5">
       {/* 頁面標題 */}
       <div className="flex items-center justify-between">
         <div>
@@ -72,53 +98,159 @@ export default function Customers() {
         </Button>
       </div>
 
-      {/* 統計卡 */}
+      {/* 統計卡 — 可點擊快速篩選 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "客戶總數", value: stats.total, icon: Building2, color: "text-foreground" },
-          { label: "服務中", value: stats.inService, icon: CheckCircle, color: "text-green-600" },
-          { label: "洽談中", value: stats.negotiating, icon: MessageSquare, color: "text-amber-500" },
-          { label: "待續約", value: stats.pendingRenewal, icon: RefreshCw, color: "text-amber-500" },
-        ].map(card => (
-          <div key={card.label} className="bg-card border border-border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground font-medium">{card.label}</span>
-              <card.icon className={`w-4 h-4 ${card.color}`} />
-            </div>
-            <p className={`text-2xl font-semibold ${card.color}`}>{card.value}</p>
+        {/* 總數卡（不可點擊篩選） */}
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-muted-foreground font-medium">客戶總數</span>
+            <Building2 className="w-4 h-4 text-foreground" />
           </div>
-        ))}
+          <p className="text-2xl font-semibold text-foreground">{stats.total}</p>
+        </div>
+        {/* 可點擊篩選卡 */}
+        {[
+          {
+            label: "服務中", value: stats.inService, icon: CheckCircle,
+            color: "text-green-600", filterVal: "in_service" as const,
+          },
+          {
+            label: "洽談中", value: stats.negotiating, icon: MessageSquare,
+            color: "text-amber-500", filterVal: "negotiating" as const,
+          },
+          {
+            label: "待續約", value: stats.pendingRenewal, icon: RefreshCw,
+            color: "text-amber-500", filterVal: "pending_renewal" as const,
+          },
+        ].map(card => {
+          const active = contractFilter === card.filterVal;
+          return (
+            <button
+              key={card.label}
+              type="button"
+              onClick={() => active ? clearAllFilters() : handleStatClick(card.filterVal)}
+              className={`bg-card border rounded-lg p-4 text-left transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                active
+                  ? "border-primary ring-1 ring-primary/20 bg-primary/5"
+                  : "border-border hover:border-muted-foreground/30"
+              }`}
+              title={active ? "點擊取消篩選" : `點擊篩選「${card.label}」`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-muted-foreground font-medium">{card.label}</span>
+                <card.icon className={`w-4 h-4 ${card.color}`} />
+              </div>
+              <p className={`text-2xl font-semibold ${card.color}`}>{card.value}</p>
+            </button>
+          );
+        })}
       </div>
 
-      {/* 搜尋與篩選 */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="搜尋客戶名稱..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9"
-          />
+      {/* 搜尋與篩選列 */}
+      <div className="space-y-2">
+        <div className="flex flex-col sm:flex-row gap-2">
+          {/* 搜尋框 */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Input
+              ref={searchRef}
+              placeholder="搜尋名稱、統編、產業、聯絡窗口、負責人..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => e.key === "Escape" && setSearch("")}
+              className="pl-9 pr-8"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => { setSearch(""); searchRef.current?.focus(); }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="清除搜尋"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* 負責人篩選 */}
+          <Select value={managerFilter} onValueChange={setManagerFilter}>
+            <SelectTrigger className="w-full sm:w-36">
+              <SelectValue placeholder="負責人" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部負責人</SelectItem>
+              {managers.map(m => (
+                <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* 合約狀態篩選 */}
+          <Select value={contractFilter} onValueChange={setContractFilter}>
+            <SelectTrigger className="w-full sm:w-36">
+              <SelectValue placeholder="合約狀態" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部狀態</SelectItem>
+              {CONTRACT_STATUS_OPTIONS.map(o => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* 定價篩選 */}
+          <Select value={pricingFilter} onValueChange={setPricingFilter}>
+            <SelectTrigger className="w-full sm:w-32">
+              <SelectValue placeholder="定價" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部定價</SelectItem>
+              {PRICING_TIER_OPTIONS.map(o => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={managerFilter} onValueChange={setManagerFilter}>
-          <SelectTrigger className="w-full sm:w-44">
-            <SelectValue placeholder="負責人篩選" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">全部負責人</SelectItem>
-            {managers.map(m => (
-              <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+
+        {/* 篩選中提示列 */}
+        {hasActiveFilter && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>
+              顯示 <strong className="text-foreground">{filtered.length}</strong> / {customers.length} 筆
+              {contractFilter !== "all" && (
+                <span className="ml-1.5 inline-flex items-center gap-1 bg-muted px-1.5 py-0.5 rounded">
+                  {getStatusLabel(contractFilter)}
+                  <button onClick={() => setContractFilter("all")} className="hover:text-destructive"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+              {pricingFilter !== "all" && (
+                <span className="ml-1.5 inline-flex items-center gap-1 bg-muted px-1.5 py-0.5 rounded">
+                  {getStatusLabel(pricingFilter)}
+                  <button onClick={() => setPricingFilter("all")} className="hover:text-destructive"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+              {managerFilter !== "all" && (
+                <span className="ml-1.5 inline-flex items-center gap-1 bg-muted px-1.5 py-0.5 rounded">
+                  {managerMap[parseInt(managerFilter)]}
+                  <button onClick={() => setManagerFilter("all")} className="hover:text-destructive"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+            </span>
+            <button
+              onClick={clearAllFilters}
+              className="ml-auto text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+            >
+              清除全部篩選
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 資料表格 */}
       <div className="border border-border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full data-table">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
                 <th className="px-4 py-3 text-left">名稱</th>
                 <th className="px-4 py-3 text-left hidden md:table-cell">統一編號</th>
@@ -127,47 +259,75 @@ export default function Customers() {
                 <th className="px-4 py-3 text-left hidden sm:table-cell">定價</th>
                 <th className="px-4 py-3 text-left hidden lg:table-cell">負責人</th>
                 <th className="px-4 py-3 text-left hidden xl:table-cell">聯絡窗口</th>
-                <th className="px-4 py-3 text-right">操作</th>
+                <th className="px-4 py-3 text-right w-20">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground text-sm">載入中...</td>
+                  <td colSpan={8} className="px-4 py-14 text-center text-muted-foreground text-sm">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                      載入中...
+                    </div>
+                  </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground text-sm">
-                    {search || managerFilter !== "all" ? "沒有符合條件的資料" : "尚無客戶資料，點擊「新增客戶」開始建立"}
+                  <td colSpan={8} className="px-4 py-14 text-center">
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <Building2 className="w-8 h-8 opacity-30" />
+                      <p className="text-sm">
+                        {hasActiveFilter
+                          ? "沒有符合條件的客戶資料"
+                          : "尚無客戶資料，點擊「新增客戶」開始建立"}
+                      </p>
+                      {hasActiveFilter && (
+                        <button
+                          onClick={clearAllFilters}
+                          className="text-xs text-primary hover:underline mt-1"
+                        >
+                          清除篩選條件
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filtered.map(c => (
-                  <tr key={c.id} className="transition-colors">
-                    <td className="px-4 py-3 font-medium">{c.name}</td>
-                    <td className="px-4 py-3 hidden md:table-cell">
+                  <tr
+                    key={c.id}
+                    className="transition-colors cursor-default"
+                    onDoubleClick={() => openEdit(c.id)}
+                    title="雙擊編輯"
+                  >
+                    <td className="px-4 py-3.5 font-medium">{c.name}</td>
+                    <td className="px-4 py-3.5 hidden md:table-cell">
                       <span className="font-mono text-sm text-muted-foreground">{c.taxId || "—"}</span>
                     </td>
-                    <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">{c.industry || "—"}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3.5 hidden lg:table-cell text-muted-foreground">{c.industry || "—"}</td>
+                    <td className="px-4 py-3.5">
                       <StatusBadge status={c.contractStatus} />
                     </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
+                    <td className="px-4 py-3.5 hidden sm:table-cell">
                       <span className="text-sm text-muted-foreground">{getStatusLabel(c.pricingTier)}</span>
                     </td>
-                    <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
+                    <td className="px-4 py-3.5 hidden lg:table-cell text-muted-foreground">
                       {managerMap[c.managerId] || "—"}
                     </td>
-                    <td className="px-4 py-3 hidden xl:table-cell text-muted-foreground text-sm">
-                      {c.contactName ? `${c.contactName}${c.contactPhone ? ` · ${c.contactPhone}` : ""}` : "—"}
+                    <td className="px-4 py-3.5 hidden xl:table-cell text-muted-foreground text-sm">
+                      {c.contactName
+                        ? `${c.contactName}${c.contactPhone ? ` · ${c.contactPhone}` : ""}`
+                        : "—"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3.5">
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                           onClick={() => openEdit(c.id)}
+                          title="編輯"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
@@ -176,6 +336,7 @@ export default function Customers() {
                           size="sm"
                           className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
                           onClick={() => setDeleteId(c.id)}
+                          title="刪除"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
@@ -187,11 +348,22 @@ export default function Customers() {
             </tbody>
           </table>
         </div>
-        {filtered.length > 0 && (
-          <div className="px-4 py-2.5 bg-muted/30 border-t border-border">
-            <p className="text-xs text-muted-foreground">共 {filtered.length} 筆{customers.length !== filtered.length ? `（篩選自 ${customers.length} 筆）` : ""}</p>
-          </div>
-        )}
+        {/* 底部計數列 */}
+        <div className="px-4 py-2.5 bg-muted/30 border-t border-border flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            {filtered.length > 0
+              ? `顯示 ${filtered.length} 筆${customers.length !== filtered.length ? `，共 ${customers.length} 筆` : ""}`
+              : "無資料"}
+          </p>
+          {hasActiveFilter && filtered.length > 0 && (
+            <button
+              onClick={clearAllFilters}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+            >
+              清除篩選
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 新增/編輯 Modal */}

@@ -100,6 +100,11 @@
   @apply bg-muted/40;
 }
 
+/* Keyboard shortcut badge */
+kbd.kbd {
+  @apply inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-muted border border-border text-muted-foreground;
+}
+
 /* Form field error */
 .field-error {
   @apply text-xs text-destructive mt-1;

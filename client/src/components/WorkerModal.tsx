@@ -30,6 +30,7 @@ interface WorkerFormData {
   managerId: string;
   phone: string;
   entryDate: string;
+  idExpiryDate: string;
   notes: string;
 }
 
@@ -60,7 +61,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
     defaultValues: {
       name: "", nationality: "", idType: "resident_permit", idNumber: "",
       lifecycleStatus: "", documentStatus: "", managerId: "",
-      phone: "", entryDate: "", notes: "",
+      phone: "", entryDate: "", idExpiryDate: "", notes: "",
     },
   });
 
@@ -94,13 +95,14 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
         managerId: String(existingWorker.managerId),
         phone: existingWorker.phone ?? "",
         entryDate: existingWorker.entryDate ?? "",
+        idExpiryDate: existingWorker.idExpiryDate ?? "",
         notes: existingWorker.notes ?? "",
       });
     } else if (open && !editId) {
       reset({
         name: "", nationality: "", idType: "resident_permit", idNumber: "",
         lifecycleStatus: "", documentStatus: "", managerId: "",
-        phone: "", entryDate: "", notes: "",
+        phone: "", entryDate: "", idExpiryDate: "", notes: "",
       });
     }
   }, [open, existingWorker, editId, reset]);
@@ -178,6 +180,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
       managerId: parseInt(data.managerId),
       phone: data.phone.trim() || undefined,
       entryDate: data.entryDate || undefined,
+      idExpiryDate: data.idExpiryDate || undefined,
       notes: data.notes.trim() || undefined,
     };
 
@@ -374,20 +377,38 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
             )}
           </div>
 
-          {/* 入境日期 */}
-          <div>
-            <Label htmlFor="w-entryDate">入境日期</Label>
-            <Input
-              id="w-entryDate"
-              type="date"
-              {...register("entryDate")}
-              {...enterProps}
-              className="mt-1"
-              max={new Date().toISOString().split("T")[0]}
-            />
-            {errors.entryDate && (
-              <p className="field-error" data-field-error>{errors.entryDate.message}</p>
-            )}
+          {/* 入境日期 + 證件到期日 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="w-entryDate">入境日期</Label>
+              <Input
+                id="w-entryDate"
+                type="date"
+                {...register("entryDate")}
+                {...enterProps}
+                className="mt-1"
+                max={new Date().toISOString().split("T")[0]}
+              />
+              {errors.entryDate && (
+                <p className="field-error" data-field-error>{errors.entryDate.message}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="w-idExpiryDate">
+                證件到期日
+                <span className="ml-1 text-[10px] text-amber-500 font-medium">（到期提醒）</span>
+              </Label>
+              <Input
+                id="w-idExpiryDate"
+                type="date"
+                {...register("idExpiryDate")}
+                {...enterProps}
+                className="mt-1"
+              />
+              {errors.idExpiryDate && (
+                <p className="field-error" data-field-error>{errors.idExpiryDate.message}</p>
+              )}
+            </div>
           </div>
 
           {/* 備註 — Textarea: Enter = newline, Shift+Enter also fine */}

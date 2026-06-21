@@ -24,6 +24,7 @@ const workerInput = z.object({
   managerId: z.number().int().positive("負責人為必填"),
   phone: z.string().optional().transform(s => s?.trim() || undefined),
   entryDate: z.string().optional().transform(s => s?.trim() || undefined),
+  idExpiryDate: z.string().optional().transform(s => s?.trim() || undefined),
   notes: z.string().optional().transform(s => s?.trim() || undefined),
 });
 
@@ -63,6 +64,13 @@ function validateWorkerData(data: z.infer<typeof workerInput>, excludeId?: numbe
     if (data.entryDate) {
       if (!validateNotFutureDate(data.entryDate)) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "入境日期不可晚於今天" });
+      }
+    }
+    // 證件到期日：格式驗證（YYYY-MM-DD）
+    if (data.idExpiryDate) {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(data.idExpiryDate)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "證件到期日格式不正確（應為 YYYY-MM-DD）" });
       }
     }
     // 跨欄位邏輯：在職時文件狀態不可為未啟動或待補件
@@ -158,6 +166,7 @@ export const appRouter = router({
           managerId: input.managerId,
           phone: phone || null,
           entryDate: input.entryDate || null,
+          idExpiryDate: input.idExpiryDate || null,
           notes: input.notes || null,
         });
         return { success: true };
@@ -178,6 +187,7 @@ export const appRouter = router({
           managerId: data.managerId,
           phone: phone || null,
           entryDate: data.entryDate || null,
+          idExpiryDate: data.idExpiryDate || null,
           notes: data.notes || null,
         });
         return { success: true };

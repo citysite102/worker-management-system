@@ -1,0 +1,1 @@
+ALTER TABLE `workers` ADD `idExpiryDate` varchar(10);

@@ -7,17 +7,58 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { WorkerModal } from "@/components/WorkerModal";
 import { getStatusLabel, LIFECYCLE_STATUS_OPTIONS, DOCUMENT_STATUS_OPTIONS } from "@/lib/constants";
 import { toast } from "sonner";
-import { Plus, Search, Pencil, Trash2, Users, Briefcase, FileWarning, UserSearch, X } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Users, Briefcase, FileWarning, UserSearch, X, CalendarClock } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+// ─── 到期日工具函數 ────────────────────────────────────────────────────────────
+
+/** 計算距今天數（負數 = 已過期） */
+function daysUntilExpiry(dateStr: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(dateStr);
+  expiry.setHours(0, 0, 0, 0);
+  return Math.round((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/** 到期日標色與標籤 */
+function expiryInfo(dateStr: string | null | undefined): {
+  label: string;
+  className: string;
+  urgent: boolean;
+} {
+  if (!dateStr) return { label: "—", className: "text-muted-foreground", urgent: false };
+  const days = daysUntilExpiry(dateStr);
+  if (days < 0) {
+    return { label: `${dateStr}（已過期）`, className: "text-red-500 font-medium", urgent: true };
+  }
+  if (days <= 30) {
+    return { label: `${dateStr}（${days} 天後）`, className: "text-red-500 font-medium", urgent: true };
+  }
+  if (days <= 90) {
+    return { label: `${dateStr}（${days} 天後）`, className: "text-amber-500 font-medium", urgent: false };
+  }
+  return { label: dateStr, className: "text-muted-foreground", urgent: false };
+}
+
+// ─── 快速篩選標籤定義 ─────────────────────────────────────────────────────────
+const EXPIRY_QUICK_FILTERS = [
+  { key: "expiring_30", label: "30 天內到期", days: 30 },
+  { key: "expiring_90", label: "90 天內到期", days: 90 },
+  { key: "expired", label: "已過期", days: -1 },
+] as const;
+
+type ExpiryFilter = typeof EXPIRY_QUICK_FILTERS[number]["key"] | "all";
 
 export default function Workers() {
   const [search, setSearch] = useState("");
   const [managerFilter, setManagerFilter] = useState("all");
   const [lifecycleFilter, setLifecycleFilter] = useState("all");
   const [documentFilter, setDocumentFilter] = useState("all");
+  const [expiryFilter, setExpiryFilter] = useState<ExpiryFilter>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -42,6 +83,17 @@ export default function Workers() {
     return map;
   }, [managers]);
 
+  // ─── 到期篩選邏輯 ────────────────────────────────────────────────────────────
+  const matchesExpiryFilter = useCallback((idExpiryDate: string | null | undefined, filter: ExpiryFilter): boolean => {
+    if (filter === "all") return true;
+    if (!idExpiryDate) return false;
+    const days = daysUntilExpiry(idExpiryDate);
+    if (filter === "expired") return days < 0;
+    if (filter === "expiring_30") return days >= 0 && days <= 30;
+    if (filter === "expiring_90") return days >= 0 && days <= 90;
+    return true;
+  }, []);
+
   const filtered = useMemo(() => {
     return workers.filter(w => {
       const q = search.trim().toLowerCase();
@@ -53,37 +105,61 @@ export default function Workers() {
       const matchManager = managerFilter === "all" || String(w.managerId) === managerFilter;
       const matchLifecycle = lifecycleFilter === "all" || w.lifecycleStatus === lifecycleFilter;
       const matchDocument = documentFilter === "all" || w.documentStatus === documentFilter;
-      return matchSearch && matchManager && matchLifecycle && matchDocument;
+      const matchExpiry = matchesExpiryFilter(w.idExpiryDate, expiryFilter);
+      return matchSearch && matchManager && matchLifecycle && matchDocument && matchExpiry;
     });
-  }, [workers, search, managerFilter, lifecycleFilter, documentFilter, managerMap]);
+  }, [workers, search, managerFilter, lifecycleFilter, documentFilter, expiryFilter, managerMap, matchesExpiryFilter]);
 
-  // 統計卡
-  const stats = useMemo(() => ({
-    total: workers.length,
-    employed: workers.filter(w => w.lifecycleStatus === "employed").length,
-    pendingSupplement: workers.filter(w => w.documentStatus === "pending_supplement").length,
-    recruiting: workers.filter(w => w.lifecycleStatus === "recruiting").length,
-  }), [workers]);
+  // ─── 統計卡 ──────────────────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  const hasActiveFilter = search || managerFilter !== "all" || lifecycleFilter !== "all" || documentFilter !== "all";
+    const expiring30 = workers.filter(w => {
+      if (!w.idExpiryDate) return false;
+      const days = daysUntilExpiry(w.idExpiryDate);
+      return days >= 0 && days <= 30;
+    }).length;
+
+    const expired = workers.filter(w => {
+      if (!w.idExpiryDate) return false;
+      return daysUntilExpiry(w.idExpiryDate) < 0;
+    }).length;
+
+    return {
+      total: workers.length,
+      employed: workers.filter(w => w.lifecycleStatus === "employed").length,
+      pendingSupplement: workers.filter(w => w.documentStatus === "pending_supplement").length,
+      recruiting: workers.filter(w => w.lifecycleStatus === "recruiting").length,
+      expiring30,
+      expired,
+    };
+  }, [workers]);
+
+  const hasActiveFilter = search || managerFilter !== "all" || lifecycleFilter !== "all" || documentFilter !== "all" || expiryFilter !== "all";
 
   const clearAllFilters = useCallback(() => {
     setSearch("");
     setManagerFilter("all");
     setLifecycleFilter("all");
     setDocumentFilter("all");
+    setExpiryFilter("all");
   }, []);
 
   const openEdit = (id: number) => { setEditId(id); setModalOpen(true); };
   const openCreate = () => { setEditId(null); setModalOpen(true); };
 
-  // Stat card click → quick filter
-  const handleStatClick = (type: "employed" | "pendingSupplement" | "recruiting") => {
+  // 統計卡點擊快速篩選
+  const handleStatClick = (type: "employed" | "pendingSupplement" | "recruiting" | "expiring30") => {
     clearAllFilters();
     if (type === "employed") setLifecycleFilter("employed");
     else if (type === "pendingSupplement") setDocumentFilter("pending_supplement");
     else if (type === "recruiting") setLifecycleFilter("recruiting");
+    else if (type === "expiring30") setExpiryFilter("expiring_30");
   };
+
+  // 到期篩選標籤文字
+  const expiryFilterLabel = EXPIRY_QUICK_FILTERS.find(f => f.key === expiryFilter)?.label;
 
   return (
     <div className="p-6 space-y-5">
@@ -99,9 +175,9 @@ export default function Workers() {
         </Button>
       </div>
 
-      {/* 統計卡 — 可點擊快速篩選 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {/* 總數卡（不可點擊篩選） */}
+      {/* 統計卡 — 可點擊快速篩選（5 張） */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        {/* 總數（不可點擊） */}
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-muted-foreground font-medium">移工總數</span>
@@ -109,6 +185,7 @@ export default function Workers() {
           </div>
           <p className="text-2xl font-semibold text-foreground">{stats.total}</p>
         </div>
+
         {/* 可點擊篩選卡 */}
         {[
           {
@@ -125,6 +202,12 @@ export default function Workers() {
             label: "招募中", value: stats.recruiting, icon: UserSearch,
             color: "text-amber-500", type: "recruiting" as const,
             active: lifecycleFilter === "recruiting",
+          },
+          {
+            label: "30 天內到期", value: stats.expiring30, icon: CalendarClock,
+            color: stats.expiring30 > 0 ? "text-red-500" : "text-muted-foreground",
+            type: "expiring30" as const,
+            active: expiryFilter === "expiring_30",
           },
         ].map(card => (
           <button
@@ -149,9 +232,9 @@ export default function Workers() {
 
       {/* 搜尋與篩選列 */}
       <div className="space-y-2">
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
           {/* 搜尋框 */}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-48">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <Input
               ref={searchRef}
@@ -175,7 +258,7 @@ export default function Workers() {
 
           {/* 負責人篩選 */}
           <Select value={managerFilter} onValueChange={setManagerFilter}>
-            <SelectTrigger className="w-full sm:w-36">
+            <SelectTrigger className="w-full sm:w-32">
               <SelectValue placeholder="負責人" />
             </SelectTrigger>
             <SelectContent>
@@ -188,7 +271,7 @@ export default function Workers() {
 
           {/* 生命週期篩選 */}
           <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
-            <SelectTrigger className="w-full sm:w-36">
+            <SelectTrigger className="w-full sm:w-32">
               <SelectValue placeholder="生命週期" />
             </SelectTrigger>
             <SelectContent>
@@ -201,7 +284,7 @@ export default function Workers() {
 
           {/* 文件狀態篩選 */}
           <Select value={documentFilter} onValueChange={setDocumentFilter}>
-            <SelectTrigger className="w-full sm:w-36">
+            <SelectTrigger className="w-full sm:w-32">
               <SelectValue placeholder="文件狀態" />
             </SelectTrigger>
             <SelectContent>
@@ -211,11 +294,24 @@ export default function Workers() {
               ))}
             </SelectContent>
           </Select>
+
+          {/* 到期篩選 */}
+          <Select value={expiryFilter} onValueChange={v => setExpiryFilter(v as ExpiryFilter)}>
+            <SelectTrigger className={`w-full sm:w-36 ${expiryFilter !== "all" ? "border-amber-400 text-amber-600" : ""}`}>
+              <SelectValue placeholder="到期篩選" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部到期</SelectItem>
+              {EXPIRY_QUICK_FILTERS.map(f => (
+                <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* 篩選中提示列 */}
         {hasActiveFilter && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
             <span>
               顯示 <strong className="text-foreground">{filtered.length}</strong> / {workers.length} 筆
               {lifecycleFilter !== "all" && (
@@ -234,6 +330,13 @@ export default function Workers() {
                 <span className="ml-1.5 inline-flex items-center gap-1 bg-muted px-1.5 py-0.5 rounded">
                   {managerMap[parseInt(managerFilter)]}
                   <button onClick={() => setManagerFilter("all")} className="hover:text-destructive"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+              {expiryFilter !== "all" && (
+                <span className="ml-1.5 inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-700 px-1.5 py-0.5 rounded">
+                  <CalendarClock className="w-3 h-3" />
+                  {expiryFilterLabel}
+                  <button onClick={() => setExpiryFilter("all")} className="hover:text-destructive"><X className="w-3 h-3" /></button>
                 </span>
               )}
             </span>
@@ -260,13 +363,19 @@ export default function Workers() {
                 <th className="px-4 py-3 text-left hidden sm:table-cell">文件狀態</th>
                 <th className="px-4 py-3 text-left hidden lg:table-cell">負責人</th>
                 <th className="px-4 py-3 text-left hidden xl:table-cell">入境日期</th>
+                <th className="px-4 py-3 text-left hidden xl:table-cell">
+                  <span className="flex items-center gap-1">
+                    <CalendarClock className="w-3.5 h-3.5 text-amber-500" />
+                    證件到期日
+                  </span>
+                </th>
                 <th className="px-4 py-3 text-right w-20">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-14 text-center text-muted-foreground text-sm">
+                  <td colSpan={9} className="px-4 py-14 text-center text-muted-foreground text-sm">
                     <div className="flex flex-col items-center gap-2">
                       <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
                       載入中...
@@ -275,7 +384,7 @@ export default function Workers() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-14 text-center">
+                  <td colSpan={9} className="px-4 py-14 text-center">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <Users className="w-8 h-8 opacity-30" />
                       <p className="text-sm">
@@ -295,55 +404,71 @@ export default function Workers() {
                   </td>
                 </tr>
               ) : (
-                filtered.map(w => (
-                  <tr
-                    key={w.id}
-                    className="transition-colors cursor-default"
-                    onDoubleClick={() => openEdit(w.id)}
-                    title="雙擊編輯"
-                  >
-                    <td className="px-4 py-3.5 font-medium">{w.name}</td>
-                    <td className="px-4 py-3.5 hidden md:table-cell text-muted-foreground">{w.nationality || "—"}</td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-xs text-muted-foreground mr-1">{getStatusLabel(w.idType)}</span>
-                      <span className="font-mono text-sm">{w.idNumber}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <StatusBadge status={w.lifecycleStatus} />
-                    </td>
-                    <td className="px-4 py-3.5 hidden sm:table-cell">
-                      <StatusBadge status={w.documentStatus} />
-                    </td>
-                    <td className="px-4 py-3.5 hidden lg:table-cell text-muted-foreground">
-                      {managerMap[w.managerId] || "—"}
-                    </td>
-                    <td className="px-4 py-3.5 hidden xl:table-cell text-muted-foreground text-sm">
-                      {w.entryDate || "—"}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                          onClick={() => openEdit(w.id)}
-                          title="編輯"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => setDeleteId(w.id)}
-                          title="刪除"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                filtered.map(w => {
+                  const expiry = expiryInfo(w.idExpiryDate);
+                  return (
+                    <tr
+                      key={w.id}
+                      className={`transition-colors cursor-default ${expiry.urgent ? "bg-red-50/40 hover:bg-red-50/70" : ""}`}
+                      onDoubleClick={() => openEdit(w.id)}
+                      title="雙擊編輯"
+                    >
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium">{w.name}</span>
+                          {expiry.urgent && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-red-500 bg-red-50 border border-red-200 px-1 py-0.5 rounded">
+                              <CalendarClock className="w-2.5 h-2.5" />
+                              到期
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 hidden md:table-cell text-muted-foreground">{w.nationality || "—"}</td>
+                      <td className="px-4 py-3.5">
+                        <span className="text-xs text-muted-foreground mr-1">{getStatusLabel(w.idType)}</span>
+                        <span className="font-mono text-sm">{w.idNumber}</span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <StatusBadge status={w.lifecycleStatus} />
+                      </td>
+                      <td className="px-4 py-3.5 hidden sm:table-cell">
+                        <StatusBadge status={w.documentStatus} />
+                      </td>
+                      <td className="px-4 py-3.5 hidden lg:table-cell text-muted-foreground">
+                        {managerMap[w.managerId] || "—"}
+                      </td>
+                      <td className="px-4 py-3.5 hidden xl:table-cell text-muted-foreground text-sm">
+                        {w.entryDate || "—"}
+                      </td>
+                      <td className={`px-4 py-3.5 hidden xl:table-cell text-sm ${expiry.className}`}>
+                        {expiry.label}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                            onClick={() => openEdit(w.id)}
+                            title="編輯"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => setDeleteId(w.id)}
+                            title="刪除"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

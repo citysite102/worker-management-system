@@ -1,4 +1,5 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +55,7 @@ const EXPIRY_QUICK_FILTERS = [
 type ExpiryFilter = typeof EXPIRY_QUICK_FILTERS[number]["key"] | "all";
 
 export default function Workers() {
+  const searchParams = useSearch();
   const [search, setSearch] = useState("");
   const [managerFilter, setManagerFilter] = useState("all");
   const [lifecycleFilter, setLifecycleFilter] = useState("all");
@@ -63,6 +65,15 @@ export default function Workers() {
   const [editId, setEditId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // 讀取 URL 參數，支援通知鈴鐺點擊自動篩選
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    const expiry = params.get("expiry");
+    if (expiry && ["expiring_30", "expiring_90", "expired"].includes(expiry)) {
+      setExpiryFilter(expiry as ExpiryFilter);
+    }
+  }, [searchParams]);
 
   const utils = trpc.useUtils();
   const { data: workers = [], isLoading } = trpc.workers.list.useQuery();

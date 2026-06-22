@@ -28,15 +28,24 @@
   --color-input: oklch(0.922 0 0);
   --color-ring: oklch(0.708 0 0);
 
-  /* Status colors */
-  --color-status-green: oklch(0.527 0.154 150.069);
-  --color-status-green-bg: oklch(0.951 0.052 163.051);
-  --color-status-amber: oklch(0.666 0.179 58.318);
-  --color-status-amber-bg: oklch(0.973 0.071 103.193);
-  --color-status-red: oklch(0.577 0.245 27.325);
-  --color-status-red-bg: oklch(0.971 0.066 25.329);
-  --color-status-gray: oklch(0.556 0 0);
-  --color-status-gray-bg: oklch(0.97 0 0);
+  /* Status colors — 方向二：單一主色 + 語義灰階 */
+  /* 預設（正常）：灰底深字 */
+  --color-status-neutral: oklch(0.32 0 0);
+  --color-status-neutral-bg: oklch(0.94 0 0);
+  /* 警示（需注意）：琥珀色 — 唯一強調色 */
+  --color-status-amber: oklch(0.55 0.14 58.318);
+  --color-status-amber-bg: oklch(0.97 0.045 90);
+  /* 需行動（錯誤/缺件）：紅色 */
+  --color-status-red: oklch(0.52 0.2 27.325);
+  --color-status-red-bg: oklch(0.97 0.04 25.329);
+  /* 退場（已結束/離境）：極淡灰 */
+  --color-status-faded: oklch(0.72 0 0);
+  --color-status-faded-bg: oklch(0.975 0 0);
+  /* 保留相容舊版 */
+  --color-status-green: oklch(0.32 0 0);
+  --color-status-green-bg: oklch(0.94 0 0);
+  --color-status-gray: oklch(0.72 0 0);
+  --color-status-gray-bg: oklch(0.975 0 0);
 
   --font-sans: "Inter", "Noto Sans TC", system-ui, sans-serif;
 }
@@ -60,22 +69,34 @@
   }
 }
 
-/* Status badge styles */
+/* Status badge styles — 方向二：單一主色 + 語義灰階 */
+/* 正常狀態：灰底深字（服務中、已簽約、在職、完備等） */
 .status-green {
-  background-color: var(--color-status-green-bg);
-  color: var(--color-status-green);
+  background-color: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral);
 }
+/* 警示狀態：琥珀色（洽談中、待續約、招募中、文件辦理等） */
 .status-amber {
   background-color: var(--color-status-amber-bg);
   color: var(--color-status-amber);
+  font-weight: 500;
 }
+/* 需行動狀態：紅色（待補件、已取消） */
 .status-red {
   background-color: var(--color-status-red-bg);
   color: var(--color-status-red);
+  font-weight: 500;
 }
+/* 退場狀態：極淡灰（已結束、已離境、未啟動） */
 .status-gray {
-  background-color: var(--color-status-gray-bg);
-  color: var(--color-status-gray);
+  background-color: var(--color-status-faded-bg);
+  color: var(--color-status-faded);
+}
+/* 待處理（藍色→改為琥珀，統一警示色） */
+.status-blue {
+  background-color: var(--color-status-amber-bg);
+  color: var(--color-status-amber);
+  font-weight: 500;
 }
 
 /* Sidebar styles */

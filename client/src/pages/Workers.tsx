@@ -217,26 +217,33 @@ export default function Workers() {
           <p className="text-2xl font-semibold text-foreground">{stats.total}</p>
         </div>
 
-        {/* 可點擊篩選卡 */}
+        {/* 可點擊篩選卡 — 方向二：單一主色 + 語義灰階 */}
         {[
+          // 在職中 → 正常狀態，灰色系
           {
             label: "在職中", value: stats.employed, icon: Briefcase,
-            color: "text-green-600", type: "employed" as const,
+            warn: false, danger: false,
+            type: "employed" as const,
             active: lifecycleFilter === "employed",
           },
+          // 文件待補 → 需行動，紅色
           {
             label: "文件待補", value: stats.pendingSupplement, icon: FileWarning,
-            color: "text-red-500", type: "pendingSupplement" as const,
+            warn: false, danger: true,
+            type: "pendingSupplement" as const,
             active: documentFilter === "pending_supplement",
           },
+          // 招募中 → 警示，琥珀色
           {
             label: "招募中", value: stats.recruiting, icon: UserSearch,
-            color: "text-amber-500", type: "recruiting" as const,
+            warn: true, danger: false,
+            type: "recruiting" as const,
             active: lifecycleFilter === "recruiting",
           },
+          // 30 天內到期 → 有數則紅色警示，無則灰色
           {
             label: "30 天內到期", value: stats.expiring30, icon: CalendarClock,
-            color: stats.expiring30 > 0 ? "text-red-500" : "text-muted-foreground",
+            warn: false, danger: stats.expiring30 > 0,
             type: "expiring30" as const,
             active: expiryFilter === "expiring_30",
           },
@@ -247,16 +254,28 @@ export default function Workers() {
             onClick={() => card.active ? clearAllFilters() : handleStatClick(card.type)}
             className={`bg-card border rounded-lg p-4 text-left transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               card.active
-                ? "border-primary ring-1 ring-primary/20 bg-primary/5"
+                ? card.danger
+                  ? "border-red-400/60 ring-1 ring-red-400/20 bg-red-50/60 dark:bg-red-950/20"
+                  : card.warn
+                    ? "border-amber-400/60 ring-1 ring-amber-400/20 bg-amber-50/60 dark:bg-amber-950/20"
+                    : "border-foreground/30 ring-1 ring-foreground/10 bg-muted/50"
                 : "border-border hover:border-muted-foreground/30"
             }`}
             title={card.active ? "點擊取消篩選" : `點擊篩選「${card.label}」`}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-muted-foreground font-medium">{card.label}</span>
-              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <card.icon className={`w-4 h-4 ${
+                card.danger && card.value > 0 ? "text-red-500" :
+                card.warn && card.value > 0 ? "text-amber-500" :
+                "text-muted-foreground"
+              }`} />
             </div>
-            <p className={`text-2xl font-semibold ${card.color}`}>{card.value}</p>
+            <p className={`text-2xl font-semibold ${
+              card.danger && card.value > 0 ? "text-red-500" :
+              card.warn && card.value > 0 ? "text-amber-600" :
+              "text-foreground"
+            }`}>{card.value}</p>
           </button>
         ))}
       </div>

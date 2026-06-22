@@ -122,10 +122,10 @@ export default function Customers() {
           </div>
           <p className="text-2xl font-semibold text-foreground">{stats.total}</p>
         </div>
-        {/* 個人 / 公司 類型卡 */}
+        {/* 個人 / 公司 類型卡 — 灰色系，不用強調色 */}
         {[
-          { label: "個人雇主", value: stats.individual, icon: User, color: "text-blue-500", type: "individual" as const },
-          { label: "公司行號", value: stats.company, icon: Briefcase, color: "text-purple-500", type: "company" as const },
+          { label: "個人雇主", value: stats.individual, icon: User, type: "individual" as const },
+          { label: "公司行號", value: stats.company, icon: Briefcase, type: "company" as const },
         ].map(card => {
           const active = employerTypeFilter === card.type;
           return (
@@ -134,23 +134,26 @@ export default function Customers() {
               type="button"
               onClick={() => active ? clearAllFilters() : handleTypeClick(card.type)}
               className={`bg-card border rounded-lg p-4 text-left transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                active ? "border-primary ring-1 ring-primary/20 bg-primary/5" : "border-border hover:border-muted-foreground/30"
+                active ? "border-foreground/30 ring-1 ring-foreground/10 bg-muted/50" : "border-border hover:border-muted-foreground/30"
               }`}
               title={active ? "點擊取消篩選" : `點擊篩選「${card.label}」`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-muted-foreground font-medium">{card.label}</span>
-                <card.icon className={`w-4 h-4 ${card.color}`} />
+                <card.icon className="w-4 h-4 text-muted-foreground" />
               </div>
-              <p className={`text-2xl font-semibold ${card.color}`}>{card.value}</p>
+              <p className="text-2xl font-semibold text-foreground">{card.value}</p>
             </button>
           );
         })}
-        {/* 合約狀態快篩卡 */}
+        {/* 合約狀態快篩卡 — 只有「需注意」才用警示色 */}
         {[
-          { label: "服務中", value: stats.inService, icon: CheckCircle, color: "text-green-600", filterVal: "in_service" as const },
-          { label: "洽談中", value: stats.negotiating, icon: MessageSquare, color: "text-amber-500", filterVal: "negotiating" as const },
-          { label: "待續約", value: stats.pendingRenewal, icon: RefreshCw, color: "text-amber-500", filterVal: "pending_renewal" as const },
+          // 服務中 → 正常狀態，灰色系
+          { label: "服務中", value: stats.inService, icon: CheckCircle, warn: false, filterVal: "in_service" as const },
+          // 洽談中 → 警示，唯一強調色
+          { label: "洽談中", value: stats.negotiating, icon: MessageSquare, warn: true, filterVal: "negotiating" as const },
+          // 待續約 → 警示，唯一強調色
+          { label: "待續約", value: stats.pendingRenewal, icon: RefreshCw, warn: true, filterVal: "pending_renewal" as const },
         ].map(card => {
           const active = contractFilter === card.filterVal;
           return (
@@ -159,15 +162,21 @@ export default function Customers() {
               type="button"
               onClick={() => active ? clearAllFilters() : handleStatClick(card.filterVal)}
               className={`bg-card border rounded-lg p-4 text-left transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                active ? "border-primary ring-1 ring-primary/20 bg-primary/5" : "border-border hover:border-muted-foreground/30"
+                active
+                  ? card.warn
+                    ? "border-amber-400/60 ring-1 ring-amber-400/20 bg-amber-50/60 dark:bg-amber-950/20"
+                    : "border-foreground/30 ring-1 ring-foreground/10 bg-muted/50"
+                  : "border-border hover:border-muted-foreground/30"
               }`}
               title={active ? "點擊取消篩選" : `點擊篩選「${card.label}」`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-muted-foreground font-medium">{card.label}</span>
-                <card.icon className={`w-4 h-4 ${card.color}`} />
+                <card.icon className={`w-4 h-4 ${card.warn ? "text-amber-500" : "text-muted-foreground"}`} />
               </div>
-              <p className={`text-2xl font-semibold ${card.color}`}>{card.value}</p>
+              <p className={`text-2xl font-semibold ${
+                card.warn && card.value > 0 ? "text-amber-600" : "text-foreground"
+              }`}>{card.value}</p>
             </button>
           );
         })}
@@ -344,11 +353,11 @@ export default function Customers() {
                     <td className="px-4 py-3.5 font-medium">{c.name}</td>
                     <td className="px-4 py-3.5 hidden sm:table-cell">
                       {(c as any).employerType === "individual" ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/30 px-2 py-0.5 rounded-full">
+                        <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground tracking-wide">
                           <User className="w-3 h-3" />個人
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 dark:bg-purple-950/30 px-2 py-0.5 rounded-full">
+                        <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground tracking-wide">
                           <Briefcase className="w-3 h-3" />公司
                         </span>
                       )}

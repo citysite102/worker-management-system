@@ -128,3 +128,9 @@
 - [x] 通知鈴鐺新增體檢到期提醒（30天內）
 - [x] 列表頁更新欄位顯示（統一證碼/護照號碼）
 - [x] 30 個 Vitest 測試全部通過
+
+## 附件上傳 Bug 修正（v2.1）
+- [x] Bug 修正：KTP、居留證正面、居留證背面、護照、護照入境頁加上 `accept="image/*"`（原本預設為 `image/*,application/pdf`，可選到 PDF）
+- [x] Bug 修正：前端 FileUploadField 加入 `validateFileType` 函數，選取不符合類型的檔案時立即顯示 toast 錯誤
+- [x] Bug 修正：前端 sanitize 檔名為 `file_${Date.now()}.${ext}` 純 ASCII 格式，避免中文檔名導致 S3 presign 400 錯誤
+- [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤

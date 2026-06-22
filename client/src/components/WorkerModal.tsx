@@ -97,10 +97,32 @@ function FileUploadField({ label, fieldName, workerId, currentKey, onUploaded, a
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadMutation = trpc.workers.uploadFile.useMutation();
+  // 判斷是否為純圖片欄位（不允許 PDF）
+  const isImageOnly = accept === "image/*";
   const isImage = accept.startsWith("image");
   const hasFile = !!currentKey;
 
+  // 前端檔案類型驗證（在 input onChange 前再次防空）
+  const validateFileType = useCallback((file: File): boolean => {
+    const allowedTypes = accept.split(",").map(t => t.trim());
+    const isAllowed = allowedTypes.some(t => {
+      if (t === "image/*") return file.type.startsWith("image/");
+      if (t === "application/pdf") return file.type === "application/pdf";
+      return file.type === t;
+    });
+    if (!isAllowed) {
+      if (isImageOnly) {
+        toast.error(`此欄位僅支援圖片格式（JPG、PNG、WEBP 等），請勿上傳 PDF`);
+      } else {
+        toast.error(`此欄位僅支援圖片或 PDF 檔案`);
+      }
+      return false;
+    }
+    return true;
+  }, [accept, isImageOnly]);
+
   const handleFile = useCallback(async (file: File) => {
+    if (!validateFileType(file)) return;
     if (!workerId) {
       toast.error("請先儲存移工基本資料後再上傳附件");
       return;
@@ -112,10 +134,13 @@ function FileUploadField({ label, fieldName, workerId, currentKey, onUploaded, a
       let binary = "";
       for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
       const base64 = btoa(binary);
+      // 檔名 sanitize：移除非 ASCII 字元，保留副檔名
+      const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+      const safeFileName = `file_${Date.now()}.${ext}`;
       const result = await uploadMutation.mutateAsync({
         workerId,
         fieldName,
-        fileName: file.name,
+        fileName: safeFileName,
         fileBase64: base64,
         mimeType: file.type || "application/octet-stream",
       });
@@ -126,7 +151,7 @@ function FileUploadField({ label, fieldName, workerId, currentKey, onUploaded, a
     } finally {
       setUploading(false);
     }
-  }, [workerId, fieldName, label, uploadMutation, onUploaded]);
+  }, [workerId, fieldName, label, uploadMutation, onUploaded, validateFileType]);
 
   return (
     <div className="space-y-1.5">
@@ -508,11 +533,11 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FileUploadField label="大頭照" fieldName="photoKey" workerId={savedWorkerId} currentKey={photoKey} onUploaded={k => setValue("photoKey", k)} accept="image/*" />
-              <FileUploadField label="母國身分證（KTP）" fieldName="ktpKey" workerId={savedWorkerId} currentKey={ktpKey} onUploaded={k => setValue("ktpKey", k)} />
-              <FileUploadField label="居留證正面" fieldName="residentPermitFrontKey" workerId={savedWorkerId} currentKey={residentPermitFrontKey} onUploaded={k => setValue("residentPermitFrontKey", k)} />
-              <FileUploadField label="居留證被面" fieldName="residentPermitBackKey" workerId={savedWorkerId} currentKey={residentPermitBackKey} onUploaded={k => setValue("residentPermitBackKey", k)} />
-              <FileUploadField label="護照" fieldName="passportKey" workerId={savedWorkerId} currentKey={passportKey} onUploaded={k => setValue("passportKey", k)} />
-              <FileUploadField label="護照入境頁" fieldName="passportEntryKey" workerId={savedWorkerId} currentKey={passportEntryKey} onUploaded={k => setValue("passportEntryKey", k)} />
+              <FileUploadField label="母國身分證（KTP）" fieldName="ktpKey" workerId={savedWorkerId} currentKey={ktpKey} onUploaded={k => setValue("ktpKey", k)} accept="image/*" />
+              <FileUploadField label="居留證正面" fieldName="residentPermitFrontKey" workerId={savedWorkerId} currentKey={residentPermitFrontKey} onUploaded={k => setValue("residentPermitFrontKey", k)} accept="image/*" />
+              <FileUploadField label="居留證背面" fieldName="residentPermitBackKey" workerId={savedWorkerId} currentKey={residentPermitBackKey} onUploaded={k => setValue("residentPermitBackKey", k)} accept="image/*" />
+              <FileUploadField label="護照" fieldName="passportKey" workerId={savedWorkerId} currentKey={passportKey} onUploaded={k => setValue("passportKey", k)} accept="image/*" />
+              <FileUploadField label="護照入境頁" fieldName="passportEntryKey" workerId={savedWorkerId} currentKey={passportEntryKey} onUploaded={k => setValue("passportEntryKey", k)} accept="image/*" />
               <FileUploadField label="體檢報告" fieldName="medicalReportKey" workerId={savedWorkerId} currentKey={medicalReportKey} onUploaded={k => setValue("medicalReportKey", k)} accept="image/*,application/pdf" />
             </div>
           </div>

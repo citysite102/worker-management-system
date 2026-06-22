@@ -63,10 +63,16 @@ export function NotificationBell() {
         const item = makeItem((w as any).passportExpiry, "passport");
         if (item.days <= 90) items.push(item);
       }
-      // 體檢：下次可體檢日期（nextMedicalCheckDate）
-      if ((w as any).nextMedicalCheckDate) {
-        const item = makeItem((w as any).nextMedicalCheckDate, "medical");
-        if (item.days <= 90) items.push(item);
+      // 體檢：根據最近一次體檢日期自動計算下次可體檢日（+5個月）
+      const lastExam = (w as any).lastMedicalExamDate as string | undefined;
+      if (lastExam) {
+        const d = new Date(lastExam);
+        if (!isNaN(d.getTime())) {
+          d.setMonth(d.getMonth() + 5);
+          const nextExamStr = d.toISOString().slice(0, 10);
+          const item = makeItem(nextExamStr, "medical");
+          if (item.days <= 90) items.push(item);
+        }
       }
     });
     return items.sort((a, b) => a.days - b.days);

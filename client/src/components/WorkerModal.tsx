@@ -18,9 +18,10 @@ import { useFormEnterNav } from "@/hooks/useFormEnterNav";
 // ─── 選項定義 ─────────────────────────────────────────────────────────────────
 const NATIONALITY_OPTIONS = [
   { value: "印尼", label: "009 印尼" },
-  { value: "越南", label: "越南" },
-  { value: "菲律賓", label: "菲律賓" },
-  { value: "泰國", label: "泰國" },
+  { value: "越南", label: "084 越南" },
+  { value: "菲律賓", label: "608 菲律賓" },
+  { value: "泰國", label: "764 泰國" },
+  { value: "印度", label: "356 印度" },
   { value: "其他", label: "其他" },
 ];
 

@@ -97,10 +97,12 @@ export default function Workers() {
   }, [managers]);
 
   // ─── 到期篩選邏輯 ────────────────────────────────────────────────────────────
-  const matchesExpiryFilter = useCallback((idExpiryDate: string | null | undefined, filter: ExpiryFilter): boolean => {
+  const matchesExpiryFilter = useCallback((w: { residentPermitExpiry?: string | null; passportExpiry?: string | null }, filter: ExpiryFilter): boolean => {
     if (filter === "all") return true;
-    if (!idExpiryDate) return false;
-    const days = daysUntilExpiry(idExpiryDate);
+    // 取居留證或護照中較早到期的日期來判斷
+    const dates = [w.residentPermitExpiry, w.passportExpiry].filter(Boolean) as string[];
+    if (dates.length === 0) return false;
+    const days = Math.min(...dates.map(d => daysUntilExpiry(d)));
     if (filter === "expired") return days < 0;
     if (filter === "expiring_30") return days >= 0 && days <= 30;
     if (filter === "expiring_90") return days >= 0 && days <= 90;
@@ -110,15 +112,18 @@ export default function Workers() {
   const filtered = useMemo(() => {
     return workers.filter(w => {
       const q = search.trim().toLowerCase();
+      const displayName = w.nameCn || w.nameEn || w.name;
       const matchSearch = !q ||
-        w.name.toLowerCase().includes(q) ||
-        w.idNumber.toLowerCase().includes(q) ||
+        displayName.toLowerCase().includes(q) ||
+        (w.nameEn ?? "").toLowerCase().includes(q) ||
+        (w.residentPermitNo ?? "").toLowerCase().includes(q) ||
+        (w.passportNo ?? "").toLowerCase().includes(q) ||
         (w.nationality ?? "").toLowerCase().includes(q) ||
         (managerMap[w.managerId] ?? "").toLowerCase().includes(q);
       const matchManager = managerFilter === "all" || String(w.managerId) === managerFilter;
       const matchLifecycle = lifecycleFilter === "all" || w.lifecycleStatus === lifecycleFilter;
       const matchDocument = documentFilter === "all" || w.documentStatus === documentFilter;
-      const matchExpiry = matchesExpiryFilter(w.idExpiryDate, expiryFilter);
+      const matchExpiry = matchesExpiryFilter(w, expiryFilter);
       return matchSearch && matchManager && matchLifecycle && matchDocument && matchExpiry;
     });
   }, [workers, search, managerFilter, lifecycleFilter, documentFilter, expiryFilter, managerMap, matchesExpiryFilter]);
@@ -129,14 +134,16 @@ export default function Workers() {
     today.setHours(0, 0, 0, 0);
 
     const expiring30 = workers.filter(w => {
-      if (!w.idExpiryDate) return false;
-      const days = daysUntilExpiry(w.idExpiryDate);
+      const dates = [w.residentPermitExpiry, w.passportExpiry].filter(Boolean) as string[];
+      if (dates.length === 0) return false;
+      const days = Math.min(...dates.map(d => daysUntilExpiry(d)));
       return days >= 0 && days <= 30;
     }).length;
 
     const expired = workers.filter(w => {
-      if (!w.idExpiryDate) return false;
-      return daysUntilExpiry(w.idExpiryDate) < 0;
+      const dates = [w.residentPermitExpiry, w.passportExpiry].filter(Boolean) as string[];
+      if (dates.length === 0) return false;
+      return Math.min(...dates.map(d => daysUntilExpiry(d))) < 0;
     }).length;
 
     return {
@@ -429,7 +436,12 @@ export default function Workers() {
                 </tr>
               ) : (
                 filtered.map(w => {
-                  const expiry = expiryInfo(w.idExpiryDate);
+                  // 取居留證或護照中較早到期的日期顯示
+                  const earliestExpiry = [w.residentPermitExpiry, w.passportExpiry]
+                    .filter(Boolean)
+                    .sort()[0];
+                  const expiry = expiryInfo(earliestExpiry);
+                  const displayName = w.nameCn || w.nameEn || w.name;
                   return (
                     <tr
                       key={w.id}
@@ -439,7 +451,7 @@ export default function Workers() {
                     >
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-medium">{w.name}</span>
+                          <span className="font-medium">{displayName}</span>
                           {expiry.urgent && (
                             <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-red-500 bg-red-50 border border-red-200 px-1 py-0.5 rounded">
                               <CalendarClock className="w-2.5 h-2.5" />
@@ -462,8 +474,15 @@ export default function Workers() {
                       </td>
                       <td className="px-4 py-3.5 hidden md:table-cell text-muted-foreground">{w.nationality || "—"}</td>
                       <td className="px-4 py-3.5">
-                        <span className="text-xs text-muted-foreground mr-1">{getStatusLabel(w.idType)}</span>
-                        <span className="font-mono text-sm">{w.idNumber}</span>
+                        <div className="space-y-0.5">
+                          {w.residentPermitNo && (
+                            <div><span className="text-xs text-muted-foreground mr-1">居留證</span><span className="font-mono text-sm">{w.residentPermitNo}</span></div>
+                          )}
+                          {w.passportNo && (
+                            <div><span className="text-xs text-muted-foreground mr-1">護照</span><span className="font-mono text-sm">{w.passportNo}</span></div>
+                          )}
+                          {!w.residentPermitNo && !w.passportNo && <span className="text-muted-foreground">—</span>}
+                        </div>
                       </td>
                       <td className="px-4 py-3.5">
                         <StatusBadge status={w.lifecycleStatus} />
@@ -477,8 +496,20 @@ export default function Workers() {
                       <td className="px-4 py-3.5 hidden xl:table-cell text-muted-foreground text-sm">
                         {w.entryDate || "—"}
                       </td>
-                      <td className={`px-4 py-3.5 hidden xl:table-cell text-sm ${expiry.className}`}>
-                        {expiry.label}
+                      <td className="px-4 py-3.5 hidden xl:table-cell text-sm">
+                        <div className="space-y-0.5">
+                          {w.residentPermitExpiry && (
+                            <div className={expiryInfo(w.residentPermitExpiry).className}>
+                              <span className="text-xs text-muted-foreground mr-1">居留</span>{expiryInfo(w.residentPermitExpiry).label}
+                            </div>
+                          )}
+                          {w.passportExpiry && (
+                            <div className={expiryInfo(w.passportExpiry).className}>
+                              <span className="text-xs text-muted-foreground mr-1">護照</span>{expiryInfo(w.passportExpiry).label}
+                            </div>
+                          )}
+                          {!w.residentPermitExpiry && !w.passportExpiry && <span className="text-muted-foreground">—</span>}
+                        </div>
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center justify-end gap-1">

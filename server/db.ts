@@ -1,4 +1,4 @@
-import { eq, and, ne } from "drizzle-orm";
+import { and, eq, ne, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, managers, workers, customers, InsertManager, InsertWorker, InsertCustomer } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -60,8 +60,7 @@ export async function getAllManagers() {
 export async function createManager(data: InsertManager) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.insert(managers).values(data);
-  return result;
+  return db.insert(managers).values(data);
 }
 
 export async function deleteManager(id: number) {
@@ -84,21 +83,44 @@ export async function getWorkerById(id: number) {
   return result[0];
 }
 
-export async function getWorkerByIdNumber(idNumber: string, excludeId?: number) {
+/** 依居留證號查重（排除自身） */
+export async function getWorkerByPermitNo(permitNo: string, excludeId?: number) {
   const db = await getDb();
   if (!db) return undefined;
   const conditions = excludeId
-    ? and(eq(workers.idNumber, idNumber), ne(workers.id, excludeId))
-    : eq(workers.idNumber, idNumber);
+    ? and(eq(workers.residentPermitNo, permitNo), ne(workers.id, excludeId))
+    : eq(workers.residentPermitNo, permitNo);
   const result = await db.select().from(workers).where(conditions).limit(1);
   return result[0];
 }
 
-export async function createWorker(data: InsertWorker) {
+/** 依護照號查重（排除自身） */
+export async function getWorkerByPassportNo(passportNo: string, excludeId?: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const conditions = excludeId
+    ? and(eq(workers.passportNo, passportNo), ne(workers.id, excludeId))
+    : eq(workers.passportNo, passportNo);
+  const result = await db.select().from(workers).where(conditions).limit(1);
+  return result[0];
+}
+
+/** 相容舊版：依任一證號查重 */
+export async function getWorkerByIdNumber(idNumber: string, excludeId?: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const permitResult = await getWorkerByPermitNo(idNumber, excludeId);
+  if (permitResult) return permitResult;
+  return getWorkerByPassportNo(idNumber, excludeId);
+}
+
+export async function createWorker(data: InsertWorker): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const result = await db.insert(workers).values(data);
-  return result;
+  // MySQL insertId
+  const insertId = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return Number(insertId);
 }
 
 export async function updateWorker(id: number, data: Partial<InsertWorker>) {

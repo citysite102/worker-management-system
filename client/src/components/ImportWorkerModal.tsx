@@ -9,15 +9,15 @@ import { Upload, Download, CheckCircle2, XCircle, AlertTriangle, FileText, X } f
 
 // ─── CSV 欄位定義（與範本對應）────────────────────────────────────────────────
 const CSV_HEADERS = [
-  "姓名", "國籍", "證件類型", "證號", "生命週期狀態", "文件狀態",
-  "負責人ID", "聯絡電話", "入境日期", "證件到期日", "連結", "備註",
+  "英文姓名", "中文姓名", "國籍", "性別", "出生日期", "職業",
+  "統一證碼（居留證號）", "居留證有效日期", "護照號碼", "護照有效日期",
+  "入國日期", "在臺聯絡手機號碼", "電子信箱", "最近一次體檢日期",
+  "生命週期狀態", "文件狀態", "負責人ID", "連結", "備註",
 ];
 
-const ID_TYPE_MAP: Record<string, "resident_permit" | "passport"> = {
-  "居留證": "resident_permit",
-  "resident_permit": "resident_permit",
-  "護照": "passport",
-  "passport": "passport",
+const GENDER_MAP: Record<string, string> = {
+  "男": "male", "male": "male",
+  "女": "female", "female": "female",
 };
 
 const LIFECYCLE_MAP: Record<string, string> = {
@@ -48,15 +48,18 @@ const DOCUMENT_MAP: Record<string, string> = {
 function generateTemplateCsv(): string {
   const header = CSV_HEADERS.join(",");
   const example1 = [
-    "陳小明", "越南", "居留證", "A123456789", "在職", "完備",
-    "1", "0912345678", "2023-01-15", "2025-12-31",
-    "https://drive.google.com/...", "備註範例",
+    "INTAN SUSELA", "白茵瑤", "009 印尼", "女", "2003-09-12", "家庭看護工",
+    "F901260600", "2026-05-04", "E4608889", "2033-09-08",
+    "2026-05-04", "0972146087", "", "2026-05-06",
+    "在職", "完備", "1", "https://drive.google.com/...", "備註範例",
   ].join(",");
   const example2 = [
-    "Nguyen Van A", "越南", "護照", "VN123456", "招募中", "未啟動",
-    "2", "", "", "", "", "",
+    "Nguyen Van A", "阮文A", "越南", "男", "", "家庭看護工",
+    "", "", "VN123456", "",
+    "", "", "", "",
+    "招募中", "未啟動", "2", "", "",
   ].join(",");
-  const note = "# 說明：證件類型填「居留證」或「護照」；生命週期狀態填「招募中/文件辦理/在職/待續聘/已離境」；文件狀態填「未啟動/待補件/即將到期/完備」；負責人ID請參考設定頁";
+  const note = "# 說明：性別填「男」或「女」；生命週期狀態填「招募中/文件辦理/在職/待續聘/已離境」；文件狀態填「未啟動/待補件/即將到期/完備」；負責人ID請至設定頁查詢";
   return `${note}\n${header}\n${example1}\n${example2}\n`;
 }
 
@@ -65,16 +68,24 @@ interface ParsedRow {
   rowIndex: number;
   raw: string[];
   parsed?: {
+    nameEn?: string;
+    nameCn?: string;
     name: string;
     nationality?: string;
-    idType: "resident_permit" | "passport";
-    idNumber: string;
+    gender?: string;
+    birthDate?: string;
+    occupation?: string;
+    residentPermitNo?: string;
+    residentPermitExpiry?: string;
+    passportNo?: string;
+    passportExpiry?: string;
+    entryDate?: string;
+    phone?: string;
+    email?: string;
+    lastMedicalExamDate?: string;
     lifecycleStatus: string;
     documentStatus: string;
     managerId: number;
-    phone?: string;
-    entryDate?: string;
-    idExpiryDate?: string;
     externalLink?: string;
     notes?: string;
   };
@@ -109,7 +120,7 @@ function parseRows(csvText: string): ParsedRow[] {
   if (lines.length === 0) return [];
 
   // Skip header row
-  const dataLines = lines[0].startsWith("姓名") || lines[0].startsWith("name")
+  const dataLines = lines[0].startsWith("英文姓名") || lines[0].startsWith("姓名") || lines[0].startsWith("name")
     ? lines.slice(1)
     : lines;
 
@@ -118,22 +129,20 @@ function parseRows(csvText: string): ParsedRow[] {
     .map((line, idx) => {
       const raw = parseCsvLine(line);
       const [
-        name = "", nationality = "", idTypeRaw = "", idNumber = "",
-        lifecycleRaw = "", documentRaw = "", managerIdRaw = "",
-        phone = "", entryDate = "", idExpiryDate = "", externalLink = "", notes = "",
+        nameEn = "", nameCn = "", nationality = "", genderRaw = "", birthDate = "", occupation = "",
+        residentPermitNo = "", residentPermitExpiry = "", passportNo = "", passportExpiry = "",
+        entryDate = "", phone = "", email = "", lastMedicalExamDate = "",
+        lifecycleRaw = "", documentRaw = "", managerIdRaw = "", externalLink = "", notes = "",
       ] = raw;
 
       const rowIndex = idx + 1;
 
-      if (!name.trim()) {
-        return { rowIndex, raw, parseError: "姓名為必填" };
+      const displayName = nameCn.trim() || nameEn.trim();
+      if (!displayName) {
+        return { rowIndex, raw, parseError: "英文姓名或中文姓名至少填一個" };
       }
-      const idType = ID_TYPE_MAP[idTypeRaw.trim()];
-      if (!idType) {
-        return { rowIndex, raw, parseError: `證件類型「${idTypeRaw}」無效，請填「居留證」或「護照」` };
-      }
-      if (!idNumber.trim()) {
-        return { rowIndex, raw, parseError: "證號為必填" };
+      if (!residentPermitNo.trim() && !passportNo.trim()) {
+        return { rowIndex, raw, parseError: "統一證碼或護照號碼至少填一個" };
       }
       const lifecycleStatus = LIFECYCLE_MAP[lifecycleRaw.trim()];
       if (!lifecycleStatus) {
@@ -147,21 +156,33 @@ function parseRows(csvText: string): ParsedRow[] {
       if (!managerId || isNaN(managerId)) {
         return { rowIndex, raw, parseError: "負責人ID 必須為有效數字（請參考設定頁）" };
       }
+      const gender = genderRaw.trim() ? GENDER_MAP[genderRaw.trim()] : undefined;
+      if (genderRaw.trim() && !gender) {
+        return { rowIndex, raw, parseError: `性別「${genderRaw}」無效，請填「男」或「女」` };
+      }
 
       return {
         rowIndex,
         raw,
         parsed: {
-          name: name.trim(),
+          nameEn: nameEn.trim() || undefined,
+          nameCn: nameCn.trim() || undefined,
+          name: displayName,
           nationality: nationality.trim() || undefined,
-          idType,
-          idNumber: idNumber.trim(),
+          gender: gender || undefined,
+          birthDate: birthDate.trim() || undefined,
+          occupation: occupation.trim() || undefined,
+          residentPermitNo: residentPermitNo.trim() || undefined,
+          residentPermitExpiry: residentPermitExpiry.trim() || undefined,
+          passportNo: passportNo.trim() || undefined,
+          passportExpiry: passportExpiry.trim() || undefined,
+          entryDate: entryDate.trim() || undefined,
+          phone: phone.trim() || undefined,
+          email: email.trim() || undefined,
+          lastMedicalExamDate: lastMedicalExamDate.trim() || undefined,
           lifecycleStatus,
           documentStatus,
           managerId,
-          phone: phone.trim() || undefined,
-          entryDate: entryDate.trim() || undefined,
-          idExpiryDate: idExpiryDate.trim() || undefined,
           externalLink: externalLink.trim() || undefined,
           notes: notes.trim() || undefined,
         },
@@ -370,8 +391,8 @@ export function ImportWorkerModal({ open, onClose, onSuccess }: ImportWorkerModa
                       <th className="px-3 py-2 text-left font-medium text-muted-foreground w-8">#</th>
                       <th className="px-3 py-2 text-left font-medium text-muted-foreground">狀態</th>
                       <th className="px-3 py-2 text-left font-medium text-muted-foreground">姓名</th>
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">證件類型</th>
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">證號</th>
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">居留證號</th>
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">護照號碼</th>
                       <th className="px-3 py-2 text-left font-medium text-muted-foreground">生命週期</th>
                       <th className="px-3 py-2 text-left font-medium text-muted-foreground">說明</th>
                     </tr>
@@ -390,10 +411,10 @@ export function ImportWorkerModal({ open, onClose, onSuccess }: ImportWorkerModa
                             <CheckCircle2 className="w-4 h-4 text-green-500" />
                           )}
                         </td>
-                        <td className="px-3 py-2 font-medium">{row.raw[0] || "—"}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{row.raw[2] || "—"}</td>
-                        <td className="px-3 py-2 font-mono">{row.raw[3] || "—"}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{row.raw[4] || "—"}</td>
+                        <td className="px-3 py-2 font-medium">{row.raw[1] || row.raw[0] || "—"}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{row.raw[6] || "—"}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{row.raw[8] || "—"}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{row.raw[14] || "—"}</td>
                         <td className="px-3 py-2 text-red-500">{row.parseError || ""}</td>
                       </tr>
                     ))}

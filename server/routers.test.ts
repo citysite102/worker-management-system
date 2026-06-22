@@ -11,15 +11,16 @@ vi.mock("./db", () => ({
   deleteManager: vi.fn().mockResolvedValue({}),
   getAllWorkers: vi.fn().mockResolvedValue([]),
   getWorkerById: vi.fn().mockResolvedValue(undefined),
-  getWorkerByIdNumber: vi.fn().mockResolvedValue(undefined),
-  createWorker: vi.fn().mockResolvedValue({}),
+  getWorkerByPermitNo: vi.fn().mockResolvedValue(undefined),
+  getWorkerByPassportNo: vi.fn().mockResolvedValue(undefined),
+  createWorker: vi.fn().mockResolvedValue({ id: 1 }),
   updateWorker: vi.fn().mockResolvedValue({}),
   deleteWorker: vi.fn().mockResolvedValue({}),
   getAllCustomers: vi.fn().mockResolvedValue([]),
   getCustomerById: vi.fn().mockResolvedValue(undefined),
   getCustomerByTaxId: vi.fn().mockResolvedValue(undefined),
   getCustomerByName: vi.fn().mockResolvedValue(undefined),
-  createCustomer: vi.fn().mockResolvedValue({}),
+  createCustomer: vi.fn().mockResolvedValue({ id: 1 }),
   updateCustomer: vi.fn().mockResolvedValue({}),
   deleteCustomer: vi.fn().mockResolvedValue({}),
 }));
@@ -62,8 +63,7 @@ describe("workers.create validation", () => {
     await expect(
       caller.workers.create({
         name: "測試",
-        idType: "resident_permit",
-        idNumber: "1234567890", // invalid: starts with digit
+        residentPermitNo: "1234567890", // invalid: starts with digit
         lifecycleStatus: "employed",
         documentStatus: "complete",
         managerId: 1,
@@ -76,8 +76,7 @@ describe("workers.create validation", () => {
     await expect(
       caller.workers.create({
         name: "測試",
-        idType: "passport",
-        idNumber: "AB", // too short
+        passportNo: "AB", // too short
         lifecycleStatus: "employed",
         documentStatus: "complete",
         managerId: 1,
@@ -90,8 +89,7 @@ describe("workers.create validation", () => {
     await expect(
       caller.workers.create({
         name: "測試",
-        idType: "resident_permit",
-        idNumber: "A123456789",
+        residentPermitNo: "A123456789",
         lifecycleStatus: "employed",
         documentStatus: "not_started", // cross-field violation
         managerId: 1,
@@ -104,8 +102,7 @@ describe("workers.create validation", () => {
     await expect(
       caller.workers.create({
         name: "測試",
-        idType: "resident_permit",
-        idNumber: "A123456789",
+        residentPermitNo: "A123456789",
         lifecycleStatus: "employed",
         documentStatus: "pending_supplement",
         managerId: 1,
@@ -118,8 +115,7 @@ describe("workers.create validation", () => {
     await expect(
       caller.workers.create({
         name: "測試",
-        idType: "resident_permit",
-        idNumber: "A123456789",
+        residentPermitNo: "A123456789",
         lifecycleStatus: "employed",
         documentStatus: "complete",
         managerId: 1,
@@ -135,8 +131,7 @@ describe("workers.create externalLink validation", () => {
     await expect(
       caller.workers.create({
         name: "測試",
-        idType: "resident_permit",
-        idNumber: "A123456789",
+        residentPermitNo: "A123456789",
         lifecycleStatus: "employed",
         documentStatus: "complete",
         managerId: 1,
@@ -149,8 +144,7 @@ describe("workers.create externalLink validation", () => {
     const caller = appRouter.createCaller(createCtx());
     const result = await caller.workers.create({
       name: "測試",
-      idType: "resident_permit",
-      idNumber: "A123456789",
+      residentPermitNo: "A123456789",
       lifecycleStatus: "employed",
       documentStatus: "complete",
       managerId: 1,
@@ -164,8 +158,7 @@ describe("workers.create externalLink validation", () => {
     await expect(
       caller.workers.create({
         name: "測試",
-        idType: "resident_permit",
-        idNumber: "A123456789",
+        residentPermitNo: "A123456789",
         lifecycleStatus: "employed",
         documentStatus: "complete",
         managerId: 1,
@@ -180,8 +173,9 @@ describe("workers.import batch import", () => {
     vi.clearAllMocks();
     // Reset mocks to default state (no duplicate, create succeeds)
     const db = await import("./db");
-    vi.mocked(db.getWorkerByIdNumber).mockResolvedValue(undefined);
-    vi.mocked(db.createWorker).mockResolvedValue({} as any);
+    vi.mocked(db.getWorkerByPermitNo).mockResolvedValue(undefined);
+    vi.mocked(db.getWorkerByPassportNo).mockResolvedValue(undefined);
+    vi.mocked(db.createWorker).mockResolvedValue({ id: 1 } as any);
   });
 
   it("imports valid rows and returns successCount", async () => {
@@ -190,16 +184,14 @@ describe("workers.import batch import", () => {
       rows: [
         {
           name: "測試一",
-          idType: "resident_permit",
-          idNumber: "A123456789",
+          residentPermitNo: "A123456789",
           lifecycleStatus: "employed",
           documentStatus: "complete",
           managerId: 1,
         },
         {
           name: "測試二",
-          idType: "passport",
-          idNumber: "VN123456",
+          passportNo: "VN123456",
           lifecycleStatus: "recruiting",
           documentStatus: "not_started",
           managerId: 1,
@@ -216,16 +208,14 @@ describe("workers.import batch import", () => {
       rows: [
         {
           name: "測試一",
-          idType: "resident_permit",
-          idNumber: "INVALID", // bad format
+          residentPermitNo: "INVALID", // bad format: not starting with letter
           lifecycleStatus: "employed",
           documentStatus: "complete",
           managerId: 1,
         },
         {
           name: "測試二",
-          idType: "passport",
-          idNumber: "VN123456",
+          passportNo: "VN123456",
           lifecycleStatus: "recruiting",
           documentStatus: "not_started",
           managerId: 1,

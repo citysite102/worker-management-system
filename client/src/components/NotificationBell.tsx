@@ -15,7 +15,8 @@ function daysUntilExpiry(dateStr: string): number {
 type NotificationItem = {
   id: number;
   name: string;
-  idExpiryDate: string;
+  expiryDate: string;
+  expiryType: "resident" | "passport" | "medical";
   days: number;
   managerName: string;
   urgency: "expired" | "critical" | "warning"; // 已過期 / 30天內 / 90天內
@@ -36,24 +37,39 @@ export function NotificationBell() {
     return map;
   }, [managers]);
 
-  // 計算所有 90 天內到期或已過期的移工
+  // 計算所有 90 天內到期或已過期的移工（居留證 + 護照 + 體檢）
   const notifications = useMemo((): NotificationItem[] => {
-    return workers
-      .filter(w => w.idExpiryDate)
-      .map(w => ({
-        id: w.id,
-        name: w.name,
-        idExpiryDate: w.idExpiryDate!,
-        days: daysUntilExpiry(w.idExpiryDate!),
-        managerName: managerMap[w.managerId] ?? "—",
-        urgency: (daysUntilExpiry(w.idExpiryDate!) < 0
-          ? "expired"
-          : daysUntilExpiry(w.idExpiryDate!) <= 30
-            ? "critical"
-            : "warning") as NotificationItem["urgency"],
-      }))
-      .filter(n => n.days <= 90)
-      .sort((a, b) => a.days - b.days); // 最緊急排最前
+    const items: NotificationItem[] = [];
+    workers.forEach(w => {
+      const displayName = (w as any).nameCn || (w as any).nameEn || (w as any).name || "—";
+      const managerName = managerMap[w.managerId] ?? "—";
+      const makeItem = (dateStr: string, type: NotificationItem["expiryType"]): NotificationItem => {
+        const days = daysUntilExpiry(dateStr);
+        return {
+          id: w.id,
+          name: displayName,
+          expiryDate: dateStr,
+          expiryType: type,
+          days,
+          managerName,
+          urgency: (days < 0 ? "expired" : days <= 30 ? "critical" : "warning") as NotificationItem["urgency"],
+        };
+      };
+      if ((w as any).residentPermitExpiry) {
+        const item = makeItem((w as any).residentPermitExpiry, "resident");
+        if (item.days <= 90) items.push(item);
+      }
+      if ((w as any).passportExpiry) {
+        const item = makeItem((w as any).passportExpiry, "passport");
+        if (item.days <= 90) items.push(item);
+      }
+      // 體檢：下次可體檢日期（nextMedicalCheckDate）
+      if ((w as any).nextMedicalCheckDate) {
+        const item = makeItem((w as any).nextMedicalCheckDate, "medical");
+        if (item.days <= 90) items.push(item);
+      }
+    });
+    return items.sort((a, b) => a.days - b.days);
   }, [workers, managerMap]);
 
   const expiredCount = notifications.filter(n => n.urgency === "expired").length;
@@ -129,7 +145,7 @@ export function NotificationBell() {
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CalendarClock className="w-4 h-4 text-amber-500" />
-              <span className="text-sm font-semibold text-foreground">證件到期提醒</span>
+              <span className="text-sm font-semibold text-foreground">到期提醒</span>
             </div>
             {notifications.length > 0 && (
               <span className="text-xs text-muted-foreground">
@@ -177,7 +193,7 @@ export function NotificationBell() {
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-muted-foreground">
-                            到期日：{n.idExpiryDate}
+                            {n.expiryType === "resident" ? "居留證" : n.expiryType === "passport" ? "護照" : "體檢"}到期：{n.expiryDate}
                           </span>
                           <span className="text-muted-foreground/40">·</span>
                           <span className="text-xs text-muted-foreground truncate">

@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CustomerModal } from "@/components/CustomerModal";
-import { getStatusLabel, CONTRACT_STATUS_OPTIONS, PRICING_TIER_OPTIONS } from "@/lib/constants";
+import { getStatusLabel, CONTRACT_STATUS_OPTIONS, PRICING_TIER_OPTIONS, EMPLOYER_TYPE_OPTIONS } from "@/lib/constants";
 import { toast } from "sonner";
-import { Plus, Search, Pencil, Trash2, Building2, CheckCircle, MessageSquare, RefreshCw, X } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Building2, CheckCircle, MessageSquare, RefreshCw, X, User, Briefcase } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -18,6 +18,7 @@ export default function Customers() {
   const [managerFilter, setManagerFilter] = useState("all");
   const [contractFilter, setContractFilter] = useState("all");
   const [pricingFilter, setPricingFilter] = useState("all");
+  const [employerTypeFilter, setEmployerTypeFilter] = useState("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -45,34 +46,42 @@ export default function Customers() {
   const filtered = useMemo(() => {
     return customers.filter(c => {
       const q = search.trim().toLowerCase();
+      const ca = c as any;
       const matchSearch = !q ||
         c.name.toLowerCase().includes(q) ||
         (c.taxId ?? "").toLowerCase().includes(q) ||
         (c.industry ?? "").toLowerCase().includes(q) ||
         (c.contactName ?? "").toLowerCase().includes(q) ||
+        (ca.employerNo ?? "").toLowerCase().includes(q) ||
+        (ca.idNo ?? "").toLowerCase().includes(q) ||
+        (ca.phone ?? "").toLowerCase().includes(q) ||
         (managerMap[c.managerId] ?? "").toLowerCase().includes(q);
       const matchManager = managerFilter === "all" || String(c.managerId) === managerFilter;
       const matchContract = contractFilter === "all" || c.contractStatus === contractFilter;
       const matchPricing = pricingFilter === "all" || c.pricingTier === pricingFilter;
-      return matchSearch && matchManager && matchContract && matchPricing;
+      const matchEmployerType = employerTypeFilter === "all" || (ca.employerType ?? "company") === employerTypeFilter;
+      return matchSearch && matchManager && matchContract && matchPricing && matchEmployerType;
     });
-  }, [customers, search, managerFilter, contractFilter, pricingFilter, managerMap]);
+  }, [customers, search, managerFilter, contractFilter, pricingFilter, employerTypeFilter, managerMap]);
 
   // 統計卡
   const stats = useMemo(() => ({
     total: customers.length,
+    individual: customers.filter(c => (c as any).employerType === "individual").length,
+    company: customers.filter(c => (c as any).employerType === "company" || !(c as any).employerType).length,
     inService: customers.filter(c => c.contractStatus === "in_service").length,
     negotiating: customers.filter(c => c.contractStatus === "negotiating").length,
     pendingRenewal: customers.filter(c => c.contractStatus === "pending_renewal").length,
   }), [customers]);
 
-  const hasActiveFilter = search || managerFilter !== "all" || contractFilter !== "all" || pricingFilter !== "all";
+  const hasActiveFilter = search || managerFilter !== "all" || contractFilter !== "all" || pricingFilter !== "all" || employerTypeFilter !== "all";
 
   const clearAllFilters = useCallback(() => {
     setSearch("");
     setManagerFilter("all");
     setContractFilter("all");
     setPricingFilter("all");
+    setEmployerTypeFilter("all");
   }, []);
 
   const openEdit = (id: number) => { setEditId(id); setModalOpen(true); };
@@ -82,6 +91,11 @@ export default function Customers() {
   const handleStatClick = (type: "in_service" | "negotiating" | "pending_renewal") => {
     clearAllFilters();
     setContractFilter(type);
+  };
+
+  const handleTypeClick = (type: "individual" | "company") => {
+    clearAllFilters();
+    setEmployerTypeFilter(type);
   };
 
   return (
@@ -94,34 +108,49 @@ export default function Customers() {
         </div>
         <Button onClick={openCreate} size="sm" className="gap-1.5">
           <Plus className="w-4 h-4" />
-          新增客戶
+          新增雇主
         </Button>
       </div>
 
       {/* 統計卡 — 可點擊快速篩選 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         {/* 總數卡（不可點擊篩選） */}
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground font-medium">客戶總數</span>
+            <span className="text-xs text-muted-foreground font-medium">雇主總數</span>
             <Building2 className="w-4 h-4 text-foreground" />
           </div>
           <p className="text-2xl font-semibold text-foreground">{stats.total}</p>
         </div>
-        {/* 可點擊篩選卡 */}
+        {/* 個人 / 公司 類型卡 */}
         {[
-          {
-            label: "服務中", value: stats.inService, icon: CheckCircle,
-            color: "text-green-600", filterVal: "in_service" as const,
-          },
-          {
-            label: "洽談中", value: stats.negotiating, icon: MessageSquare,
-            color: "text-amber-500", filterVal: "negotiating" as const,
-          },
-          {
-            label: "待續約", value: stats.pendingRenewal, icon: RefreshCw,
-            color: "text-amber-500", filterVal: "pending_renewal" as const,
-          },
+          { label: "個人雇主", value: stats.individual, icon: User, color: "text-blue-500", type: "individual" as const },
+          { label: "公司行號", value: stats.company, icon: Briefcase, color: "text-purple-500", type: "company" as const },
+        ].map(card => {
+          const active = employerTypeFilter === card.type;
+          return (
+            <button
+              key={card.label}
+              type="button"
+              onClick={() => active ? clearAllFilters() : handleTypeClick(card.type)}
+              className={`bg-card border rounded-lg p-4 text-left transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                active ? "border-primary ring-1 ring-primary/20 bg-primary/5" : "border-border hover:border-muted-foreground/30"
+              }`}
+              title={active ? "點擊取消篩選" : `點擊篩選「${card.label}」`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-muted-foreground font-medium">{card.label}</span>
+                <card.icon className={`w-4 h-4 ${card.color}`} />
+              </div>
+              <p className={`text-2xl font-semibold ${card.color}`}>{card.value}</p>
+            </button>
+          );
+        })}
+        {/* 合約狀態快篩卡 */}
+        {[
+          { label: "服務中", value: stats.inService, icon: CheckCircle, color: "text-green-600", filterVal: "in_service" as const },
+          { label: "洽談中", value: stats.negotiating, icon: MessageSquare, color: "text-amber-500", filterVal: "negotiating" as const },
+          { label: "待續約", value: stats.pendingRenewal, icon: RefreshCw, color: "text-amber-500", filterVal: "pending_renewal" as const },
         ].map(card => {
           const active = contractFilter === card.filterVal;
           return (
@@ -130,9 +159,7 @@ export default function Customers() {
               type="button"
               onClick={() => active ? clearAllFilters() : handleStatClick(card.filterVal)}
               className={`bg-card border rounded-lg p-4 text-left transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                active
-                  ? "border-primary ring-1 ring-primary/20 bg-primary/5"
-                  : "border-border hover:border-muted-foreground/30"
+                active ? "border-primary ring-1 ring-primary/20 bg-primary/5" : "border-border hover:border-muted-foreground/30"
               }`}
               title={active ? "點擊取消篩選" : `點擊篩選「${card.label}」`}
             >
@@ -198,6 +225,19 @@ export default function Customers() {
             </SelectContent>
           </Select>
 
+          {/* 雇主類型篩選 */}
+          <Select value={employerTypeFilter} onValueChange={setEmployerTypeFilter}>
+            <SelectTrigger className="w-full sm:w-32">
+              <SelectValue placeholder="雇主類型" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部類型</SelectItem>
+              {EMPLOYER_TYPE_OPTIONS.map(o => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           {/* 定價篩選 */}
           <Select value={pricingFilter} onValueChange={setPricingFilter}>
             <SelectTrigger className="w-full sm:w-32">
@@ -253,12 +293,12 @@ export default function Customers() {
             <thead>
               <tr>
                 <th className="px-4 py-3 text-left">名稱</th>
-                <th className="px-4 py-3 text-left hidden md:table-cell">統一編號</th>
-                <th className="px-4 py-3 text-left hidden lg:table-cell">產業</th>
+                <th className="px-4 py-3 text-left hidden sm:table-cell">類型</th>
+                <th className="px-4 py-3 text-left hidden md:table-cell">編號</th>
+                <th className="px-4 py-3 text-left hidden lg:table-cell">電話</th>
                 <th className="px-4 py-3 text-left">合約狀態</th>
-                <th className="px-4 py-3 text-left hidden sm:table-cell">定價</th>
                 <th className="px-4 py-3 text-left hidden lg:table-cell">負責人</th>
-                <th className="px-4 py-3 text-left hidden xl:table-cell">聯絡窗口</th>
+                <th className="px-4 py-3 text-left hidden xl:table-cell">案件狀態</th>
                 <th className="px-4 py-3 text-right w-20">操作</th>
               </tr>
             </thead>
@@ -302,23 +342,31 @@ export default function Customers() {
                     title="雙擊編輯"
                   >
                     <td className="px-4 py-3.5 font-medium">{c.name}</td>
-                    <td className="px-4 py-3.5 hidden md:table-cell">
-                      <span className="font-mono text-sm text-muted-foreground">{c.taxId || "—"}</span>
+                    <td className="px-4 py-3.5 hidden sm:table-cell">
+                      {(c as any).employerType === "individual" ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/30 px-2 py-0.5 rounded-full">
+                          <User className="w-3 h-3" />個人
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 dark:bg-purple-950/30 px-2 py-0.5 rounded-full">
+                          <Briefcase className="w-3 h-3" />公司
+                        </span>
+                      )}
                     </td>
-                    <td className="px-4 py-3.5 hidden lg:table-cell text-muted-foreground">{c.industry || "—"}</td>
+                    <td className="px-4 py-3.5 hidden md:table-cell">
+                      <span className="font-mono text-sm text-muted-foreground">{(c as any).employerNo || c.taxId || "—"}</span>
+                    </td>
+                    <td className="px-4 py-3.5 hidden lg:table-cell text-muted-foreground text-sm">
+                      {(c as any).phone || c.contactPhone || "—"}
+                    </td>
                     <td className="px-4 py-3.5">
                       <StatusBadge status={c.contractStatus} />
-                    </td>
-                    <td className="px-4 py-3.5 hidden sm:table-cell">
-                      <span className="text-sm text-muted-foreground">{getStatusLabel(c.pricingTier)}</span>
                     </td>
                     <td className="px-4 py-3.5 hidden lg:table-cell text-muted-foreground">
                       {managerMap[c.managerId] || "—"}
                     </td>
-                    <td className="px-4 py-3.5 hidden xl:table-cell text-muted-foreground text-sm">
-                      {c.contactName
-                        ? `${c.contactName}${c.contactPhone ? ` · ${c.contactPhone}` : ""}`
-                        : "—"}
+                    <td className="px-4 py-3.5 hidden xl:table-cell">
+                      {(c as any).caseStatus ? <StatusBadge status={(c as any).caseStatus} /> : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center justify-end gap-1">

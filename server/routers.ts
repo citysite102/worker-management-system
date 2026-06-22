@@ -56,14 +56,60 @@ const workerInput = z.object({
 });
 
 const customerInput = z.object({
-  name: z.string().min(2, "名稱至少 2 字").max(50, "名稱最多 50 字").transform(s => s.trim()),
+  // 雇主類型
+  employerType: z.enum(["individual", "company"]).default("company"),
+  // 基本資料
+  name: z.string().min(2, "名稱至少 2 字").max(100, "名稱最多 100 字").transform(s => s.trim()),
+  employerNo: z.string().max(20).optional().transform(s => s?.trim() || undefined),
+  phone: z.string().optional().transform(s => s?.trim() || undefined),
+  landline: z.string().optional().transform(s => s?.trim() || undefined),
+  address: z.string().max(200).optional().transform(s => s?.trim() || undefined),
+  registeredAddress: z.string().max(200).optional().transform(s => s?.trim() || undefined),
+  referrer: z.string().max(100).optional().transform(s => s?.trim() || undefined),
+  // 個人雇主專屬
+  idNo: z.string().max(12).optional().transform(s => s?.trim() || undefined),
+  preCourseNo: z.string().max(50).optional().transform(s => s?.trim() || undefined),
+  idFrontKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+  idBackKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+  // 被照顧者資料
+  careReceiverNo: z.string().max(20).optional().transform(s => s?.trim() || undefined),
+  careReceiverName: z.string().max(50).optional().transform(s => s?.trim() || undefined),
+  careReceiverBirthDate: z.string().optional().transform(s => s?.trim() || undefined),
+  careReceiverIdNo: z.string().max(12).optional().transform(s => s?.trim() || undefined),
+  careReceiverAddress: z.string().max(200).optional().transform(s => s?.trim() || undefined),
+  careReceiverQualification: z.string().max(100).optional().transform(s => s?.trim() || undefined),
+  careReceiverRelation: z.string().max(50).optional().transform(s => s?.trim() || undefined),
+  careReceiverIdFrontKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+  careReceiverIdBackKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+  // 公司行號專屬
   taxId: z.string().optional().transform(s => s?.trim() || undefined),
   industry: z.string().max(50).optional().transform(s => s?.trim() || undefined),
+  contactName: z.string().max(50).optional().transform(s => s?.trim() || undefined),
+  contactPhone: z.string().optional().transform(s => s?.trim() || undefined),
+  // 媒合案件
+  caseNo: z.string().max(20).optional().transform(s => s?.trim() || undefined),
+  caseStatus: z.enum(["pending", "processing", "matched", "completed", "cancelled"]).optional(),
+  // 申請資格
+  jobSeekerType: z.enum(["new_hire", "renewal", "transfer", "supplement"]).optional(),
+  jobSeekerDate: z.string().optional().transform(s => s?.trim() || undefined),
+  jobSeekerFileKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+  recruitmentLetterType: z.enum(["domestic", "overseas", "both"]).optional(),
+  recruitmentLetterDate: z.string().optional().transform(s => s?.trim() || undefined),
+  recruitmentLetterFileKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+  recruitmentPermitNote: z.string().optional().transform(s => s?.trim() || undefined),
+  recruitmentPermitDays: z.number().int().optional(),
+  previousWorkerDepartureDate: z.string().optional().transform(s => s?.trim() || undefined),
+  // 聘僱函
+  employmentLetterType: z.enum(["initial", "renewal", "transfer"]).optional(),
+  employmentLetterDate: z.string().optional().transform(s => s?.trim() || undefined),
+  employmentLetterFileKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+  approvedStartDate: z.string().optional().transform(s => s?.trim() || undefined),
+  approvedPeriod: z.string().max(50).optional().transform(s => s?.trim() || undefined),
+  approvedEndDate: z.string().optional().transform(s => s?.trim() || undefined),
+  // 系統欄位
   contractStatus: z.enum(["negotiating", "signed", "in_service", "pending_renewal", "ended"]),
   pricingTier: z.enum(["standard", "custom"]),
   managerId: z.number().int().positive("負責人為必填"),
-  contactName: z.string().max(50).optional().transform(s => s?.trim() || undefined),
-  contactPhone: z.string().optional().transform(s => s?.trim() || undefined),
   notes: z.string().optional().transform(s => s?.trim() || undefined),
   forceCreate: z.boolean().optional(),
 });
@@ -382,10 +428,55 @@ export const appRouter = router({
           if (existingName) throw new TRPCError({ code: "CONFLICT", message: "DUPLICATE_NAME:已存在同名客戶，確定要繼續建立嗎？" });
         }
         const contactPhone = input.contactPhone ? normalizePhone(input.contactPhone) : undefined;
+        const phone = input.phone ? normalizePhone(input.phone) : undefined;
+        const landline = input.landline ? normalizePhone(input.landline) : undefined;
         await createCustomer({
-          name: input.name, taxId: input.taxId || null, industry: input.industry || null,
-          contractStatus: input.contractStatus, pricingTier: input.pricingTier, managerId: input.managerId,
-          contactName: input.contactName || null, contactPhone: contactPhone || null, notes: input.notes || null,
+          employerType: input.employerType,
+          name: input.name,
+          employerNo: input.employerNo || null,
+          phone: phone || null,
+          landline: landline || null,
+          address: input.address || null,
+          registeredAddress: input.registeredAddress || null,
+          referrer: input.referrer || null,
+          idNo: input.idNo || null,
+          preCourseNo: input.preCourseNo || null,
+          idFrontKey: input.idFrontKey || null,
+          idBackKey: input.idBackKey || null,
+          careReceiverNo: input.careReceiverNo || null,
+          careReceiverName: input.careReceiverName || null,
+          careReceiverBirthDate: input.careReceiverBirthDate || null,
+          careReceiverIdNo: input.careReceiverIdNo || null,
+          careReceiverAddress: input.careReceiverAddress || null,
+          careReceiverQualification: input.careReceiverQualification || null,
+          careReceiverRelation: input.careReceiverRelation || null,
+          careReceiverIdFrontKey: input.careReceiverIdFrontKey || null,
+          careReceiverIdBackKey: input.careReceiverIdBackKey || null,
+          taxId: input.taxId || null,
+          industry: input.industry || null,
+          contactName: input.contactName || null,
+          contactPhone: contactPhone || null,
+          caseNo: input.caseNo || null,
+          caseStatus: input.caseStatus || null,
+          jobSeekerType: input.jobSeekerType || null,
+          jobSeekerDate: input.jobSeekerDate || null,
+          jobSeekerFileKey: input.jobSeekerFileKey || null,
+          recruitmentLetterType: input.recruitmentLetterType || null,
+          recruitmentLetterDate: input.recruitmentLetterDate || null,
+          recruitmentLetterFileKey: input.recruitmentLetterFileKey || null,
+          recruitmentPermitNote: input.recruitmentPermitNote || null,
+          recruitmentPermitDays: input.recruitmentPermitDays ?? null,
+          previousWorkerDepartureDate: input.previousWorkerDepartureDate || null,
+          employmentLetterType: input.employmentLetterType || null,
+          employmentLetterDate: input.employmentLetterDate || null,
+          employmentLetterFileKey: input.employmentLetterFileKey || null,
+          approvedStartDate: input.approvedStartDate || null,
+          approvedPeriod: input.approvedPeriod || null,
+          approvedEndDate: input.approvedEndDate || null,
+          contractStatus: input.contractStatus,
+          pricingTier: input.pricingTier,
+          managerId: input.managerId,
+          notes: input.notes || null,
         });
         return { success: true };
       }),
@@ -395,10 +486,55 @@ export const appRouter = router({
         const { id, ...data } = input;
         await validateCustomerData(data, id)();
         const contactPhone = data.contactPhone ? normalizePhone(data.contactPhone) : undefined;
+        const phone = data.phone ? normalizePhone(data.phone) : undefined;
+        const landline = data.landline ? normalizePhone(data.landline) : undefined;
         await updateCustomer(id, {
-          name: data.name, taxId: data.taxId || null, industry: data.industry || null,
-          contractStatus: data.contractStatus, pricingTier: data.pricingTier, managerId: data.managerId,
-          contactName: data.contactName || null, contactPhone: contactPhone || null, notes: data.notes || null,
+          employerType: data.employerType,
+          name: data.name,
+          employerNo: data.employerNo || null,
+          phone: phone || null,
+          landline: landline || null,
+          address: data.address || null,
+          registeredAddress: data.registeredAddress || null,
+          referrer: data.referrer || null,
+          idNo: data.idNo || null,
+          preCourseNo: data.preCourseNo || null,
+          idFrontKey: data.idFrontKey || null,
+          idBackKey: data.idBackKey || null,
+          careReceiverNo: data.careReceiverNo || null,
+          careReceiverName: data.careReceiverName || null,
+          careReceiverBirthDate: data.careReceiverBirthDate || null,
+          careReceiverIdNo: data.careReceiverIdNo || null,
+          careReceiverAddress: data.careReceiverAddress || null,
+          careReceiverQualification: data.careReceiverQualification || null,
+          careReceiverRelation: data.careReceiverRelation || null,
+          careReceiverIdFrontKey: data.careReceiverIdFrontKey || null,
+          careReceiverIdBackKey: data.careReceiverIdBackKey || null,
+          taxId: data.taxId || null,
+          industry: data.industry || null,
+          contactName: data.contactName || null,
+          contactPhone: contactPhone || null,
+          caseNo: data.caseNo || null,
+          caseStatus: data.caseStatus || null,
+          jobSeekerType: data.jobSeekerType || null,
+          jobSeekerDate: data.jobSeekerDate || null,
+          jobSeekerFileKey: data.jobSeekerFileKey || null,
+          recruitmentLetterType: data.recruitmentLetterType || null,
+          recruitmentLetterDate: data.recruitmentLetterDate || null,
+          recruitmentLetterFileKey: data.recruitmentLetterFileKey || null,
+          recruitmentPermitNote: data.recruitmentPermitNote || null,
+          recruitmentPermitDays: data.recruitmentPermitDays ?? null,
+          previousWorkerDepartureDate: data.previousWorkerDepartureDate || null,
+          employmentLetterType: data.employmentLetterType || null,
+          employmentLetterDate: data.employmentLetterDate || null,
+          employmentLetterFileKey: data.employmentLetterFileKey || null,
+          approvedStartDate: data.approvedStartDate || null,
+          approvedPeriod: data.approvedPeriod || null,
+          approvedEndDate: data.approvedEndDate || null,
+          contractStatus: data.contractStatus,
+          pricingTier: data.pricingTier,
+          managerId: data.managerId,
+          notes: data.notes || null,
         });
         return { success: true };
       }),
@@ -407,6 +543,21 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         await deleteCustomer(input.id);
         return { success: true };
+      }),
+
+    // ── S3 檔案上傳 ────────────────────────────────────────────────────────────────────────────────────
+    uploadFile: publicProcedure
+      .input(z.object({
+        fieldName: z.enum(["idFrontKey", "idBackKey", "careReceiverIdFrontKey", "careReceiverIdBackKey", "jobSeekerFileKey", "recruitmentLetterFileKey", "employmentLetterFileKey"]),
+        fileName: z.string().max(200),
+        fileBase64: z.string(),
+        mimeType: z.string().max(100),
+      }))
+      .mutation(async ({ input }) => {
+        const buffer = Buffer.from(input.fileBase64, "base64");
+        const key = `customers/${input.fieldName}/${Date.now()}_${input.fileName}`;
+        const { key: storedKey, url } = await storagePut(key, buffer, input.mimeType);
+        return { key: storedKey, url };
       }),
   }),
 });

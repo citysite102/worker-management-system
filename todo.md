@@ -134,3 +134,35 @@
 - [x] Bug 修正：前端 FileUploadField 加入 `validateFileType` 函數，選取不符合類型的檔案時立即顯示 toast 錯誤
 - [x] Bug 修正：前端 sanitize 檔名為 `file_${Date.now()}.${ext}` 純 ASCII 格式，避免中文檔名導致 S3 presign 400 錯誤
 - [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤
+
+## 客戶管理全面改版 v3.0（對齊 Ragic 雇主資料表）
+
+### Schema 擴充（35 個新欄位）
+- [x] employerType：個人雇主 / 公司行號
+- [x] 個人雇主：employerNo、phone、landline、address、registeredAddress、referrer、idNo、preCourseNo、idFrontKey、idBackKey
+- [x] 被照顧者：careReceiverNo、careReceiverName、careReceiverBirthDate、careReceiverIdNo、careReceiverAddress、careReceiverQualification、careReceiverRelation、careReceiverIdFrontKey、careReceiverIdBackKey
+- [x] 媒合案件：caseNo、caseStatus
+- [x] 申請資格：jobSeekerType、jobSeekerDate、jobSeekerFileKey、recruitmentLetterType、recruitmentLetterDate、recruitmentLetterFileKey、recruitmentPermitNote、recruitmentPermitDays、previousWorkerDepartureDate
+- [x] 聘僱函：employmentLetterType、employmentLetterDate、employmentLetterFileKey、approvedStartDate、approvedPeriod、approvedEndDate
+- [x] 執行資料庫遷移
+
+### 後端路由
+- [x] 更新 customerInput schema 包含所有新欄位
+- [x] 新增 customers.uploadFile S3 上傳 API
+- [x] create / update mutation 傳入所有新欄位
+
+### 前端 CustomerModal 重構
+- [x] 雙類型切換按鈕（個人雇主 / 公司行號）
+- [x] 分區段表單：申請人基本資料 / 被照顧者基本資料（個人）/ 媒合案件 / 申請資格 / 聘僱函 / 系統管理
+- [x] 個人雇主：身分證正反面圖片上傳（accept="image/*"）
+- [x] 被照顧者：身分證正反面圖片上傳（accept="image/*"）
+- [x] 求才資格、招募函許可、聘僱函：PDF/圖片附件上傳
+- [x] 編輯時正確還原所有欄位值與附件
+
+### 列表頁更新
+- [x] 統計卡新增個人雇主 / 公司行號數量卡（可點擊快速篩選）
+- [x] 篩選列新增「雇主類型」下拉
+- [x] 表頭更新：名稱 / 類型 / 編號 / 電話 / 合約狀態 / 負責人 / 案件狀態
+- [x] 列表行顯示雇主類型 badge（個人藍色 / 公司紫色）
+- [x] 搜尋支援雇主編號、身分證字號、電話
+- [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤

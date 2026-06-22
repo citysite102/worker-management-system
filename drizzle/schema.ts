@@ -112,24 +112,100 @@ export const workers = mysqlTable("workers", {
 export type Worker = typeof workers.$inferSelect;
 export type InsertWorker = typeof workers.$inferInsert;
 
-// ─── Customers（客戶）────────────────────────────────────────────────────────
+// ─── Customers（雇主）────────────────────────────────────────────────────────
 export const customers = mysqlTable("customers", {
   id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 50 }).notNull(),
-  taxId: varchar("taxId", { length: 8 }),
-  industry: varchar("industry", { length: 50 }),
+
+  // ── 雇主類型 ──────────────────────────────────────────────────────────────
+  /** individual = 個人雇主（家庭看護）, company = 公司行號 */
+  employerType: mysqlEnum("employerType", ["individual", "company"]).notNull().default("company"),
+
+  // ── 雇主基本資料（兩種類型共用）────────────────────────────────────────────
+  name: varchar("name", { length: 100 }).notNull(),           // 雇主姓名 / 公司名稱
+  employerNo: varchar("employerNo", { length: 20 }),          // 雇主編號（如 00033）
+  phone: varchar("phone", { length: 20 }),                    // 行動電話
+  landline: varchar("landline", { length: 20 }),              // 市內電話
+  address: varchar("address", { length: 200 }),               // 通訊地址
+  registeredAddress: varchar("registeredAddress", { length: 200 }), // 戶籍地址（個人）/ 登記地址（公司）
+  referrer: varchar("referrer", { length: 100 }),             // 介紹人
+
+  // ── 個人雇主專屬欄位 ──────────────────────────────────────────────────────
+  idNo: varchar("idNo", { length: 12 }),                      // 雇主國民身分證字號
+  preCourseNo: varchar("preCourseNo", { length: 50 }),        // 聘前講習證明序號
+  idFrontKey: varchar("idFrontKey", { length: 300 }),         // 雇主身分證正面（S3）
+  idBackKey: varchar("idBackKey", { length: 300 }),           // 雇主身分證反面（S3）
+
+  // ── 被照顧者資料（個人雇主 / 家庭看護專屬）──────────────────────────────────
+  careReceiverNo: varchar("careReceiverNo", { length: 20 }),  // 被看護者編號
+  careReceiverName: varchar("careReceiverName", { length: 50 }), // 被照顧者姓名
+  careReceiverBirthDate: varchar("careReceiverBirthDate", { length: 10 }), // 出生年月日 YYYY-MM-DD
+  careReceiverIdNo: varchar("careReceiverIdNo", { length: 12 }), // 被照顧者國民身分證字號
+  careReceiverAddress: varchar("careReceiverAddress", { length: 200 }), // 被照顧者戶籍地址
+  careReceiverQualification: varchar("careReceiverQualification", { length: 100 }), // 被照顧者申請資格
+  careReceiverRelation: varchar("careReceiverRelation", { length: 50 }), // 聘前講習上課者與被看護者關係
+  careReceiverIdFrontKey: varchar("careReceiverIdFrontKey", { length: 300 }), // 被看護者身分證正面（S3）
+  careReceiverIdBackKey: varchar("careReceiverIdBackKey", { length: 300 }),   // 被看護者身分證反面（S3）
+
+  // ── 公司行號專屬欄位 ──────────────────────────────────────────────────────
+  taxId: varchar("taxId", { length: 8 }),                     // 統一編號
+  industry: varchar("industry", { length: 50 }),              // 產業
+  contactName: varchar("contactName", { length: 50 }),        // 聯絡窗口姓名
+  contactPhone: varchar("contactPhone", { length: 20 }),      // 聯絡窗口電話
+
+  // ── 媒合案件 ──────────────────────────────────────────────────────────────
+  caseNo: varchar("caseNo", { length: 20 }),                  // 媒合案件編號
+  caseStatus: mysqlEnum("caseStatus", [
+    "pending",      // 待處理
+    "processing",   // 處理中
+    "matched",      // 已媒合
+    "completed",    // 已完成
+    "cancelled",    // 已取消
+  ]),
+
+  // ── 申請資格 ──────────────────────────────────────────────────────────────
+  jobSeekerType: mysqlEnum("jobSeekerType", [                 // 求才類別
+    "new_hire",         // 新聘
+    "renewal",          // 續聘
+    "transfer",         // 轉換雇主
+    "supplement",       // 補件
+  ]),
+  jobSeekerDate: varchar("jobSeekerDate", { length: 10 }),    // 求才日期 YYYY-MM-DD
+  jobSeekerFileKey: varchar("jobSeekerFileKey", { length: 300 }), // 求才資格檔案（S3）
+  recruitmentLetterType: mysqlEnum("recruitmentLetterType", [ // 招募函類別
+    "domestic",     // 國內招募
+    "overseas",     // 國外招募
+    "both",         // 國內外
+  ]),
+  recruitmentLetterDate: varchar("recruitmentLetterDate", { length: 10 }), // 招募函申請日期
+  recruitmentLetterFileKey: varchar("recruitmentLetterFileKey", { length: 300 }), // 招募函許可檔案（S3）
+  recruitmentPermitNote: text("recruitmentPermitNote"),       // 招募許可情況說明
+  recruitmentPermitDays: int("recruitmentPermitDays"),        // 許可天數
+  previousWorkerDepartureDate: varchar("previousWorkerDepartureDate", { length: 10 }), // 舊工離境日期
+
+  // ── 聘僱函 ────────────────────────────────────────────────────────────────
+  employmentLetterType: mysqlEnum("employmentLetterType", [   // 聘僱函類別
+    "initial",      // 初次聘僱
+    "renewal",      // 續聘
+    "transfer",     // 轉換
+  ]),
+  employmentLetterDate: varchar("employmentLetterDate", { length: 10 }), // 聘僱函申請日期
+  employmentLetterFileKey: varchar("employmentLetterFileKey", { length: 300 }), // 聘僱函檔案（S3）
+  approvedStartDate: varchar("approvedStartDate", { length: 10 }),   // 核准聘僱起始日
+  approvedPeriod: varchar("approvedPeriod", { length: 50 }),          // 核准聘僱期限（如 3年）
+  approvedEndDate: varchar("approvedEndDate", { length: 10 }),        // 核准聘僱截止日
+
+  // ── 系統管理欄位 ──────────────────────────────────────────────────────────
   contractStatus: mysqlEnum("contractStatus", [
-    "negotiating",
-    "signed",
-    "in_service",
-    "pending_renewal",
-    "ended",
+    "negotiating",    // 洽談中
+    "signed",         // 已簽約
+    "in_service",     // 服務中
+    "pending_renewal",// 待續約
+    "ended",          // 已結束
   ]).notNull(),
   pricingTier: mysqlEnum("pricingTier", ["standard", "custom"]).notNull(),
   managerId: int("managerId").notNull(),
-  contactName: varchar("contactName", { length: 50 }),
-  contactPhone: varchar("contactPhone", { length: 20 }),
   notes: text("notes"),
+
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

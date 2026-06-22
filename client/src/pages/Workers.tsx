@@ -35,22 +35,25 @@ function expiryInfo(dateStr: string | null | undefined): {
   if (!dateStr) return { label: "—", className: "text-muted-foreground", urgent: false };
   const days = daysUntilExpiry(dateStr);
   if (days < 0) {
-    return { label: `${dateStr}（已過期）`, className: "text-red-500 font-medium", urgent: true };
+    return { label: `${dateStr}（已過期 ${Math.abs(days)} 天）`, className: "text-red-500 font-medium", urgent: true };
+  }
+  if (days === 0) {
+    return { label: `${dateStr}（今日到期）`, className: "text-red-500 font-medium", urgent: true };
   }
   if (days <= 30) {
-    return { label: `${dateStr}（${days} 天後）`, className: "text-red-500 font-medium", urgent: true };
+    return { label: `${dateStr}（剩 ${days} 天）`, className: "text-red-500 font-medium", urgent: true };
   }
   if (days <= 90) {
-    return { label: `${dateStr}（${days} 天後）`, className: "text-amber-500 font-medium", urgent: false };
+    return { label: `${dateStr}（剩 ${days} 天）`, className: "text-amber-500 font-medium", urgent: false };
   }
   return { label: dateStr, className: "text-muted-foreground", urgent: false };
 }
 
 // ─── 快速篩選標籤定義 ─────────────────────────────────────────────────────────
 const EXPIRY_QUICK_FILTERS = [
-  { key: "expiring_30", label: "30 天內到期", days: 30 },
-  { key: "expiring_90", label: "90 天內到期", days: 90 },
-  { key: "expired", label: "已過期", days: -1 },
+  { key: "expiring_30", label: "證件 30 天內到期", days: 30 },
+  { key: "expiring_90", label: "證件 90 天內到期", days: 90 },
+  { key: "expired", label: "證件已過期", days: -1 },
 ] as const;
 
 type ExpiryFilter = typeof EXPIRY_QUICK_FILTERS[number]["key"] | "all";
@@ -240,9 +243,9 @@ export default function Workers() {
             type: "recruiting" as const,
             active: lifecycleFilter === "recruiting",
           },
-          // 30 天內到期 → 有數則紅色警示，無則灰色
+          // 證件即將到期 → 有數則紅色警示，無則灰色
           {
-            label: "30 天內到期", value: stats.expiring30, icon: CalendarClock,
+            label: "證件即將到期", value: stats.expiring30, icon: CalendarClock,
             warn: false, danger: stats.expiring30 > 0,
             type: "expiring30" as const,
             active: expiryFilter === "expiring_30",
@@ -319,10 +322,10 @@ export default function Workers() {
             </SelectContent>
           </Select>
 
-          {/* 生命週期篩選 */}
+          {/* 在職狀態篩選 */}
           <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
             <SelectTrigger className="w-full sm:w-32">
-              <SelectValue placeholder="生命週期" />
+              <SelectValue placeholder="全部狀態" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部狀態</SelectItem>
@@ -345,13 +348,13 @@ export default function Workers() {
             </SelectContent>
           </Select>
 
-          {/* 到期篩選 */}
+          {/* 證件到期篩選 */}
           <Select value={expiryFilter} onValueChange={v => setExpiryFilter(v as ExpiryFilter)}>
             <SelectTrigger className={`w-full sm:w-36 ${expiryFilter !== "all" ? "border-amber-400 text-amber-600" : ""}`}>
-              <SelectValue placeholder="到期篩選" />
+              <SelectValue placeholder="證件到期" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">全部到期</SelectItem>
+              <SelectItem value="all">全部證件</SelectItem>
               {EXPIRY_QUICK_FILTERS.map(f => (
                 <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
               ))}
@@ -409,7 +412,7 @@ export default function Workers() {
                 <th className="px-4 py-3 text-left">姓名</th>
                 <th className="px-4 py-3 text-left hidden md:table-cell">國籍</th>
                 <th className="px-4 py-3 text-left">證號</th>
-                <th className="px-4 py-3 text-left">生命週期</th>
+                <th className="px-4 py-3 text-left">在職狀態</th>
                 <th className="px-4 py-3 text-left hidden sm:table-cell">文件狀態</th>
                 <th className="px-4 py-3 text-left hidden lg:table-cell">負責人</th>
                 <th className="px-4 py-3 text-left hidden xl:table-cell">入境日期</th>
@@ -471,12 +474,25 @@ export default function Workers() {
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium">{displayName}</span>
-                          {expiry.urgent && (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-red-500 bg-red-50 border border-red-200 px-1 py-0.5 rounded">
-                              <CalendarClock className="w-2.5 h-2.5" />
-                              到期
-                            </span>
-                          )}
+                          {expiry.urgent && (() => {
+                            const rpDays = w.residentPermitExpiry ? daysUntilExpiry(w.residentPermitExpiry) : Infinity;
+                            const ppDays = w.passportExpiry ? daysUntilExpiry(w.passportExpiry) : Infinity;
+                            const urgentDoc = rpDays <= ppDays ? (
+                              rpDays < 0 ? `居留證過期 ${Math.abs(rpDays)} 天` :
+                              rpDays === 0 ? `居留證今日到期` :
+                              `居留證剩 ${rpDays} 天`
+                            ) : (
+                              ppDays < 0 ? `護照過期 ${Math.abs(ppDays)} 天` :
+                              ppDays === 0 ? `護照今日到期` :
+                              `護照剩 ${ppDays} 天`
+                            );
+                            return (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded whitespace-nowrap">
+                                <CalendarClock className="w-2.5 h-2.5 shrink-0" />
+                                {urgentDoc}
+                              </span>
+                            );
+                          })()}
                           {w.externalLink && (
                             <a
                               href={w.externalLink}

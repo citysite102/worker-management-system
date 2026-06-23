@@ -511,20 +511,22 @@ export default function CaseDetail() {
             )}
 
             {/* 保險管理卡片 */}
-            {((caseData as any).healthInsuranceEnrollDate || (caseData as any).healthInsurancePolicyKey ||
-              (caseData as any).accidentInsuranceEnrollDate || (caseData as any).accidentInsurancePolicyKey) && (
+            {((caseData as any).healthInsurance || (caseData as any).healthInsurancePolicyKey ||
+              (caseData as any).accidentInsurance || (caseData as any).accidentInsurancePolicyKey) && (
               <div className="rounded-lg border bg-card p-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                   保險管理
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-2 gap-4 text-sm">
                   {/* 健保 */}
-                  {(caseData as any).healthInsuranceEnrollDate && (
+                  {((caseData as any).healthInsurance || (caseData as any).healthInsurancePolicyKey) && (
                     <div>
-                      <p className="text-xs text-muted-foreground">健保投保日期</p>
+                      <p className="text-xs text-muted-foreground">健保投保</p>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">{(caseData as any).healthInsuranceEnrollDate}</p>
+                        {(caseData as any).healthInsurance && (
+                          <p className="font-medium">{(caseData as any).healthInsurance}</p>
+                        )}
                         {(caseData as any).healthInsurancePolicyKey && (
                           <a href={`/manus-storage/${(caseData as any).healthInsurancePolicyKey}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -535,11 +537,13 @@ export default function CaseDetail() {
                     </div>
                   )}
                   {/* 意外險 */}
-                  {(caseData as any).accidentInsuranceEnrollDate && (
+                  {((caseData as any).accidentInsurance || (caseData as any).accidentInsurancePolicyKey) && (
                     <div>
-                      <p className="text-xs text-muted-foreground">意外險投保日期</p>
+                      <p className="text-xs text-muted-foreground">意外險投保</p>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">{(caseData as any).accidentInsuranceEnrollDate}</p>
+                        {(caseData as any).accidentInsurance && (
+                          <p className="font-medium">{(caseData as any).accidentInsurance}</p>
+                        )}
                         {(caseData as any).accidentInsurancePolicyKey && (
                           <a href={`/manus-storage/${(caseData as any).accidentInsurancePolicyKey}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>

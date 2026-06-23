@@ -675,9 +675,9 @@ export const appRouter = router({
         issuanceDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
         approvalReceiptDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
         // Phase 4: 保險管理
-        healthInsuranceEnrollDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        healthInsurance: z.string().max(200).optional().transform(s => s?.trim() || undefined),
         healthInsurancePolicyKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
-        accidentInsuranceEnrollDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        accidentInsurance: z.string().max(200).optional().transform(s => s?.trim() || undefined),
         accidentInsurancePolicyKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
         // Phase 4: 體檢管理
         prevMedicalExamDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
@@ -741,9 +741,9 @@ export const appRouter = router({
         issuanceDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
         approvalReceiptDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
         // Phase 4: 保險管理
-        healthInsuranceEnrollDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        healthInsurance: z.string().max(200).optional().nullable().transform(s => s?.trim() || undefined),
         healthInsurancePolicyKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
-        accidentInsuranceEnrollDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        accidentInsurance: z.string().max(200).optional().nullable().transform(s => s?.trim() || undefined),
         accidentInsurancePolicyKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
         // Phase 4: 體檢管理
         prevMedicalExamDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),

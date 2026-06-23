@@ -59,9 +59,9 @@ const schema = z.object({
   issuanceDate: z.string().max(10).optional().nullable(),
   approvalReceiptDate: z.string().max(10).optional().nullable(),
   // Phase 4: 保險管理
-  healthInsuranceEnrollDate: z.string().max(10).optional().nullable(),
+  healthInsurance: z.string().max(200).optional().nullable(),
   healthInsurancePolicyKey: z.string().max(300).optional().nullable(),
-  accidentInsuranceEnrollDate: z.string().max(10).optional().nullable(),
+  accidentInsurance: z.string().max(200).optional().nullable(),
   accidentInsurancePolicyKey: z.string().max(300).optional().nullable(),
   // Phase 4: 體檢管理
   prevMedicalExamDate: z.string().max(10).optional().nullable(),
@@ -159,9 +159,9 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
       applicationSubmitDate: null,
       issuanceDate: null,
       approvalReceiptDate: null,
-      healthInsuranceEnrollDate: null,
+      healthInsurance: null,
       healthInsurancePolicyKey: null,
-      accidentInsuranceEnrollDate: null,
+      accidentInsurance: null,
       accidentInsurancePolicyKey: null,
       prevMedicalExamDate: null,
       prevMedicalReportKey: null,
@@ -208,9 +208,9 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
         applicationSubmitDate: editingCase.applicationSubmitDate ?? null,
         issuanceDate: editingCase.issuanceDate ?? null,
         approvalReceiptDate: editingCase.approvalReceiptDate ?? null,
-        healthInsuranceEnrollDate: editingCase.healthInsuranceEnrollDate ?? null,
+        healthInsurance: editingCase.healthInsurance ?? null,
         healthInsurancePolicyKey: editingCase.healthInsurancePolicyKey ?? null,
-        accidentInsuranceEnrollDate: editingCase.accidentInsuranceEnrollDate ?? null,
+        accidentInsurance: editingCase.accidentInsurance ?? null,
         accidentInsurancePolicyKey: editingCase.accidentInsurancePolicyKey ?? null,
         prevMedicalExamDate: editingCase.prevMedicalExamDate ?? null,
         prevMedicalReportKey: editingCase.prevMedicalReportKey ?? null,
@@ -406,7 +406,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Briefcase className="w-5 h-5 text-primary" />
@@ -417,10 +417,10 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6 py-2">
+        <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-8 py-4">
 
           {/* ── 基本設定 ─────────────────────────────────────── */}
-          <section className="space-y-3">
+          <section className="space-y-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">基本設定</p>
 
             <div className="space-y-1.5">
@@ -429,7 +429,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
               {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>負責人 <span className="text-destructive">*</span></Label>
                 <Select
@@ -486,7 +486,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
           <Separator />
 
           {/* ── 選擇雇主（自動帶入） ─────────────────────────── */}
-          <section className="space-y-3">
+          <section className="space-y-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5" /> 雇主資訊
             </p>
@@ -554,7 +554,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
           <Separator />
 
           {/* ── 選擇外國人（自動帶入） ─────────────────────────── */}
-          <section className="space-y-3">
+          <section className="space-y-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <User className="w-3.5 h-3.5" /> 外國人資訊
             </p>
@@ -633,7 +633,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
               <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                 <Clock className="w-3 h-3" /> 聘僱時間
               </p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs">接續聘僱日期</Label>
                   <Input
@@ -671,7 +671,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
               <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                 <FileText className="w-3 h-3" /> 代辦事項
               </p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs">招募函代辦事項</Label>
                   <Select
@@ -731,7 +731,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
               <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                 <Shield className="w-3 h-3" /> 聘僱許可函與情況
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <FileField
                   fileKey={watchedEmpPermitKey}
                   uploading={uploadingEmpPermit}
@@ -777,14 +777,14 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
           <Separator />
 
           {/* ── 承接通報/入國通報（3日內） ──────────────────────────── */}
-          <section className="space-y-3">
+          <section className="space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-500/10 text-blue-500">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.1a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l.81-.81a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
               </span>
               承接通報 / 入國通報（3日內）
             </h3>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">通報書序號</Label>
                 <Input {...register("notificationNo")} placeholder="例：ABC-001" className="text-sm" />
@@ -803,14 +803,14 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
           <Separator />
 
           {/* ── 內政部移民署 ──────────────────────────────────────────── */}
-          <section className="space-y-3">
+          <section className="space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-purple-500/10 text-purple-500">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
               </span>
               內政部移民署
             </h3>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">一站式類別</Label>
                 <Input {...register("niaCategory")} placeholder="例：居留證申請" className="text-sm" />
@@ -829,14 +829,14 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
           <Separator />
 
           {/* ── 勞動部聘僱許可函 ────────────────────────────────────── */}
-          <section className="space-y-3">
+          <section className="space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-amber-500/10 text-amber-500">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
               </span>
               勞動部聘僱許可函
             </h3>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">收文號</Label>
                 <Input {...register("molReceiptNo")} placeholder="例：MOL-2025-001" className="text-sm" />
@@ -863,7 +863,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
           <Separator />
 
           {/* ── 保險管理 ──────────────────────────────────────── */}
-          <section className="space-y-3">
+          <section className="space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-teal-500/10 text-teal-500">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -871,10 +871,10 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
               保險管理
             </h3>
             {/* 健保 */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs">健保投保日期</Label>
-                <Input {...register("healthInsuranceEnrollDate")} type="date" className="text-sm" />
+                <Label className="text-xs">健保投保（投保單位/編號）</Label>
+                <Input {...register("healthInsurance")} placeholder="例：全民健保局、健保就醫註峠山分局" className="text-sm" />
               </div>
               <FileField
                 fileKey={watchedHealthPolicyKey}
@@ -887,10 +887,10 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
               />
             </div>
             {/* 意外險 */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs">意外險投保日期</Label>
-                <Input {...register("accidentInsuranceEnrollDate")} type="date" className="text-sm" />
+                <Label className="text-xs">意外險（投保單位/編號）</Label>
+                <Input {...register("accidentInsurance")} placeholder="例：山山保險、意外險保單編號" className="text-sm" />
               </div>
               <FileField
                 fileKey={watchedAccidentPolicyKey}
@@ -907,7 +907,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
           <Separator />
 
           {/* ── 體檢管理 ──────────────────────────────────────── */}
-          <section className="space-y-3">
+          <section className="space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-emerald-500/10 text-emerald-500">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
@@ -915,7 +915,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
               體檢管理
             </h3>
             {/* 前次體檢 */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">前次體檢日期</Label>
                 <Input {...register("prevMedicalExamDate")} type="date" className="text-sm" />
@@ -931,7 +931,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
               />
             </div>
             {/* 入境3天體檢 */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">入境3天體檢日期</Label>
                 <Input {...register("entryMedicalExamDate")} type="date" className="text-sm" />
@@ -947,7 +947,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
               />
             </div>
             {/* 6/18/30 個月體檢 */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">6個月體檢日期</Label>
                 <Input {...register("exam6mDate")} type="date" className="text-sm" />

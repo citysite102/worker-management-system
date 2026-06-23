@@ -12,18 +12,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { ExternalLink, Upload, FileText, Image as ImageIcon, Loader2, CalendarClock } from "lucide-react";
-import { LIFECYCLE_STATUS_OPTIONS, DOCUMENT_STATUS_OPTIONS } from "@/lib/constants";
+import { LIFECYCLE_STATUS_OPTIONS, DOCUMENT_STATUS_OPTIONS, NATIONALITY_OPTIONS } from "@/lib/constants";
 import { useFormEnterNav } from "@/hooks/useFormEnterNav";
 
 // ─── 選項定義 ─────────────────────────────────────────────────────────────────
-const NATIONALITY_OPTIONS = [
-  { value: "印尼", label: "009 印尼" },
-  { value: "越南", label: "084 越南" },
-  { value: "菲律賓", label: "608 菲律賓" },
-  { value: "泰國", label: "764 泰國" },
-  { value: "印度", label: "356 印度" },
-  { value: "其他", label: "其他" },
-];
+// NATIONALITY_OPTIONS 已從 constants.ts 導入，統一管理
 
 const GENDER_OPTIONS = [
   { value: "female", label: "女" },

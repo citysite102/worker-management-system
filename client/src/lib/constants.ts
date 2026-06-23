@@ -227,12 +227,12 @@ export function getStatusLabel(value: string): string {
 
 // ─── 國籍選項（含國碼）────────────────────────────────────────────────────────
 export const NATIONALITY_OPTIONS = [
-  { value: "009 印尼", label: "印尼（009）" },
-  { value: "084 越南", label: "越南（084）" },
-  { value: "608 菲律賓", label: "菲律賓（608）" },
-  { value: "764 泰國", label: "泰國（764）" },
-  { value: "104 緬甸", label: "緬甸（104）" },
-  { value: "356 印度", label: "印度（356）" },
-  { value: "050 孟加拉", label: "孟加拉（050）" },
+  { value: "印尼", label: "印尼（009）" },
+  { value: "越南", label: "越南（084）" },
+  { value: "菲律賓", label: "菲律賓（608）" },
+  { value: "泰國", label: "泰國（764）" },
+  { value: "緬甸", label: "緬甸（104）" },
+  { value: "印度", label: "印度（356）" },
+  { value: "孟加拉", label: "孟加拉（050）" },
   { value: "other", label: "其他" },
 ] as const;

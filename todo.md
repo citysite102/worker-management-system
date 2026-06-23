@@ -288,3 +288,10 @@
 - [x] 修正 cases.create server-side input schema：Tab 2 所有選填欄位加上 .nullable()，enum 欄位加 transform(v => v ?? undefined)，解決前端送出 null 時的 invalid_type/invalid_value 錯誤
 - [x] 確認 cases.update 已有 .nullable()，不需修改
 - [x] TypeScript 零錯誤驗證通過
+
+## CaseModal Disabled 按鈕 + 未填提示（v5.11）
+
+- [x] 計算必填欄位缺少清單（name、managerId、customerId）
+- [x] 建立案件按鈕在必填未填時 Disabled
+- [x] 按鈕旁加入 Tooltip 列出尚未填寫的欄位名稱
+- [x] 編輯模式（editingCase）不套用 Disabled 邏輯（允許部分更新）

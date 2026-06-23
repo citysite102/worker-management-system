@@ -24,6 +24,7 @@ import { FormSection } from "@/components/form/FormSection";
 import { FormGrid } from "@/components/form/FormGrid";
 import { FormField } from "@/components/form/FormField";
 import { FileDropzone } from "@/components/form/FileDropzone";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const schema = z.object({
   customerId: z.number().int().positive("請選擇客戶"),
@@ -290,6 +291,21 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
   const isPending = isSubmitting || createMutation.isPending || updateMutation.isPending;
   const anyUploading = uploadingPermit || uploadingEmpPermit || uploadingTermination;
 
+  // ── 必填欄位缺少清單（僅新增模式才 Disabled；編輯模式允許部分更新）──
+  const watchedName = watch("name");
+  const REQUIRED_FIELD_LABELS: { key: keyof FormValues; label: string }[] = [
+    { key: "name", label: "案件名稱" },
+    { key: "managerId", label: "負責人" },
+    { key: "customerId", label: "選擇雇主" },
+  ];
+  const missingFields = !editingCase
+    ? REQUIRED_FIELD_LABELS.filter(({ key }) => {
+        const v = key === "name" ? watchedName : key === "managerId" ? watchedManagerId : watchedCustomerId;
+        return !v || v === 0 || v === "";
+      })
+    : [];
+  const isSubmitDisabled = isPending || anyUploading || missingFields.length > 0;
+
   // ── Tab 錯誤計數 ──
   // 基本資料 Tab 的必填欄位
   const BASIC_TAB_FIELDS: (keyof FormValues)[] = ["name", "managerId", "customerId"];
@@ -316,13 +332,39 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
       footer={
         <>
           <Button type="button" variant="outline" onClick={onClose}>取消</Button>
-          <Button
-            type="submit"
-            form="case-modal-form"
-            disabled={isPending || anyUploading}
-          >
-            {isPending ? "處理中..." : editingCase ? "儲存變更" : "建立案件"}
-          </Button>
+          {missingFields.length > 0 ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {/* span 包裙是因為 disabled button 不會觸發 mouse events */}
+                <span tabIndex={0} className="inline-flex">
+                  <Button
+                    type="submit"
+                    form="case-modal-form"
+                    disabled
+                    className="pointer-events-none"
+                  >
+                    {editingCase ? "儲存變更" : "建立案件"}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[220px]">
+                <p className="font-medium mb-1">請先完成必填欄位：</p>
+                <ul className="list-disc list-inside space-y-0.5 text-sm">
+                  {missingFields.map(f => (
+                    <li key={f.key}>{f.label}</li>
+                  ))}
+                </ul>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button
+              type="submit"
+              form="case-modal-form"
+              disabled={isPending || anyUploading}
+            >
+              {isPending ? "處理中..." : editingCase ? "儲存變更" : "建立案件"}
+            </Button>
+          )}
         </>
       }
     >

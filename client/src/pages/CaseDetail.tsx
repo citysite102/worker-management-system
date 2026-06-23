@@ -469,10 +469,10 @@ export default function CaseDetail() {
                       </div>
                     </div>
                   )}
-                  {/* 入境3天體檢 */}
+                  {/* 入境 3 天體檢 */}
                   {(caseData as any).entryMedicalExamDate && (
                     <div className="space-y-0.5">
-                      <p className="text-xs text-muted-foreground">入境3天體檢日期</p>
+                      <p className="text-xs text-muted-foreground">入境 3 天體檢日期</p>
                       <div className="flex items-center gap-2">
                         <p className="font-medium">{(caseData as any).entryMedicalExamDate}</p>
                         {(caseData as any).entryMedicalReportKey && (
@@ -488,9 +488,9 @@ export default function CaseDetail() {
                 {/* 6/18/30 個月體檢 */}
                 {((caseData as any).exam6mDate || (caseData as any).exam18mDate || (caseData as any).exam30mDate) && (
                   <div className="grid grid-cols-3 gap-4 text-sm pt-2 border-t border-border/50">
-                    {[{label: "6個月體檢", dateKey: "exam6mDate", reportKey: "exam6mReportKey"},
-                      {label: "18個月體檢", dateKey: "exam18mDate", reportKey: "exam18mReportKey"},
-                      {label: "30個月體檢", dateKey: "exam30mDate", reportKey: "exam30mReportKey"}]
+                    {[{label: "6 個月體檢", dateKey: "exam6mDate", reportKey: "exam6mReportKey"},
+                      {label: "18 個月體檢", dateKey: "exam18mDate", reportKey: "exam18mReportKey"},
+                      {label: "30 個月體檢", dateKey: "exam30mDate", reportKey: "exam30mReportKey"}]
                       .map(({ label, dateKey, reportKey }) => (
                         <div key={dateKey} className="space-y-0.5">
                           <p className="text-xs text-muted-foreground">{label}</p>

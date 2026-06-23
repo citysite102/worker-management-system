@@ -930,62 +930,62 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
                 successMsg="前次體檢報告已上傳"
               />
             </div>
-            {/* 入境3天體檢 */}
+            {/* 入境 3 天體檢 */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs">入境3天體檢日期</Label>
+                <Label className="text-xs">入境 3 天體檢日期</Label>
                 <Input {...register("entryMedicalExamDate")} type="date" className="text-sm" />
               </div>
               <FileField
                 fileKey={watchedEntryMedicalKey}
                 uploading={uploadingEntryMedical}
                 fieldName="entryMedicalReportKey"
-                label="入境3天體檢報告"
+                label="入境 3 天體檢報告"
                 folder="medical"
                 setUploading={setUploadingEntryMedical}
-                successMsg="入境3天體檢報告已上傳"
+                successMsg="入境 3 天體檢報告已上傳"
               />
             </div>
-            {/* 6/18/30 個月體檢 */}
+            {/* 6 / 18 / 30 個月體檢 */}
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs">6個月體檢日期</Label>
+                <Label className="text-xs">6 個月體檢日期</Label>
                 <Input {...register("exam6mDate")} type="date" className="text-sm" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">18個月體檢日期</Label>
+                <Label className="text-xs">18 個月體檢日期</Label>
                 <Input {...register("exam18mDate")} type="date" className="text-sm" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">30個月體檢日期</Label>
+                <Label className="text-xs">30 個月體檢日期</Label>
                 <Input {...register("exam30mDate")} type="date" className="text-sm" />
               </div>
               <FileField
                 fileKey={watched6mKey}
                 uploading={uploading6m}
                 fieldName="exam6mReportKey"
-                label="6個月體檢報告"
+                label="6 個月體檢報告"
                 folder="medical"
                 setUploading={setUploading6m}
-                successMsg="6個月體檢報告已上傳"
+                successMsg="6 個月體檢報告已上傳"
               />
               <FileField
                 fileKey={watched18mKey}
                 uploading={uploading18m}
                 fieldName="exam18mReportKey"
-                label="18個月體檢報告"
+                label="18 個月體檢報告"
                 folder="medical"
                 setUploading={setUploading18m}
-                successMsg="18個月體檢報告已上傳"
+                successMsg="18 個月體檢報告已上傳"
               />
               <FileField
                 fileKey={watched30mKey}
                 uploading={uploading30m}
                 fieldName="exam30mReportKey"
-                label="30個月體檢報告"
+                label="30 個月體檢報告"
                 folder="medical"
                 setUploading={setUploading30m}
-                successMsg="30個月體檢報告已上傳"
+                successMsg="30 個月體檢報告已上傳"
               />
             </div>
           </section>

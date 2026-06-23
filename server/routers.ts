@@ -8,6 +8,13 @@ import {
   getAllManagers, createManager, deleteManager,
   getAllWorkers, getWorkerById, getWorkerByPermitNo, getWorkerByPassportNo, createWorker, updateWorker, deleteWorker,
   getAllCustomers, getCustomerById, getCustomerByTaxId, getCustomerByName, createCustomer, updateCustomer, deleteCustomer,
+  getAllCases, getCaseById, createCase, updateCase, deleteCase, getCaseChildCounts,
+  getQualificationsByCaseId, getQualificationById, createQualification, updateQualification, deleteQualification, getQuotaUsed,
+  getDemandsByCaseId, getDemandById, createDemand, updateDemand, deleteDemand, getDemandProgress,
+  getAssignmentsByCaseId, getAssignmentById, createAssignment, updateAssignment, deleteAssignment,
+  getMembersByAssignmentId, getMembersByCaseId, getMemberById, createMember, updateMember, deleteMember,
+  getWorkerInvolvements, getCaseDimensions,
+  getEmploymentsByCase, createEmployment, updateEmployment, deleteEmployment,
 } from "./db";
 import { storagePut } from "./storage";
 import {
@@ -545,7 +552,7 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // ── S3 檔案上傳 ────────────────────────────────────────────────────────────────────────────────────
+        // ── S3 檔案上傳 ────────────────────────────────────────────────────────────────────────────────────
     uploadFile: publicProcedure
       .input(z.object({
         fieldName: z.enum(["idFrontKey", "idBackKey", "careReceiverIdFrontKey", "careReceiverIdBackKey", "jobSeekerFileKey", "recruitmentLetterFileKey", "employmentLetterFileKey"]),
@@ -560,6 +567,420 @@ export const appRouter = router({
         return { key: storedKey, url };
       }),
   }),
-});
 
+  // ─── Cases Router ─────────────────────────────────────────────────────────
+  cases: router({
+    list: publicProcedure
+      .input(z.object({
+        customerId: z.number().int().positive().optional(),
+        status: z.string().optional(),
+        managerId: z.number().int().positive().optional(),
+        search: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        const rows = await getAllCases(input);
+        // 附上客戶名稱、負責人名稱、三維度進度
+        const allCustomers = await getAllCustomers();
+        const allManagers = await getAllManagers();
+        const customerMap = new Map(allCustomers.map(c => [c.id, c]));
+        const managerMap = new Map(allManagers.map(m => [m.id, m]));
+        const result = await Promise.all(rows.map(async (c) => {
+          const dims = await getCaseDimensions(c.id);
+          return {
+            ...c,
+            customerName: customerMap.get(c.customerId)?.name ?? "",
+            managerName: managerMap.get(c.managerId)?.name ?? "",
+            ...dims,
+          };
+        }));
+        return result;
+      }),
+    getById: publicProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const c = await getCaseById(input.id);
+        if (!c) throw new TRPCError({ code: "NOT_FOUND", message: "找不到此案件" });
+        const allCustomers = await getAllCustomers();
+        const allManagers = await getAllManagers();
+        const customer = allCustomers.find(cu => cu.id === c.customerId);
+        const manager = allManagers.find(m => m.id === c.managerId);
+        const dims = await getCaseDimensions(c.id);
+        return { ...c, customerName: customer?.name ?? "", managerName: manager?.name ?? "", ...dims };
+      }),
+    create: publicProcedure
+      .input(z.object({
+        customerId: z.number().int().positive("客戶為必填"),
+        name: z.string().min(2, "案件名稱至少 2 字").max(100).transform(s => s.trim()),
+        managerId: z.number().int().positive("負責人為必填"),
+        status: z.enum(["in_progress", "completed", "paused", "cancelled"]).default("in_progress"),
+        notes: z.string().optional().transform(s => s?.trim() || undefined),
+      }))
+      .mutation(async ({ input }) => {
+        await createCase(input);
+        return { success: true };
+      }),
+    update: publicProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        customerId: z.number().int().positive("客戶為必填"),
+        name: z.string().min(2, "案件名稱至少 2 字").max(100).transform(s => s.trim()),
+        managerId: z.number().int().positive("負責人為必填"),
+        status: z.enum(["in_progress", "completed", "paused", "cancelled"]),
+        notes: z.string().optional().transform(s => s?.trim() || undefined),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updateCase(id, data);
+        return { success: true };
+      }),
+    delete: publicProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        await deleteCase(input.id);
+        return { success: true };
+      }),
+    getChildCounts: publicProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ input }) => getCaseChildCounts(input.id)),
+  }),
+
+  // ─── Case Qualifications Router ───────────────────────────────────────────
+  caseQualifications: router({
+    listByCase: publicProcedure
+      .input(z.object({ caseId: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const quals = await getQualificationsByCaseId(input.caseId);
+        return Promise.all(quals.map(async q => ({
+          ...q,
+          quotaUsed: await getQuotaUsed(q.id),
+          quotaRemaining: q.quotaTotal - (await getQuotaUsed(q.id)),
+        })));
+      }),
+    getById: publicProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const q = await getQualificationById(input.id);
+        if (!q) throw new TRPCError({ code: "NOT_FOUND", message: "找不到此資格" });
+        const quotaUsed = await getQuotaUsed(q.id);
+        return { ...q, quotaUsed, quotaRemaining: q.quotaTotal - quotaUsed };
+      }),
+    create: publicProcedure
+      .input(z.object({
+        caseId: z.number().int().positive(),
+        label: z.string().min(1).max(100).transform(s => s.trim()),
+        category: z.enum(["labor_in", "labor_out", "professional"]),
+        qualType: z.enum(["caregiver", "domestic_helper", "manufacturing", "agriculture", "construction", "white_collar", "intermediate", "overseas_student"]),
+        employerName: z.string().max(100).optional().transform(s => s?.trim() || undefined),
+        employerTaxId: z.string().max(8).optional().transform(s => s?.trim() || undefined),
+        employerNote: z.string().optional().transform(s => s?.trim() || undefined),
+        applicationStatus: z.enum(["preparing", "submitted", "reviewing", "approved", "supplement", "rejected"]).default("preparing"),
+        expectedApprovalDate: z.string().optional(),
+        quotaTotal: z.number().int().min(0).default(0),
+        docValidUntil: z.string().optional(),
+        notes: z.string().optional().transform(s => s?.trim() || undefined),
+      }))
+      .mutation(async ({ input }) => {
+        await createQualification(input);
+        return { success: true };
+      }),
+    update: publicProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        label: z.string().min(1).max(100).transform(s => s.trim()),
+        category: z.enum(["labor_in", "labor_out", "professional"]),
+        qualType: z.enum(["caregiver", "domestic_helper", "manufacturing", "agriculture", "construction", "white_collar", "intermediate", "overseas_student"]),
+        employerName: z.string().max(100).optional().transform(s => s?.trim() || undefined),
+        employerTaxId: z.string().max(8).optional().transform(s => s?.trim() || undefined),
+        employerNote: z.string().optional().transform(s => s?.trim() || undefined),
+        applicationStatus: z.enum(["preparing", "submitted", "reviewing", "approved", "supplement", "rejected"]),
+        expectedApprovalDate: z.string().optional(),
+        quotaTotal: z.number().int().min(0),
+        docValidUntil: z.string().optional(),
+        notes: z.string().optional().transform(s => s?.trim() || undefined),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updateQualification(id, data);
+        return { success: true };
+      }),
+    delete: publicProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        await deleteQualification(input.id);
+        return { success: true };
+      }),
+  }),
+
+  // ─── Case Demands Router ──────────────────────────────────────────────────
+  caseDemands: router({
+    listByCase: publicProcedure
+      .input(z.object({ caseId: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const demands = await getDemandsByCaseId(input.caseId);
+        return Promise.all(demands.map(async d => {
+          const { matchedCount, employedCount } = await getDemandProgress(d.id);
+          const progress = d.neededCount > 0 ? Math.round((matchedCount / d.neededCount) * 100) : 0;
+          return { ...d, matchedCount, employedCount, progress };
+        }));
+      }),
+    create: publicProcedure
+      .input(z.object({
+        caseId: z.number().int().positive(),
+        label: z.string().min(1).max(100).transform(s => s.trim()),
+        qualificationId: z.number().int().positive().optional(),
+        qualType: z.enum(["caregiver", "domestic_helper", "manufacturing", "agriculture", "construction", "white_collar", "intermediate", "overseas_student"]),
+        neededCount: z.number().int().min(1),
+        status: z.enum(["open", "filling", "fulfilled", "closed"]).default("open"),
+        notes: z.string().optional().transform(s => s?.trim() || undefined),
+      }))
+      .mutation(async ({ input }) => {
+        await createDemand(input);
+        return { success: true };
+      }),
+    update: publicProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        label: z.string().min(1).max(100).transform(s => s.trim()),
+        qualificationId: z.number().int().positive().optional(),
+        qualType: z.enum(["caregiver", "domestic_helper", "manufacturing", "agriculture", "construction", "white_collar", "intermediate", "overseas_student"]),
+        neededCount: z.number().int().min(1),
+        status: z.enum(["open", "filling", "fulfilled", "closed"]),
+        notes: z.string().optional().transform(s => s?.trim() || undefined),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updateDemand(id, data);
+        return { success: true };
+      }),
+    delete: publicProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        await deleteDemand(input.id);
+        return { success: true };
+      }),
+  }),
+
+  // ─── Case Assignments Router ──────────────────────────────────────────────
+  caseAssignments: router({
+    listByCase: publicProcedure
+      .input(z.object({ caseId: z.number().int().positive(), stage: z.string().optional() }))
+      .query(async ({ input }) => {
+        const assignments = await getAssignmentsByCaseId(input.caseId);
+        const allWorkers = await getAllWorkers();
+        const workerMap = new Map(allWorkers.map(w => [w.id, w]));
+        return Promise.all(assignments.map(async a => {
+          const members = await getMembersByAssignmentId(a.id);
+          const enrichedMembers = members
+            .filter(m => !input.stage || m.stage === input.stage)
+            .map(m => ({
+              ...m,
+              workerName: workerMap.get(m.workerId)?.name ?? "",
+              workerNameEn: workerMap.get(m.workerId)?.nameEn ?? "",
+              workerNationality: workerMap.get(m.workerId)?.nationality ?? "",
+              workerPermitNo: workerMap.get(m.workerId)?.residentPermitNo ?? workerMap.get(m.workerId)?.passportNo ?? "",
+              workerLifecycleStatus: workerMap.get(m.workerId)?.lifecycleStatus ?? "",
+            }));
+          return { ...a, members: enrichedMembers };
+        }));
+      }),
+    create: publicProcedure
+      .input(z.object({
+        caseId: z.number().int().positive(),
+        label: z.string().max(100).optional(),
+        demandId: z.number().int().positive().optional(),
+        qualificationId: z.number().int().positive().optional(),
+        batchNote: z.string().optional(),
+        notes: z.string().optional(),
+        workerIds: z.array(z.number().int().positive()).min(1, "至少選擇一位移工"),
+      }))
+      .mutation(async ({ input }) => {
+        const { workerIds, ...assignmentData } = input;
+        // 唯一性檢查：同案件同移工只能一筆非終態成員
+        const existingMembers = await getMembersByCaseId(input.caseId);
+        const activeStages = ['candidate', 'confirmed', 'upcoming', 'employed'];
+        const activeWorkerIds = new Set(existingMembers.filter(m => activeStages.includes(m.stage)).map(m => m.workerId));
+        const conflicts = workerIds.filter(wid => activeWorkerIds.has(wid));
+        if (conflicts.length > 0) {
+          throw new TRPCError({ code: "CONFLICT", message: `此移工已在本案件配對中（workerId: ${conflicts.join(", ")}）` });
+        }
+        // 建立配對
+        const result = await createAssignment(assignmentData);
+        const assignmentId = (result as any).insertId as number;
+        // 建立成員
+        for (const workerId of workerIds) {
+          await createMember({ assignmentId, caseId: input.caseId, workerId, stage: "candidate" });
+        }
+        return { success: true, assignmentId };
+      }),
+    update: publicProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        label: z.string().max(100).optional(),
+        demandId: z.number().int().positive().optional(),
+        qualificationId: z.number().int().positive().optional(),
+        batchNote: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updateAssignment(id, data);
+        return { success: true };
+      }),
+    delete: publicProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        await deleteAssignment(input.id);
+        return { success: true };
+      }),
+    addWorker: publicProcedure
+      .input(z.object({
+        assignmentId: z.number().int().positive(),
+        workerId: z.number().int().positive(),
+      }))
+      .mutation(async ({ input }) => {
+        const assignment = await getAssignmentById(input.assignmentId);
+        if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "找不到此配對" });
+        const existingMembers = await getMembersByCaseId(assignment.caseId);
+        const activeStages = ['candidate', 'confirmed', 'upcoming', 'employed'];
+        const conflict = existingMembers.find(m => m.workerId === input.workerId && activeStages.includes(m.stage));
+        if (conflict) throw new TRPCError({ code: "CONFLICT", message: "此移工已在本案件配對中" });
+        await createMember({ assignmentId: input.assignmentId, caseId: assignment.caseId, workerId: input.workerId, stage: "candidate" });
+        return { success: true };
+      }),
+    updateMember: publicProcedure
+      .input(z.object({
+        memberId: z.number().int().positive(),
+        matchNote: z.string().optional(),
+        expectedDocDate: z.string().optional(),
+        expectedEntryDate: z.string().optional(),
+        departureNote: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { memberId, ...data } = input;
+        await updateMember(memberId, data);
+        return { success: true };
+      }),
+    updateMemberStage: publicProcedure
+      .input(z.object({
+        memberId: z.number().int().positive(),
+        stage: z.enum(["candidate", "confirmed", "upcoming", "employed", "departed", "rejected"]),
+      }))
+      .mutation(async ({ input }) => {
+        await updateMember(input.memberId, { stage: input.stage });
+        return { success: true };
+      }),
+    removeWorker: publicProcedure
+      .input(z.object({ memberId: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        await deleteMember(input.memberId);
+        return { success: true };
+      }),
+    workerInvolvements: publicProcedure
+      .input(z.object({ excludeCaseId: z.number().int().positive().optional() }))
+      .query(async ({ input }) => {
+        const members = await getWorkerInvolvements(input.excludeCaseId);
+        const allCases = await getAllCases();
+        const allCustomers = await getAllCustomers();
+        const caseMap = new Map(allCases.map(c => [c.id, c]));
+        const customerMap = new Map(allCustomers.map(c => [c.id, c]));
+        return members.map(m => ({
+          workerId: m.workerId,
+          caseId: m.caseId,
+          caseName: caseMap.get(m.caseId)?.name ?? "",
+          customerName: customerMap.get(caseMap.get(m.caseId)?.customerId ?? 0)?.name ?? "",
+          stage: m.stage,
+        }));
+      }),
+    getMembersByCaseId: publicProcedure
+      .input(z.object({ caseId: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const members = await getMembersByCaseId(input.caseId);
+        const allWorkers = await getAllWorkers();
+        const workerMap = new Map(allWorkers.map(w => [w.id, w]));
+        return members.map(m => ({
+          ...m,
+          workerName: workerMap.get(m.workerId)?.name ?? "",
+          workerNameEn: workerMap.get(m.workerId)?.nameEn ?? "",
+          workerNationality: workerMap.get(m.workerId)?.nationality ?? "",
+          workerPermitNo: workerMap.get(m.workerId)?.residentPermitNo ?? workerMap.get(m.workerId)?.passportNo ?? "",
+          workerLifecycleStatus: workerMap.get(m.workerId)?.lifecycleStatus ?? "",
+        }));
+      }),
+  }),
+  caseEmployments: router({
+    listByCase: publicProcedure
+      .input(z.object({ caseId: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const emps = await getEmploymentsByCase(input.caseId);
+        const allWorkers = await getAllWorkers();
+        const quals = await getQualificationsByCaseId(input.caseId);
+        const workerMap = new Map(allWorkers.map(w => [w.id, w]));
+        const qualMap = new Map(quals.map((q: { id: number; label: string }) => [q.id, q]));
+        return emps.map(e => ({
+          ...e,
+          workerName: workerMap.get(e.workerId)?.name ?? "",
+          workerNameEn: workerMap.get(e.workerId)?.nameEn ?? "",
+          qualificationLabel: e.qualificationId ? (qualMap.get(e.qualificationId) as any)?.label ?? "" : "",
+        }));
+      }),
+    create: publicProcedure
+      .input(z.object({
+        caseId: z.number().int().positive(),
+        workerId: z.number().int().positive(),
+        qualificationId: z.number().int().positive().optional(),
+        position: z.string().max(100).optional(),
+        contractStart: z.string().max(10).optional(),
+        contractEnd: z.string().max(10).optional(),
+        status: z.enum(["pending", "active", "terminated", "expired"]).default("pending"),
+        terminationReason: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        await createEmployment({
+          caseId: input.caseId,
+          workerId: input.workerId,
+          qualificationId: input.qualificationId ?? null,
+          position: input.position ?? null,
+          contractStart: input.contractStart ?? null,
+          contractEnd: input.contractEnd ?? null,
+          status: input.status,
+          terminationReason: input.terminationReason ?? null,
+          notes: input.notes ?? null,
+        });
+        return { success: true };
+      }),
+    update: publicProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        workerId: z.number().int().positive().optional(),
+        qualificationId: z.number().int().positive().optional(),
+        position: z.string().max(100).optional(),
+        contractStart: z.string().max(10).optional(),
+        contractEnd: z.string().max(10).optional(),
+        status: z.enum(["pending", "active", "terminated", "expired"]).optional(),
+        terminationReason: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updateEmployment(id, {
+          ...data,
+          qualificationId: data.qualificationId ?? null,
+          position: data.position ?? null,
+          contractStart: data.contractStart ?? null,
+          contractEnd: data.contractEnd ?? null,
+          terminationReason: data.terminationReason ?? null,
+          notes: data.notes ?? null,
+        });
+        return { success: true };
+      }),
+    delete: publicProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        await deleteEmployment(input.id);
+        return { success: true };
+      }),
+  }),
+});
 export type AppRouter = typeof appRouter;

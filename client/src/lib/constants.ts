@@ -85,6 +85,62 @@ export const EMPLOYMENT_LETTER_TYPE_OPTIONS = [
 
 export type EmploymentLetterType = (typeof EMPLOYMENT_LETTER_TYPE_OPTIONS)[number]["value"];
 
+// ─── 案件管理：案件狀態 ──────────────────────────────────────────────────────
+export const CASE_MGMT_STATUS_OPTIONS = [
+  { value: "in_progress", label: "進行中" },
+  { value: "completed",   label: "已完成" },
+  { value: "paused",      label: "暫停" },
+  { value: "cancelled",   label: "取消" },
+] as const;
+export type CaseMgmtStatus = (typeof CASE_MGMT_STATUS_OPTIONS)[number]["value"];
+
+export const QUAL_CATEGORY_OPTIONS = [
+  { value: "labor_in",     label: "勞基法內" },
+  { value: "labor_out",    label: "勞基法外" },
+  { value: "professional", label: "專業/評點" },
+] as const;
+export type QualCategory = (typeof QUAL_CATEGORY_OPTIONS)[number]["value"];
+
+export const QUAL_TYPE_OPTIONS = [
+  { value: "caregiver",        label: "看護" },
+  { value: "domestic_helper",  label: "幫傭" },
+  { value: "manufacturing",    label: "製造業" },
+  { value: "agriculture",      label: "農業" },
+  { value: "construction",     label: "營造業" },
+  { value: "white_collar",     label: "白領" },
+  { value: "intermediate",     label: "中階技術" },
+  { value: "overseas_student", label: "評點制僑外生" },
+] as const;
+export type QualType = (typeof QUAL_TYPE_OPTIONS)[number]["value"];
+
+export const APPLICATION_STATUS_OPTIONS = [
+  { value: "preparing",  label: "準備中" },
+  { value: "submitted",  label: "已送件" },
+  { value: "reviewing",  label: "審核中" },
+  { value: "approved",   label: "已核准" },
+  { value: "supplement", label: "補件中" },
+  { value: "rejected",   label: "已退件" },
+] as const;
+export type ApplicationStatus = (typeof APPLICATION_STATUS_OPTIONS)[number]["value"];
+
+export const DEMAND_STATUS_OPTIONS = [
+  { value: "open",      label: "開放中" },
+  { value: "filling",   label: "媒合中" },
+  { value: "fulfilled", label: "已媒合滿" },
+  { value: "closed",    label: "已關閉" },
+] as const;
+export type DemandStatus = (typeof DEMAND_STATUS_OPTIONS)[number]["value"];
+
+export const ASSIGNMENT_STAGE_OPTIONS = [
+  { value: "candidate", label: "人選評估" },
+  { value: "confirmed", label: "已確認" },
+  { value: "upcoming",  label: "即將聘僱" },
+  { value: "employed",  label: "聘僱中" },
+  { value: "departed",  label: "已離職" },
+  { value: "rejected",  label: "婉拒/未錄取" },
+] as const;
+export type AssignmentStage = (typeof ASSIGNMENT_STAGE_OPTIONS)[number]["value"];
+
 // ─── 證件類型 ─────────────────────────────────────────────────────────────────
 export const ID_TYPE_OPTIONS = [
   { value: "resident_permit", label: "居留證" },
@@ -114,12 +170,31 @@ const STATUS_COLOR_MAP: Record<string, StatusColor> = {
   // 紅色
   pending_supplement: "red",
   cancelled: "red",
+  rejected: "red",
   // 藍色
   pending: "blue",
   // 灰色
   not_started: "gray",
   departed: "gray",
   ended: "gray",
+  // 案件管理
+  in_progress: "blue",
+  paused: "gray",
+  // 資格申請
+  preparing: "gray",
+  submitted: "blue",
+  reviewing: "amber",
+  approved: "green",
+  supplement: "amber",
+  // 需求
+  open: "blue",
+  filling: "amber",
+  fulfilled: "green",
+  closed: "gray",
+  // 配對成員
+  candidate: "gray",
+  confirmed: "blue",
+  upcoming: "amber",
 };
 
 export function getStatusColor(status: string): StatusColor {
@@ -138,6 +213,12 @@ const ALL_LABELS: Record<string, string> = {
   ...Object.fromEntries(RECRUITMENT_LETTER_TYPE_OPTIONS.map(o => [o.value, o.label])),
   ...Object.fromEntries(EMPLOYMENT_LETTER_TYPE_OPTIONS.map(o => [o.value, o.label])),
   ...Object.fromEntries(ID_TYPE_OPTIONS.map(o => [o.value, o.label])),
+  ...Object.fromEntries(CASE_MGMT_STATUS_OPTIONS.map(o => [o.value, o.label])),
+  ...Object.fromEntries(QUAL_CATEGORY_OPTIONS.map(o => [o.value, o.label])),
+  ...Object.fromEntries(QUAL_TYPE_OPTIONS.map(o => [o.value, o.label])),
+  ...Object.fromEntries(APPLICATION_STATUS_OPTIONS.map(o => [o.value, o.label])),
+  ...Object.fromEntries(DEMAND_STATUS_OPTIONS.map(o => [o.value, o.label])),
+  ...Object.fromEntries(ASSIGNMENT_STAGE_OPTIONS.map(o => [o.value, o.label])),
 };
 
 export function getStatusLabel(value: string): string {

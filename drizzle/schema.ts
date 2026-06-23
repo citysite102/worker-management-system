@@ -212,3 +212,155 @@ export const customers = mysqlTable("customers", {
 
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = typeof customers.$inferInsert;
+
+// ─── Cases（案件）────────────────────────────────────────────────────────────
+export const cases = mysqlTable("cases", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId").notNull(),               // → customers.id
+  name: varchar("name", { length: 100 }).notNull(),      // 案件名稱
+  managerId: int("managerId").notNull(),                 // → managers.id
+  status: mysqlEnum("status", [
+    "in_progress",   // 進行中
+    "completed",     // 已完成
+    "paused",        // 暫停
+    "cancelled",     // 取消
+  ]).notNull().default("in_progress"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Case = typeof cases.$inferSelect;
+export type InsertCase = typeof cases.$inferInsert;
+
+// ─── Case Qualifications（案件資格）─────────────────────────────────────────
+export const caseQualifications = mysqlTable("case_qualifications", {
+  id: int("id").autoincrement().primaryKey(),
+  caseId: int("caseId").notNull(),                       // → cases.id
+  label: varchar("label", { length: 100 }).notNull(),   // 例：案件資格一(幫傭)
+  category: mysqlEnum("category", [
+    "labor_in",      // 勞基法內
+    "labor_out",     // 勞基法外
+    "professional",  // 專業/評點（白領、僑外生等）
+  ]).notNull(),
+  qualType: mysqlEnum("qualType", [
+    "caregiver",        // 看護
+    "domestic_helper",  // 幫傭
+    "manufacturing",    // 製造業
+    "agriculture",      // 農業
+    "construction",     // 營造業
+    "white_collar",     // 白領
+    "intermediate",     // 中階技術人力
+    "overseas_student", // 評點制僑外生
+  ]).notNull(),
+  // 法定雇主資料
+  employerName: varchar("employerName", { length: 100 }),
+  employerTaxId: varchar("employerTaxId", { length: 8 }),
+  employerNote: text("employerNote"),
+  // 進度狀態：申請進度
+  applicationStatus: mysqlEnum("applicationStatus", [
+    "preparing",    // 準備中
+    "submitted",    // 已送件
+    "reviewing",    // 審核中
+    "approved",     // 已核准
+    "supplement",   // 補件中
+    "rejected",     // 已退件
+  ]).notNull().default("preparing"),
+  expectedApprovalDate: varchar("expectedApprovalDate", { length: 10 }),
+  // 進度狀態：聘僱人數
+  quotaTotal: int("quotaTotal").notNull().default(0),
+  // 進度狀態：文件有效日期
+  docValidUntil: varchar("docValidUntil", { length: 10 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CaseQualification = typeof caseQualifications.$inferSelect;
+export type InsertCaseQualification = typeof caseQualifications.$inferInsert;
+
+// ─── Case Demands（媒合需求）────────────────────────────────────────────────
+export const caseDemands = mysqlTable("case_demands", {
+  id: int("id").autoincrement().primaryKey(),
+  caseId: int("caseId").notNull(),                       // → cases.id
+  label: varchar("label", { length: 100 }).notNull(),
+  qualificationId: int("qualificationId"),              // 可選 → case_qualifications.id
+  qualType: mysqlEnum("qualType", [
+    "caregiver", "domestic_helper", "manufacturing", "agriculture",
+    "construction", "white_collar", "intermediate", "overseas_student",
+  ]).notNull(),
+  neededCount: int("neededCount").notNull().default(1),
+  status: mysqlEnum("status", [
+    "open",        // 開放中
+    "filling",     // 媒合中
+    "fulfilled",   // 已媒合滿
+    "closed",      // 已關閉
+  ]).notNull().default("open"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CaseDemand = typeof caseDemands.$inferSelect;
+export type InsertCaseDemand = typeof caseDemands.$inferInsert;
+
+// ─── Case Assignments（配對／批次）──────────────────────────────────────────
+export const caseAssignments = mysqlTable("case_assignments", {
+  id: int("id").autoincrement().primaryKey(),
+  caseId: int("caseId").notNull(),                       // → cases.id
+  label: varchar("label", { length: 100 }),
+  demandId: int("demandId"),                             // 可選 → case_demands.id
+  qualificationId: int("qualificationId"),               // 可選 → case_qualifications.id
+  batchNote: text("batchNote"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CaseAssignment = typeof caseAssignments.$inferSelect;
+export type InsertCaseAssignment = typeof caseAssignments.$inferInsert;
+
+// ─── Case Assignment Workers（配對成員）─────────────────────────────────────
+export const caseAssignmentWorkers = mysqlTable("case_assignment_workers", {
+  id: int("id").autoincrement().primaryKey(),
+  assignmentId: int("assignmentId").notNull(),           // → case_assignments.id
+  caseId: int("caseId").notNull(),                       // 冗餘 → cases.id（便於唯一性檢查）
+  workerId: int("workerId").notNull(),                   // → workers.id
+  stage: mysqlEnum("stage", [
+    "candidate",   // 人選評估
+    "confirmed",   // 已確認
+    "upcoming",    // 即將聘僱
+    "employed",    // 聘僱中
+    "departed",    // 已離職
+    "rejected",    // 婉拒/未錄取
+  ]).notNull().default("candidate"),
+  matchNote: text("matchNote"),
+  // 聘僱階段欄位
+  expectedDocDate: varchar("expectedDocDate", { length: 10 }),
+  expectedEntryDate: varchar("expectedEntryDate", { length: 10 }),
+  departureNote: text("departureNote"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CaseAssignmentWorker = typeof caseAssignmentWorkers.$inferSelect;
+export type InsertCaseAssignmentWorker = typeof caseAssignmentWorkers.$inferInsert;
+
+// ─── Case Employments（正式聘僱合約）────────────────────────────────────────
+export const caseEmployments = mysqlTable("case_employments", {
+  id: int("id").autoincrement().primaryKey(),
+  caseId: int("caseId").notNull(),                       // → cases.id
+  workerId: int("workerId").notNull(),                   // → workers.id
+  qualificationId: int("qualificationId"),               // 可選 → case_qualifications.id
+  position: varchar("position", { length: 100 }),
+  contractStart: varchar("contractStart", { length: 10 }),
+  contractEnd: varchar("contractEnd", { length: 10 }),
+  status: mysqlEnum("status", [
+    "pending",     // 待確認
+    "active",      // 在職
+    "terminated",  // 已終止
+    "expired",     // 合約到期
+  ]).notNull().default("pending"),
+  terminationReason: text("terminationReason"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CaseEmployment = typeof caseEmployments.$inferSelect;
+export type InsertCaseEmployment = typeof caseEmployments.$inferInsert;

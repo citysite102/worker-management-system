@@ -14,7 +14,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Users, PanelLeft, Building2, Settings } from "lucide-react";
+import { Users, PanelLeft, Building2, Settings, Briefcase } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -22,6 +22,7 @@ import { useLocation } from "wouter";
 const menuItems = [
   { icon: Users, label: "移工管理", path: "/" },
   { icon: Building2, label: "客戶管理", path: "/customers" },
+  { icon: Briefcase, label: "案件管理", path: "/cases" },
   { icon: Settings, label: "設定", path: "/settings" },
 ];
 

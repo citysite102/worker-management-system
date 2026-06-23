@@ -7,6 +7,8 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import DashboardLayout from "./components/DashboardLayout";
 import Workers from "./pages/Workers";
 import Customers from "./pages/Customers";
+import Cases from "./pages/Cases";
+import CaseDetail from "./pages/CaseDetail";
 import Settings from "./pages/Settings";
 
 function Router() {
@@ -16,6 +18,8 @@ function Router() {
         <Route path="/" component={Workers} />
         <Route path="/workers" component={Workers} />
         <Route path="/customers" component={Customers} />
+        <Route path="/cases" component={Cases} />
+        <Route path="/cases/:id" component={CaseDetail} />
         <Route path="/settings" component={Settings} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />

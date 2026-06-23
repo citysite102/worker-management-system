@@ -655,6 +655,20 @@ export const appRouter = router({
         employmentPermitFileKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
         employmentStatus: z.enum(["normal", "suspended", "terminated", "transferred"]).optional(),
         terminationLetterFileKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+        // Phase 3: 承接通報/入國通報
+        notificationNo: z.string().max(50).optional().transform(s => s?.trim() || undefined),
+        entryNotificationDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        certificateNo: z.string().max(50).optional().transform(s => s?.trim() || undefined),
+        // Phase 3: 內政部移民署
+        niaCategory: z.string().max(50).optional().transform(s => s?.trim() || undefined),
+        niaNo: z.string().max(50).optional().transform(s => s?.trim() || undefined),
+        residencePermitSubmitDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        // Phase 3: 勞動部聘僱許可函
+        molReceiptNo: z.string().max(50).optional().transform(s => s?.trim() || undefined),
+        employmentLetterCategory: z.string().max(50).optional().transform(s => s?.trim() || undefined),
+        applicationSubmitDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        issuanceDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        approvalReceiptDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
         notes: z.string().optional().transform(s => s?.trim() || undefined),
       }))
       .mutation(async ({ input }) => {
@@ -691,6 +705,20 @@ export const appRouter = router({
         employmentPermitFileKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
         employmentStatus: z.enum(["normal", "suspended", "terminated", "transferred"]).optional().nullable(),
         terminationLetterFileKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
+        // Phase 3: 承接通報/入國通報
+        notificationNo: z.string().max(50).optional().nullable().transform(s => s?.trim() || undefined),
+        entryNotificationDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        certificateNo: z.string().max(50).optional().nullable().transform(s => s?.trim() || undefined),
+        // Phase 3: 內政部移民署
+        niaCategory: z.string().max(50).optional().nullable().transform(s => s?.trim() || undefined),
+        niaNo: z.string().max(50).optional().nullable().transform(s => s?.trim() || undefined),
+        residencePermitSubmitDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        // Phase 3: 勞動部聘僱許可函
+        molReceiptNo: z.string().max(50).optional().nullable().transform(s => s?.trim() || undefined),
+        employmentLetterCategory: z.string().max(50).optional().nullable().transform(s => s?.trim() || undefined),
+        applicationSubmitDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        issuanceDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        approvalReceiptDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
         notes: z.string().optional().transform(s => s?.trim() || undefined),
       }))
       .mutation(async ({ input }) => {

@@ -44,6 +44,20 @@ const schema = z.object({
   employmentPermitFileKey: z.string().max(300).optional().nullable(),
   employmentStatus: z.enum(["normal", "suspended", "terminated", "transferred"]).optional().nullable(),
   terminationLetterFileKey: z.string().max(300).optional().nullable(),
+  // Phase 3: 承接通報/入國通報
+  notificationNo: z.string().max(50).optional().nullable(),
+  entryNotificationDate: z.string().max(10).optional().nullable(),
+  certificateNo: z.string().max(50).optional().nullable(),
+  // Phase 3: 內政部移民署
+  niaCategory: z.string().max(50).optional().nullable(),
+  niaNo: z.string().max(50).optional().nullable(),
+  residencePermitSubmitDate: z.string().max(10).optional().nullable(),
+  // Phase 3: 勞動部聘僱許可函
+  molReceiptNo: z.string().max(50).optional().nullable(),
+  employmentLetterCategory: z.string().max(50).optional().nullable(),
+  applicationSubmitDate: z.string().max(10).optional().nullable(),
+  issuanceDate: z.string().max(10).optional().nullable(),
+  approvalReceiptDate: z.string().max(10).optional().nullable(),
   notes: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -106,6 +120,17 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
       employmentPermitFileKey: null,
       employmentStatus: null,
       terminationLetterFileKey: null,
+      notificationNo: null,
+      entryNotificationDate: null,
+      certificateNo: null,
+      niaCategory: null,
+      niaNo: null,
+      residencePermitSubmitDate: null,
+      molReceiptNo: null,
+      employmentLetterCategory: null,
+      applicationSubmitDate: null,
+      issuanceDate: null,
+      approvalReceiptDate: null,
     },
   });
 
@@ -130,6 +155,17 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
         employmentPermitFileKey: editingCase.employmentPermitFileKey ?? null,
         employmentStatus: editingCase.employmentStatus ?? null,
         terminationLetterFileKey: editingCase.terminationLetterFileKey ?? null,
+        notificationNo: editingCase.notificationNo ?? null,
+        entryNotificationDate: editingCase.entryNotificationDate ?? null,
+        certificateNo: editingCase.certificateNo ?? null,
+        niaCategory: editingCase.niaCategory ?? null,
+        niaNo: editingCase.niaNo ?? null,
+        residencePermitSubmitDate: editingCase.residencePermitSubmitDate ?? null,
+        molReceiptNo: editingCase.molReceiptNo ?? null,
+        employmentLetterCategory: editingCase.employmentLetterCategory ?? null,
+        applicationSubmitDate: editingCase.applicationSubmitDate ?? null,
+        issuanceDate: editingCase.issuanceDate ?? null,
+        approvalReceiptDate: editingCase.approvalReceiptDate ?? null,
       });
     } else {
       reset({
@@ -151,6 +187,17 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
         employmentPermitFileKey: null,
         employmentStatus: null,
         terminationLetterFileKey: null,
+        notificationNo: null,
+        entryNotificationDate: null,
+        certificateNo: null,
+        niaCategory: null,
+        niaNo: null,
+        residencePermitSubmitDate: null,
+        molReceiptNo: null,
+        employmentLetterCategory: null,
+        applicationSubmitDate: null,
+        issuanceDate: null,
+        approvalReceiptDate: null,
       });
     }
   }, [editingCase, reset]);
@@ -653,7 +700,93 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
 
           <Separator />
 
-          {/* ── 備註 ─────────────────────────────────────────── */}
+          {/* ── 承接通報/入國通報（3日內） ──────────────────────────── */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-500/10 text-blue-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.1a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l.81-.81a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              </span>
+              承接通報 / 入國通報（3日內）
+            </h3>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">通報書序號</Label>
+                <Input {...register("notificationNo")} placeholder="例：ABC-001" className="text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">入國通報申請日</Label>
+                <Input {...register("entryNotificationDate")} type="date" className="text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">證明書序號</Label>
+                <Input {...register("certificateNo")} placeholder="例：XYZ-002" className="text-sm" />
+              </div>
+            </div>
+          </section>
+
+          <Separator />
+
+          {/* ── 內政部移民署 ──────────────────────────────────────────── */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-purple-500/10 text-purple-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              </span>
+              內政部移民署
+            </h3>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">一站式類別</Label>
+                <Input {...register("niaCategory")} placeholder="例：居留證申請" className="text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">一站式序號</Label>
+                <Input {...register("niaNo")} placeholder="例：NIA-2025-001" className="text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">居留證申請送審日</Label>
+                <Input {...register("residencePermitSubmitDate")} type="date" className="text-sm" />
+              </div>
+            </div>
+          </section>
+
+          <Separator />
+
+          {/* ── 勞動部聘僱許可函 ────────────────────────────────────── */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-amber-500/10 text-amber-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              </span>
+              勞動部聘僱許可函
+            </h3>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">收文號</Label>
+                <Input {...register("molReceiptNo")} placeholder="例：MOL-2025-001" className="text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">聘僱函類別</Label>
+                <Input {...register("employmentLetterCategory")} placeholder="例：初聘函" className="text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">申請書送件日</Label>
+                <Input {...register("applicationSubmitDate")} type="date" className="text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">發文日期</Label>
+                <Input {...register("issuanceDate")} type="date" className="text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">核准收件日</Label>
+                <Input {...register("approvalReceiptDate")} type="date" className="text-sm" />
+              </div>
+            </div>
+          </section>
+
+          <Separator />
+
+          {/* ── 備註 ────────────────────────────────────────────────── */}
           <div className="space-y-1.5">
             <Label>備註</Label>
             <Textarea {...register("notes")} placeholder="案件說明、特殊需求..." rows={3} />

@@ -267,6 +267,23 @@ export const cases = mysqlTable("cases", {
   ]),
   terminationLetterFileKey: varchar("terminationLetterFileKey", { length: 300 }), // 終止函（S3）
 
+  // Phase 3: 承接通報/入國通報（3日內）
+  notificationNo: varchar("notificationNo", { length: 50 }),         // 通報書序號
+  entryNotificationDate: varchar("entryNotificationDate", { length: 10 }), // 入國通報申請日
+  certificateNo: varchar("certificateNo", { length: 50 }),           // 證明書序號
+
+  // Phase 3: 內政部移民署
+  niaCategory: varchar("niaCategory", { length: 50 }),               // 一站式類別
+  niaNo: varchar("niaNo", { length: 50 }),                           // 一站式序號
+  residencePermitSubmitDate: varchar("residencePermitSubmitDate", { length: 10 }), // 居留證申請送審日
+
+  // Phase 3: 勞動部聘僱許可函
+  molReceiptNo: varchar("molReceiptNo", { length: 50 }),             // 收文號
+  employmentLetterCategory: varchar("employmentLetterCategory", { length: 50 }), // 聘僱函類別
+  applicationSubmitDate: varchar("applicationSubmitDate", { length: 10 }), // 申請書送件日
+  issuanceDate: varchar("issuanceDate", { length: 10 }),             // 發文日期
+  approvalReceiptDate: varchar("approvalReceiptDate", { length: 10 }), // 核准收件日
+
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

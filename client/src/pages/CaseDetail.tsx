@@ -353,6 +353,86 @@ export default function CaseDetail() {
               </div>
             )}
 
+            {/* 承接通報/入國通報卡片 */}
+            {((caseData as any).notificationNo || (caseData as any).entryNotificationDate || (caseData as any).certificateNo) && (
+              <div className="rounded-lg border bg-card p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.1a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l.81-.81a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  承接通報 / 入國通報（3日內）
+                </div>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">通報書序號</p>
+                    <p className="font-medium font-mono">{(caseData as any).notificationNo || "—"}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">入國通報申請日</p>
+                    <p className="font-medium">{(caseData as any).entryNotificationDate || "—"}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">證明書序號</p>
+                    <p className="font-medium font-mono">{(caseData as any).certificateNo || "—"}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 內政部移民署卡片 */}
+            {((caseData as any).niaCategory || (caseData as any).niaNo || (caseData as any).residencePermitSubmitDate) && (
+              <div className="rounded-lg border bg-card p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-purple-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                  內政部移民署
+                </div>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">一站式類別</p>
+                    <p className="font-medium">{(caseData as any).niaCategory || "—"}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">一站式序號</p>
+                    <p className="font-medium font-mono">{(caseData as any).niaNo || "—"}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">居留證申請送審日</p>
+                    <p className="font-medium">{(caseData as any).residencePermitSubmitDate || "—"}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 勞動部聘僱許可函卡片 */}
+            {((caseData as any).molReceiptNo || (caseData as any).employmentLetterCategory || (caseData as any).applicationSubmitDate || (caseData as any).issuanceDate || (caseData as any).approvalReceiptDate) && (
+              <div className="rounded-lg border bg-card p-4 space-y-3 md:col-span-2">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                  勞動部聘僱許可函
+                </div>
+                <div className="grid grid-cols-5 gap-4 text-sm">
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">收文號</p>
+                    <p className="font-medium font-mono">{(caseData as any).molReceiptNo || "—"}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">聘僱函類別</p>
+                    <p className="font-medium">{(caseData as any).employmentLetterCategory || "—"}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">申請書送件日</p>
+                    <p className="font-medium">{(caseData as any).applicationSubmitDate || "—"}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">發文日期</p>
+                    <p className="font-medium">{(caseData as any).issuanceDate || "—"}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">核准收件日</p>
+                    <p className="font-medium">{(caseData as any).approvalReceiptDate || "—"}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 案件備註 */}
             {caseData.notes && (
               <div className="rounded-lg border bg-card p-4 space-y-2 md:col-span-2">

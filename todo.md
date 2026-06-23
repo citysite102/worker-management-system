@@ -218,3 +218,16 @@
 - [x] 前端 CaseModal：新增「聘僱資料」分區（日期選擇、代辦事項下拉、附件上傳）
 - [x] 前端 CaseDetail：基本資料 Tab 新增聘僱時間與代辦事項卡片
 - [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤
+
+## 案件管理 Phase 3：通報/移民署/勞動部許可函（v5.2）
+
+- [x] Schema：cases 主表新增 notificationNo、entryNotificationDate、certificateNo（承接通報/入國通報）
+- [x] Schema：cases 主表新增 niaCategory、niaNo、residencePermitSubmitDate（內政部移民署）
+- [x] Schema：cases 主表新增 molReceiptNo、employmentLetterCategory、applicationSubmitDate、issuanceDate、approvalReceiptDate（勞動部聘僱許可函）
+- [x] Schema：執行資料庫遷移（11 個欄位全部加入）
+- [x] 後端：cases CRUD 支援新欄位
+- [x] 前端 CaseModal：新增「承接通報/入國通報」分區（通報書序號、入國通報申請日、證明書序號）
+- [x] 前端 CaseModal：新增「內政部移民署」分區（一站式類別、一站式序號、居留證申請送審日）
+- [x] 前端 CaseModal：新增「勞動部聘僱許可函」分區（收文號、聘僱函類別、申請書送件日、發文日期、核准收件日）
+- [x] 前端 CaseDetail：基本資料 Tab 新增三個行政流程卡片
+- [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤

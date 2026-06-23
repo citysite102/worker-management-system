@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -406,8 +407,8 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Briefcase className="w-5 h-5 text-primary" />
             {editingCase ? "編輯案件" : "新增案件"}
@@ -417,7 +418,15 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-8 py-4">
+        <form onSubmit={handleSubmit(onSubmit as any)} className="flex flex-col flex-1 min-h-0">
+          <Tabs defaultValue="basic" className="flex flex-col flex-1 min-h-0">
+            <TabsList className="grid grid-cols-2 shrink-0 mb-2">
+              <TabsTrigger value="basic">基本資料</TabsTrigger>
+              <TabsTrigger value="admin">行政 / 保險 / 體檢</TabsTrigger>
+            </TabsList>
+
+            {/* ═══════ Tab 1：基本資料 ═══════ */}
+            <TabsContent value="basic" className="flex-1 overflow-y-auto pr-1 space-y-8 py-4">
 
           {/* ── 基本設定 ─────────────────────────────────────── */}
           <section className="space-y-4">
@@ -620,7 +629,10 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
             )}
           </section>
 
-          <Separator />
+            </TabsContent>{/* end Tab 1 */}
+
+            {/* ═══════ Tab 2：行政 / 保險 / 體檢 ═══════ */}
+            <TabsContent value="admin" className="flex-1 overflow-y-auto pr-1 space-y-8 py-4">
 
           {/* ── 聘僱資料 ─────────────────────────────────────── */}
           <section className="space-y-4">
@@ -998,7 +1010,10 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
             <Textarea {...register("notes")} placeholder="案件說明、特殊需求..." rows={3} />
           </div>
 
-          <DialogFooter>
+            </TabsContent>{/* end Tab 2 */}
+          </Tabs>
+
+          <DialogFooter className="shrink-0 pt-4 border-t">
             <Button type="button" variant="outline" onClick={onClose}>取消</Button>
             <Button
               type="submit"

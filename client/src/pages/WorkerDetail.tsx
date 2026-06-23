@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Pencil, ExternalLink, FileText, Image as ImageIcon, Calendar, User, Phone, Mail, Globe, Briefcase, Shield, AlertTriangle, Building2, Plus } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
-import { getStatusLabel } from "@/lib/constants";
+import { getStatusLabel, OCCUPATION_OPTIONS } from "@/lib/constants";
 import { WorkerModal } from "@/components/WorkerModal";
 import CaseModal from "@/components/CaseModal";
 
@@ -173,7 +173,7 @@ export default function WorkerDetail() {
             <InfoRow label="出生日期" value={worker.birthDate} />
             <InfoRow label="性別" value={worker.gender === "male" ? "男" : worker.gender === "female" ? "女" : worker.gender} />
             <InfoRow label="出生地點" value={worker.birthPlace} />
-            <InfoRow label="職業" value={worker.occupation} />
+            <InfoRow label="職業" value={OCCUPATION_OPTIONS.find(o => o.value === worker.occupation)?.label ?? worker.occupation ?? "—"} />
             <InfoRow label="入境日期" value={worker.entryDate} />
             <InfoRow label="備註" value={worker.notes} className="col-span-2" />
           </div>

@@ -9,6 +9,19 @@ export const LIFECYCLE_STATUS_OPTIONS = [
 
 export type LifecycleStatus = (typeof LIFECYCLE_STATUS_OPTIONS)[number]["value"];
 
+// ─── 移工：職業 ──────────────────────────────────────────────────────────────
+export const OCCUPATION_OPTIONS = [
+  { value: "caregiver_family",   label: "家庭看護工" },
+  { value: "caregiver_hospital", label: "機構看護工" },
+  { value: "manufacturing",      label: "製造業" },
+  { value: "construction",       label: "建築業" },
+  { value: "agriculture",        label: "農業" },
+  { value: "fishery",            label: "漁業" },
+  { value: "other",              label: "其他" },
+] as const;
+
+export type Occupation = (typeof OCCUPATION_OPTIONS)[number]["value"];
+
 // ─── 移工：文件狀態 ───────────────────────────────────────────────────────────
 export const DOCUMENT_STATUS_OPTIONS = [
   { value: "not_started", label: "未啟動" },
@@ -219,6 +232,7 @@ const ALL_LABELS: Record<string, string> = {
   ...Object.fromEntries(APPLICATION_STATUS_OPTIONS.map(o => [o.value, o.label])),
   ...Object.fromEntries(DEMAND_STATUS_OPTIONS.map(o => [o.value, o.label])),
   ...Object.fromEntries(ASSIGNMENT_STAGE_OPTIONS.map(o => [o.value, o.label])),
+  ...Object.fromEntries(OCCUPATION_OPTIONS.map(o => [o.value, o.label])),
 };
 
 export function getStatusLabel(value: string): string {

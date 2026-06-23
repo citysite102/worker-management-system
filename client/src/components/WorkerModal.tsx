@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { ExternalLink, Upload, FileText, Image as ImageIcon, Loader2, CalendarClock } from "lucide-react";
-import { LIFECYCLE_STATUS_OPTIONS, DOCUMENT_STATUS_OPTIONS, NATIONALITY_OPTIONS } from "@/lib/constants";
+import { LIFECYCLE_STATUS_OPTIONS, DOCUMENT_STATUS_OPTIONS, NATIONALITY_OPTIONS, OCCUPATION_OPTIONS } from "@/lib/constants";
 import { useFormEnterNav } from "@/hooks/useFormEnterNav";
 
 // ─── 選項定義 ─────────────────────────────────────────────────────────────────
@@ -21,16 +21,6 @@ import { useFormEnterNav } from "@/hooks/useFormEnterNav";
 const GENDER_OPTIONS = [
   { value: "female", label: "女" },
   { value: "male", label: "男" },
-  { value: "other", label: "其他" },
-];
-
-const OCCUPATION_OPTIONS = [
-  { value: "caregiver_family", label: "家庭看護工" },
-  { value: "caregiver_hospital", label: "機構看護工" },
-  { value: "manufacturing", label: "製造業" },
-  { value: "construction", label: "建築業" },
-  { value: "agriculture", label: "農業" },
-  { value: "fishery", label: "漁業" },
   { value: "other", label: "其他" },
 ];
 

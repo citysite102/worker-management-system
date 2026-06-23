@@ -262,3 +262,9 @@
 - [x] WorkerDetail 關聯案件區塊新增「+ 新增案件」按鈕，點擊直接嵌入 CaseModal
 - [x] CustomerDetail 關聯案件區塊新增「+ 新增案件」按鈕，點擊直接嵌入 CaseModal
 - [x] 新增案件後 onSuccess 回調自動刷新關聯案件列表
+
+## 資料匯入後 UI 修正（v5.6）
+
+- [x] 國籍代碼統一：「009 印尼」→「印尼」（資料庫 UPDATE + constants.ts + WorkerModal 同步）
+- [x] 客戶列表：employerNo/contractStatus 補更新，類型欄位「個人」→「個人雇主」，隱藏空定價篩選器
+- [x] 職業欄位：OCCUPATION_OPTIONS 移至 constants.ts（共用），WorkerDetail 職業欄位改為顯示中文 label（家庭看護工 等），WorkerModal 改為從 constants.ts import

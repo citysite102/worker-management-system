@@ -882,15 +882,24 @@ export const appRouter = router({
         const members = await getWorkerInvolvements(input.excludeCaseId);
         const allCases = await getAllCases();
         const allCustomers = await getAllCustomers();
+        const allWorkers = await getAllWorkers();
         const caseMap = new Map(allCases.map(c => [c.id, c]));
         const customerMap = new Map(allCustomers.map(c => [c.id, c]));
-        return members.map(m => ({
-          workerId: m.workerId,
-          caseId: m.caseId,
-          caseName: caseMap.get(m.caseId)?.name ?? "",
-          customerName: customerMap.get(caseMap.get(m.caseId)?.customerId ?? 0)?.name ?? "",
-          stage: m.stage,
-        }));
+        const workerMap = new Map(allWorkers.map(w => [w.id, w]));
+        return members.map(m => {
+          const caseItem = caseMap.get(m.caseId);
+          const customerId = caseItem?.customerId ?? 0;
+          const workerItem = workerMap.get(m.workerId);
+          return {
+            workerId: m.workerId,
+            workerName: workerItem?.nameCn || workerItem?.nameEn || workerItem?.name || "",
+            caseId: m.caseId,
+            caseName: caseItem?.name ?? "",
+            customerId,
+            customerName: customerMap.get(customerId)?.name ?? "",
+            stage: m.stage,
+          };
+        });
       }),
     getMembersByCaseId: publicProcedure
       .input(z.object({ caseId: z.number().int().positive() }))

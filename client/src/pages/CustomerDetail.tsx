@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Pencil, ExternalLink, FileText, Image as ImageIcon, Building2, User } from "lucide-react";
+import { ArrowLeft, Pencil, ExternalLink, FileText, Image as ImageIcon, Building2, User, Users } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getStatusLabel } from "@/lib/constants";
 import { CustomerModal } from "@/components/CustomerModal";
@@ -71,8 +71,15 @@ export default function CustomerDetail() {
     }
   );
   const { data: allCases } = trpc.cases.list.useQuery({});
+  const { data: allInvolvements } = trpc.caseAssignments.workerInvolvements.useQuery({});
 
   const customerCases = allCases?.filter(c => c.customerId === customerId) ?? [];
+  // 每個案件下的移工（依 caseId 分組）
+  const workersByCaseId = (allInvolvements ?? []).reduce<Record<number, typeof allInvolvements>>((acc, inv) => {
+    if (!acc[inv.caseId]) acc[inv.caseId] = [];
+    acc[inv.caseId]!.push(inv);
+    return acc;
+  }, {});
   const isPersonal = customer?.employerType === "individual";
 
   if (isLoading) {
@@ -262,21 +269,41 @@ export default function CustomerDetail() {
               </div>
             ) : (
               <div className="space-y-2">
-                {customerCases.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => navigate(`/cases/${c.id}`)}
-                    className="w-full text-left rounded-lg border bg-card hover:bg-muted/50 transition-colors p-3 space-y-1"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium truncate">{c.name}</span>
-                      <StatusBadge status={c.status} />
+                {customerCases.map(c => {
+                  const caseWorkers = workersByCaseId[c.id] ?? [];
+                  const activeWorkers = caseWorkers.filter(
+                    inv => inv && ["employed", "confirmed", "upcoming", "candidate"].includes(inv.stage)
+                  );
+                  return (
+                    <div key={c.id} className="rounded-lg border bg-card p-3 space-y-2">
+                      {/* 案件名稱 → 跳轉案件詳情 */}
+                      <button
+                        onClick={() => navigate(`/cases/${c.id}`)}
+                        className="w-full text-left group"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium truncate group-hover:underline">{c.name}</span>
+                          <StatusBadge status={c.status} />
+                        </div>
+                      </button>
+                      {/* 移工名单 → 可點擊跳轉移工詳情 */}
+                      {activeWorkers.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/50 items-start">
+                          <Users className="w-3 h-3 text-muted-foreground mt-0.5 shrink-0" />
+                          {activeWorkers.map((inv, i) => inv && (
+                            <button
+                              key={i}
+                              onClick={() => navigate(`/workers/${inv.workerId}`)}
+                              className="text-xs text-muted-foreground hover:text-foreground transition-colors hover:underline font-medium"
+                            >
+                              {inv.workerName || `移工#${inv.workerId}`}{i < activeWorkers.length - 1 ? "、" : ""}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      配對 {(c as any).memberCount ?? 0} 人
-                    </p>
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

@@ -185,3 +185,11 @@
 - [x] 效能優化：QueryClient 全域快取（staleTime 5分鐘、refetchOnWindowFocus false）
 - [x] 效能優化：WorkerDetail 和 CustomerDetail 加入 initialData 從列表快取取得資料
 - [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤
+
+## 雙向導航 + 案件假資料（v4.2）
+
+- [x] 案件假資料：7 個案件、6 筆資格、9 筆需求、5 個媒合批次、11 筆媒合成員、3 筆正式聘僱
+- [x] workerInvolvements 後端補充 customerId、workerName 欄位
+- [x] WorkerDetail 關聯案件卡片加入客戶連結（點擊跳轉 /customers/:id）
+- [x] CustomerDetail 關聯案件卡片加入移工名列表（點擊跳轉 /workers/:id）
+- [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Pencil, ExternalLink, FileText, Image as ImageIcon, Calendar, User, Phone, Mail, Globe, Briefcase, Shield, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Pencil, ExternalLink, FileText, Image as ImageIcon, Calendar, User, Phone, Mail, Globe, Briefcase, Shield, AlertTriangle, Building2 } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getStatusLabel } from "@/lib/constants";
 import { WorkerModal } from "@/components/WorkerModal";
@@ -245,19 +245,33 @@ export default function WorkerDetail() {
           ) : (
             <div className="space-y-2">
               {workerCases.map((c, idx) => (
-                <button
+                <div
                   key={idx}
-                  onClick={() => navigate(`/cases/${c.caseId}`)}
-                  className="w-full text-left rounded-lg border bg-card hover:bg-muted/50 transition-colors p-3 space-y-1"
+                  className="rounded-lg border bg-card p-3 space-y-2"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium truncate">{c.caseName}</span>
-                    <Badge variant="outline" className="text-xs shrink-0">
-                      {c.stage === "employed" ? "在職" : c.stage === "departed" ? "已離境" : c.stage === "confirmed" ? "已確認" : c.stage === "candidate" ? "人選評估" : c.stage}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate">{c.customerName}</p>
-                </button>
+                  {/* 案件名稱 → 跳轉案件詳情 */}
+                  <button
+                    onClick={() => navigate(`/cases/${c.caseId}`)}
+                    className="w-full text-left group"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium truncate group-hover:underline">{c.caseName}</span>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {c.stage === "employed" ? "在職" : c.stage === "departed" ? "已離境" : c.stage === "confirmed" ? "已確認" : c.stage === "upcoming" ? "即將聘僱" : c.stage === "candidate" ? "人選評估" : c.stage}
+                      </Badge>
+                    </div>
+                  </button>
+                  {/* 客戶名稱 → 跳轉客戶詳情 */}
+                  {c.customerName && c.customerId > 0 && (
+                    <button
+                      onClick={() => navigate(`/customers/${c.customerId}`)}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group"
+                    >
+                      <Building2 className="w-3 h-3 shrink-0" />
+                      <span className="truncate group-hover:underline">{c.customerName}</span>
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}

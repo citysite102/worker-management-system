@@ -4,9 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,12 +14,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { CASE_MGMT_STATUS_OPTIONS } from "@/lib/constants";
 import {
   Building2, User, Phone, MapPin, Heart, Briefcase, AlertTriangle,
-  Upload, X, Calendar, Clock, FileText, Shield,
+  Upload, X, Calendar, Clock, FileText, Shield, Activity,
 } from "lucide-react";
+import { FormModal } from "@/components/form/FormModal";
+import { FormSection } from "@/components/form/FormSection";
+import { FormGrid } from "@/components/form/FormGrid";
+import { FormField } from "@/components/form/FormField";
+import { FileDropzone } from "@/components/form/FileDropzone";
 
 const schema = z.object({
   customerId: z.number().int().positive("請選擇客戶"),
@@ -33,38 +34,38 @@ const schema = z.object({
   primaryWorkerId: z.number().int().positive().optional().nullable(),
   needsReview: z.boolean().optional(),
   recruitmentPermitFileKey: z.string().max(300).optional().nullable(),
-  // Phase 2: 聘僱時間
+  // 聘僱時間
   continuousEmploymentDate: z.string().max(10).optional().nullable(),
   employmentPeriodMonths: z.number().int().min(1).max(36).optional().nullable(),
   terminationDate: z.string().max(10).optional().nullable(),
-  // Phase 2: 代辦事項
+  // 代辦事項
   recruitmentAgencyItems: z.enum(["none", "self", "agency"]).optional().nullable(),
   employmentAgencyItems: z.enum(["none", "self", "agency"]).optional().nullable(),
   postEmploymentInsurance: z.enum(["none", "health", "accident", "both"]).optional().nullable(),
-  // Phase 2: 聘僱許可函與情況
+  // 聘僱許可函與情況
   employmentPermitFileKey: z.string().max(300).optional().nullable(),
   employmentStatus: z.enum(["normal", "suspended", "terminated", "transferred"]).optional().nullable(),
   terminationLetterFileKey: z.string().max(300).optional().nullable(),
-  // Phase 3: 承接通報/入國通報
+  // 承接通報/入國通報
   notificationNo: z.string().max(50).optional().nullable(),
   entryNotificationDate: z.string().max(10).optional().nullable(),
   certificateNo: z.string().max(50).optional().nullable(),
-  // Phase 3: 內政部移民署
+  // 內政部移民署
   niaCategory: z.string().max(50).optional().nullable(),
   niaNo: z.string().max(50).optional().nullable(),
   residencePermitSubmitDate: z.string().max(10).optional().nullable(),
-  // Phase 3: 勞動部聘僱許可函
+  // 勞動部聘僱許可函
   molReceiptNo: z.string().max(50).optional().nullable(),
   employmentLetterCategory: z.string().max(50).optional().nullable(),
   applicationSubmitDate: z.string().max(10).optional().nullable(),
   issuanceDate: z.string().max(10).optional().nullable(),
   approvalReceiptDate: z.string().max(10).optional().nullable(),
-  // Phase 4: 保險管理
+  // 保險管理
   healthInsurance: z.string().max(200).optional().nullable(),
   healthInsurancePolicyKey: z.string().max(300).optional().nullable(),
   accidentInsurance: z.string().max(200).optional().nullable(),
   accidentInsurancePolicyKey: z.string().max(300).optional().nullable(),
-  // Phase 4: 體檢管理
+  // 體檢管理
   prevMedicalExamDate: z.string().max(10).optional().nullable(),
   prevMedicalReportKey: z.string().max(300).optional().nullable(),
   entryMedicalExamDate: z.string().max(10).optional().nullable(),
@@ -97,6 +98,52 @@ const EMPLOYMENT_STATUS_OPTIONS = [
   { value: "transferred", label: "轉就" },
 ];
 
+const EMPTY_DEFAULTS: FormValues = {
+  status: "in_progress",
+  customerId: 0,
+  managerId: 0,
+  name: "",
+  notes: "",
+  caseCondition: "",
+  primaryWorkerId: null,
+  needsReview: false,
+  recruitmentPermitFileKey: null,
+  continuousEmploymentDate: null,
+  employmentPeriodMonths: null,
+  terminationDate: null,
+  recruitmentAgencyItems: null,
+  employmentAgencyItems: null,
+  postEmploymentInsurance: null,
+  employmentPermitFileKey: null,
+  employmentStatus: null,
+  terminationLetterFileKey: null,
+  notificationNo: null,
+  entryNotificationDate: null,
+  certificateNo: null,
+  niaCategory: null,
+  niaNo: null,
+  residencePermitSubmitDate: null,
+  molReceiptNo: null,
+  employmentLetterCategory: null,
+  applicationSubmitDate: null,
+  issuanceDate: null,
+  approvalReceiptDate: null,
+  healthInsurance: null,
+  healthInsurancePolicyKey: null,
+  accidentInsurance: null,
+  accidentInsurancePolicyKey: null,
+  prevMedicalExamDate: null,
+  prevMedicalReportKey: null,
+  entryMedicalExamDate: null,
+  entryMedicalReportKey: null,
+  exam6mDate: null,
+  exam6mReportKey: null,
+  exam18mDate: null,
+  exam18mReportKey: null,
+  exam30mDate: null,
+  exam30mReportKey: null,
+};
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -112,13 +159,12 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
   const { data: managers = [] } = trpc.managers.list.useQuery();
   const { data: workers = [] } = trpc.workers.list.useQuery();
 
+  // ── 附件上傳狀態 ──
   const [uploadingPermit, setUploadingPermit] = useState(false);
   const [uploadingEmpPermit, setUploadingEmpPermit] = useState(false);
   const [uploadingTermination, setUploadingTermination] = useState(false);
-  // Phase 4: 保險保單上傳狀態
   const [uploadingHealthPolicy, setUploadingHealthPolicy] = useState(false);
   const [uploadingAccidentPolicy, setUploadingAccidentPolicy] = useState(false);
-  // Phase 4: 體檢報告上傳狀態
   const [uploadingPrevMedical, setUploadingPrevMedical] = useState(false);
   const [uploadingEntryMedical, setUploadingEntryMedical] = useState(false);
   const [uploading6m, setUploading6m] = useState(false);
@@ -130,51 +176,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      status: "in_progress",
-      customerId: 0,
-      managerId: 0,
-      name: "",
-      notes: "",
-      caseCondition: "",
-      primaryWorkerId: null,
-      needsReview: false,
-      recruitmentPermitFileKey: null,
-      continuousEmploymentDate: null,
-      employmentPeriodMonths: null,
-      terminationDate: null,
-      recruitmentAgencyItems: null,
-      employmentAgencyItems: null,
-      postEmploymentInsurance: null,
-      employmentPermitFileKey: null,
-      employmentStatus: null,
-      terminationLetterFileKey: null,
-      notificationNo: null,
-      entryNotificationDate: null,
-      certificateNo: null,
-      niaCategory: null,
-      niaNo: null,
-      residencePermitSubmitDate: null,
-      molReceiptNo: null,
-      employmentLetterCategory: null,
-      applicationSubmitDate: null,
-      issuanceDate: null,
-      approvalReceiptDate: null,
-      healthInsurance: null,
-      healthInsurancePolicyKey: null,
-      accidentInsurance: null,
-      accidentInsurancePolicyKey: null,
-      prevMedicalExamDate: null,
-      prevMedicalReportKey: null,
-      entryMedicalExamDate: null,
-      entryMedicalReportKey: null,
-      exam6mDate: null,
-      exam6mReportKey: null,
-      exam18mDate: null,
-      exam18mReportKey: null,
-      exam30mDate: null,
-      exam30mReportKey: null,
-    },
+    defaultValues: EMPTY_DEFAULTS,
   });
 
   useEffect(() => {
@@ -226,45 +228,9 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
       });
     } else {
       reset({
-        status: "in_progress",
+        ...EMPTY_DEFAULTS,
         customerId: defaultCustomerId ?? 0,
-        managerId: 0,
-        name: "",
-        notes: "",
-        caseCondition: "",
         primaryWorkerId: defaultWorkerId ?? null,
-        needsReview: false,
-        recruitmentPermitFileKey: null,
-        continuousEmploymentDate: null,
-        employmentPeriodMonths: null,
-        terminationDate: null,
-        recruitmentAgencyItems: null,
-        employmentAgencyItems: null,
-        postEmploymentInsurance: null,
-        employmentPermitFileKey: null,
-        employmentStatus: null,
-        terminationLetterFileKey: null,
-        notificationNo: null,
-        entryNotificationDate: null,
-        certificateNo: null,
-        niaCategory: null,
-        niaNo: null,
-        residencePermitSubmitDate: null,
-        molReceiptNo: null,
-        employmentLetterCategory: null,
-        applicationSubmitDate: null,
-        issuanceDate: null,
-        approvalReceiptDate: null,
-        prevMedicalExamDate: null,
-        prevMedicalReportKey: null,
-        entryMedicalExamDate: null,
-        entryMedicalReportKey: null,
-        exam6mDate: null,
-        exam6mReportKey: null,
-        exam18mDate: null,
-        exam18mReportKey: null,
-        exam30mDate: null,
-        exam30mReportKey: null,
       });
     }
   }, [editingCase, reset, defaultCustomerId, defaultWorkerId]);
@@ -289,7 +255,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
     onError: (e) => toast.error(e.message),
   });
 
-  const onSubmit = (data: FormValues) => {
+  const onSubmit: SubmitHandler<FormValues> = (data) => {
     if (editingCase) {
       updateMutation.mutate({ id: editingCase.id, ...data });
     } else {
@@ -297,6 +263,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
     }
   };
 
+  // ── watched values ──
   const watchedCustomerId = watch("customerId");
   const watchedManagerId = watch("managerId");
   const watchedStatus = watch("status");
@@ -309,7 +276,6 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
   const watchedEmploymentAgency = watch("employmentAgencyItems");
   const watchedPostInsurance = watch("postEmploymentInsurance");
   const watchedEmpStatus = watch("employmentStatus");
-  // Phase 4 watched file keys
   const watchedHealthPolicyKey = watch("healthInsurancePolicyKey");
   const watchedAccidentPolicyKey = watch("accidentInsurancePolicyKey");
   const watchedPrevMedicalKey = watch("prevMedicalReportKey");
@@ -321,709 +287,528 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
   const selectedCustomer = customers.find(c => c.id === watchedCustomerId);
   const selectedWorker = workers.find(w => w.id === watchedPrimaryWorkerId);
 
-  // 通用附件上傳 helper
-  const handleFileUpload = async (
-    file: File,
-    folder: string,
-    fieldName: keyof FormValues,
-    setUploading: (v: boolean) => void,
-    successMsg: string,
-  ) => {
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("folder", folder);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload failed");
-      const data = await res.json() as { key: string };
-      setValue(fieldName, data.key as any);
-      toast.success(successMsg);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "未知錯誤";
-      toast.error("上傳失敗：" + msg);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // 附件顯示元件
-  const FileField = ({
-    fileKey,
-    uploading,
-    fieldName,
-    label,
-    folder,
-    setUploading,
-    successMsg,
-  }: {
-    fileKey: string | null | undefined;
-    uploading: boolean;
-    fieldName: keyof FormValues;
-    label: string;
-    folder: string;
-    setUploading: (v: boolean) => void;
-    successMsg: string;
-  }) => (
-    <div className="space-y-1.5">
-      <Label className="flex items-center gap-1.5">
-        <Upload className="w-3.5 h-3.5" />
-        {label}
-      </Label>
-      {fileKey ? (
-        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border border-border/50">
-          <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-          <span className="text-xs text-muted-foreground flex-1 truncate">{fileKey.split("/").pop()}</span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0"
-            onClick={() => setValue(fieldName, null as any)}
-          >
-            <X className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      ) : (
-        <label className="flex items-center gap-2 px-3 py-2 rounded-md border border-dashed border-border/70 cursor-pointer hover:bg-muted/30 transition-colors">
-          <Upload className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            {uploading ? "上傳中..." : "點擊上傳 PDF 或圖片"}
-          </span>
-          <input
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png"
-            className="hidden"
-            onChange={e => {
-              const file = e.target.files?.[0];
-              if (file) handleFileUpload(file, folder, fieldName, setUploading, successMsg);
-            }}
-            disabled={uploading}
-          />
-        </label>
-      )}
-    </div>
-  );
+  const isPending = isSubmitting || createMutation.isPending || updateMutation.isPending;
+  const anyUploading = uploadingPermit || uploadingEmpPermit || uploadingTermination;
 
   return (
-    <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader className="shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-primary" />
-            {editingCase ? "編輯案件" : "新增案件"}
-            {editingCase?.caseNo && (
-              <Badge variant="outline" className="ml-2 font-mono text-xs">{editingCase.caseNo}</Badge>
-            )}
-          </DialogTitle>
-        </DialogHeader>
+    <FormModal
+      open={open}
+      onOpenChange={v => !v && onClose()}
+      icon={<Briefcase className="w-5 h-5 text-primary" />}
+      title={
+        <>
+          {editingCase ? "編輯案件" : "新增案件"}
+          {editingCase?.caseNo && (
+            <Badge variant="outline" className="ml-2 font-mono text-xs">{editingCase.caseNo}</Badge>
+          )}
+        </>
+      }
+      className="max-w-3xl"
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>取消</Button>
+          <Button
+            type="submit"
+            form="case-modal-form"
+            disabled={isPending || anyUploading}
+          >
+            {isPending ? "處理中..." : editingCase ? "儲存變更" : "建立案件"}
+          </Button>
+        </>
+      }
+    >
+      <form id="case-modal-form" onSubmit={handleSubmit(onSubmit as any)}>
+        <Tabs defaultValue="basic" className="flex flex-col">
+          <TabsList className="grid grid-cols-2 mb-6">
+            <TabsTrigger value="basic">基本資料</TabsTrigger>
+            <TabsTrigger value="admin">行政與保險體檢</TabsTrigger>
+          </TabsList>
 
-        <form onSubmit={handleSubmit(onSubmit as any)} className="flex flex-col flex-1 min-h-0">
-          <Tabs defaultValue="basic" className="flex flex-col flex-1 min-h-0">
-            <TabsList className="grid grid-cols-2 shrink-0 mb-2">
-              <TabsTrigger value="basic">基本資料</TabsTrigger>
-              <TabsTrigger value="admin">行政 / 保險 / 體檢</TabsTrigger>
-            </TabsList>
+          {/* ═══════ Tab 1：基本資料 ═══════ */}
+          <TabsContent value="basic" className="space-y-6 mt-0">
 
-            {/* ═══════ Tab 1：基本資料 ═══════ */}
-            <TabsContent value="basic" className="flex-1 overflow-y-auto pr-1 space-y-8 py-4">
-
-          {/* ── 基本設定 ─────────────────────────────────────── */}
-          <section className="space-y-4">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">基本設定</p>
-
-            <div className="space-y-1.5">
-              <Label>案件名稱 <span className="text-destructive">*</span></Label>
-              <Input {...register("name")} placeholder="例：台灣精密科技 2025 批次" />
-              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>負責人 <span className="text-destructive">*</span></Label>
-                <Select
-                  value={watchedManagerId ? String(watchedManagerId) : ""}
-                  onValueChange={v => setValue("managerId", Number(v), { shouldValidate: true })}
-                >
-                  <SelectTrigger className={errors.managerId ? "border-destructive" : ""}>
-                    <SelectValue placeholder="選擇負責人" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {managers.map(m => (
-                      <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.managerId && <p className="text-xs text-destructive">{errors.managerId.message}</p>}
+            {/* 基本設定 */}
+            <FormSection icon={<Briefcase className="w-3.5 h-3.5" />} title="基本設定">
+              <FormGrid cols={1}>
+                <FormField label="案件名稱" required error={errors.name?.message}>
+                  <Input {...register("name")} placeholder="例：台灣精密科技 2025 批次" />
+                </FormField>
+              </FormGrid>
+              <FormGrid cols={2}>
+                <FormField label="負責人" required error={errors.managerId?.message}>
+                  <Select
+                    value={watchedManagerId ? String(watchedManagerId) : ""}
+                    onValueChange={v => setValue("managerId", Number(v), { shouldValidate: true })}
+                  >
+                    <SelectTrigger className={errors.managerId ? "border-destructive" : ""}>
+                      <SelectValue placeholder="選擇負責人" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {managers.map(m => (
+                        <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                <FormField label="案件狀態">
+                  <Select
+                    value={watchedStatus}
+                    onValueChange={v => setValue("status", v as any)}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CASE_MGMT_STATUS_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+              </FormGrid>
+              <FormGrid cols={1}>
+                <FormField label="案件情況">
+                  <Input {...register("caseCondition")} placeholder="例：需先辦居留證展延申請" />
+                </FormField>
+              </FormGrid>
+              <div className="flex items-center gap-2 pt-1">
+                <Checkbox
+                  id="needsReview"
+                  checked={watchedNeedsReview ?? false}
+                  onCheckedChange={v => setValue("needsReview", v === true)}
+                />
+                <Label htmlFor="needsReview" className="flex items-center gap-1.5 cursor-pointer text-sm font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                  標記為「需檢查」
+                </Label>
               </div>
-              <div className="space-y-1.5">
-                <Label>案件狀態</Label>
-                <Select
-                  value={watchedStatus}
-                  onValueChange={v => setValue("status", v as any)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CASE_MGMT_STATUS_OPTIONS.map(o => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            </FormSection>
 
-            <div className="space-y-1.5">
-              <Label>案件情況</Label>
-              <Input {...register("caseCondition")} placeholder="例：需先辦居留證展延申請" />
-            </div>
+            {/* 雇主資訊 */}
+            <FormSection icon={<Building2 className="w-3.5 h-3.5" />} title="雇主資訊">
+              <FormGrid cols={1}>
+                <FormField label="選擇雇主" required error={errors.customerId?.message}>
+                  <Select
+                    value={watchedCustomerId ? String(watchedCustomerId) : ""}
+                    onValueChange={v => setValue("customerId", Number(v), { shouldValidate: true })}
+                  >
+                    <SelectTrigger className={errors.customerId ? "border-destructive" : ""}>
+                      <SelectValue placeholder="選擇雇主" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map(c => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.employerNo ? `${c.employerNo} ` : ""}{c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+              </FormGrid>
 
-            <div className="flex items-center gap-2 py-1">
-              <Checkbox
-                id="needsReview"
-                checked={watchedNeedsReview ?? false}
-                onCheckedChange={v => setValue("needsReview", v === true)}
-              />
-              <Label htmlFor="needsReview" className="flex items-center gap-1.5 cursor-pointer">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                標記為「需檢查」
-              </Label>
-            </div>
-          </section>
-
-          <Separator />
-
-          {/* ── 選擇雇主（自動帶入） ─────────────────────────── */}
-          <section className="space-y-4">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5" /> 雇主資訊
-            </p>
-
-            <div className="space-y-1.5">
-              <Label>選擇雇主 <span className="text-destructive">*</span></Label>
-              <Select
-                value={watchedCustomerId ? String(watchedCustomerId) : ""}
-                onValueChange={v => setValue("customerId", Number(v), { shouldValidate: true })}
-              >
-                <SelectTrigger className={errors.customerId ? "border-destructive" : ""}>
-                  <SelectValue placeholder="選擇雇主" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map(c => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.employerNo ? `${c.employerNo} ` : ""}{c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.customerId && <p className="text-xs text-destructive">{errors.customerId.message}</p>}
-            </div>
-
-            {selectedCustomer && (
-              <div className="rounded-lg bg-muted/40 border border-border/50 p-3 space-y-2">
-                <p className="text-xs text-muted-foreground font-medium">自動帶入（唯讀）</p>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-muted-foreground text-xs">電話：</span>
-                    <span className="font-medium">{selectedCustomer.phone || "—"}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Heart className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-muted-foreground text-xs">被照顧者：</span>
-                    <span className="font-medium">{(selectedCustomer as any).careReceiverName || "—"}</span>
-                  </div>
-                  <div className="flex items-start gap-1.5 col-span-2">
-                    <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                    <span className="text-muted-foreground text-xs">通訊地址：</span>
-                    <span className="font-medium">{selectedCustomer.address || "—"}</span>
-                  </div>
-                  {(selectedCustomer as any).careReceiverQualification && (
-                    <div className="flex items-center gap-1.5 col-span-2">
-                      <span className="text-muted-foreground text-xs">被照顧者資格：</span>
-                      <Badge variant="secondary" className="text-xs">{(selectedCustomer as any).careReceiverQualification}</Badge>
+              {selectedCustomer && (
+                <div className="rounded-lg bg-muted/40 border border-border/50 p-3 space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium">自動帶入（唯讀）</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground text-xs">電話：</span>
+                      <span className="font-medium">{selectedCustomer.phone || "—"}</span>
                     </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <FileField
-              fileKey={watchedPermitKey}
-              uploading={uploadingPermit}
-              fieldName="recruitmentPermitFileKey"
-              label="招募許可函"
-              folder="recruitment-permits"
-              setUploading={setUploadingPermit}
-              successMsg="招募許可函已上傳"
-            />
-          </section>
-
-          <Separator />
-
-          {/* ── 選擇外國人（自動帶入） ─────────────────────────── */}
-          <section className="space-y-4">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5" /> 外國人資訊
-            </p>
-
-            <div className="space-y-1.5">
-              <Label>選擇外國人</Label>
-              <Select
-                value={watchedPrimaryWorkerId ? String(watchedPrimaryWorkerId) : "__none__"}
-                onValueChange={v => setValue("primaryWorkerId", v === "__none__" ? null : Number(v))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="選擇外國人（可選）" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">— 不指定 —</SelectItem>
-                  {workers.map(w => (
-                    <SelectItem key={w.id} value={String(w.id)}>
-                      {w.name}{w.nationality ? ` · ${w.nationality}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedWorker && (
-              <div className="rounded-lg bg-muted/40 border border-border/50 p-3 space-y-2">
-                <p className="text-xs text-muted-foreground font-medium">自動帶入（唯讀）</p>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground text-xs">中文姓名：</span>
-                    <span className="font-medium ml-1">{(selectedWorker as any).nameCn || selectedWorker.name || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">英文姓名：</span>
-                    <span className="font-medium ml-1">{(selectedWorker as any).nameEn || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">居留證號：</span>
-                    <span className="font-medium ml-1 font-mono">{(selectedWorker as any).residentPermitNo || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">居留證效期：</span>
-                    <span className="font-medium ml-1">{(selectedWorker as any).residentPermitExpiry || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">護照號碼：</span>
-                    <span className="font-medium ml-1 font-mono">{(selectedWorker as any).passportNo || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">護照效期：</span>
-                    <span className="font-medium ml-1">{(selectedWorker as any).passportExpiry || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">手機：</span>
-                    <span className="font-medium ml-1">{selectedWorker.phone || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">國籍：</span>
-                    <span className="font-medium ml-1">{selectedWorker.nationality || "—"}</span>
+                    <div className="flex items-center gap-1.5">
+                      <Heart className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground text-xs">被照顧者：</span>
+                      <span className="font-medium">{(selectedCustomer as any).careReceiverName || "—"}</span>
+                    </div>
+                    <div className="flex items-start gap-1.5 col-span-2">
+                      <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                      <span className="text-muted-foreground text-xs">通訊地址：</span>
+                      <span className="font-medium">{selectedCustomer.address || "—"}</span>
+                    </div>
+                    {(selectedCustomer as any).careReceiverQualification && (
+                      <div className="flex items-center gap-1.5 col-span-2">
+                        <span className="text-muted-foreground text-xs">被照顧者資格：</span>
+                        <Badge variant="secondary" className="text-xs">{(selectedCustomer as any).careReceiverQualification}</Badge>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
-          </section>
+              )}
 
-            </TabsContent>{/* end Tab 1 */}
+              <FileDropzone
+                label="招募許可函"
+                fileKey={watchedPermitKey}
+                uploading={uploadingPermit}
+                setUploading={setUploadingPermit}
+                folder="recruitment-permits"
+                onUploaded={key => setValue("recruitmentPermitFileKey", key)}
+                onRemove={() => setValue("recruitmentPermitFileKey", null)}
+                successMsg="招募許可函已上傳"
+              />
+            </FormSection>
 
-            {/* ═══════ Tab 2：行政 / 保險 / 體檢 ═══════ */}
-            <TabsContent value="admin" className="flex-1 overflow-y-auto pr-1 space-y-8 py-4">
+            {/* 外國人資訊 */}
+            <FormSection icon={<User className="w-3.5 h-3.5" />} title="外國人資訊">
+              <FormGrid cols={1}>
+                <FormField label="選擇外國人">
+                  <Select
+                    value={watchedPrimaryWorkerId ? String(watchedPrimaryWorkerId) : "__none__"}
+                    onValueChange={v => setValue("primaryWorkerId", v === "__none__" ? null : Number(v))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="選擇外國人（可選）" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— 不指定 —</SelectItem>
+                      {workers.map(w => (
+                        <SelectItem key={w.id} value={String(w.id)}>
+                          {w.name}{w.nationality ? ` · ${w.nationality}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+              </FormGrid>
 
-          {/* ── 聘僱資料 ─────────────────────────────────────── */}
-          <section className="space-y-4">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5" /> 聘僱資料
-            </p>
+              {selectedWorker && (
+                <div className="rounded-lg bg-muted/40 border border-border/50 p-3 space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium">自動帶入（唯讀）</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground text-xs">中文姓名：</span>
+                      <span className="font-medium ml-1">{(selectedWorker as any).nameCn || selectedWorker.name || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">英文姓名：</span>
+                      <span className="font-medium ml-1">{(selectedWorker as any).nameEn || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">居留證號：</span>
+                      <span className="font-medium ml-1 font-mono">{(selectedWorker as any).residentPermitNo || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">居留證效期：</span>
+                      <span className="font-medium ml-1">{(selectedWorker as any).residentPermitExpiry || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">護照號碼：</span>
+                      <span className="font-medium ml-1 font-mono">{(selectedWorker as any).passportNo || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">護照效期：</span>
+                      <span className="font-medium ml-1">{(selectedWorker as any).passportExpiry || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">手機：</span>
+                      <span className="font-medium ml-1">{selectedWorker.phone || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">國籍：</span>
+                      <span className="font-medium ml-1">{selectedWorker.nationality || "—"}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </FormSection>
 
-            {/* 聘僱時間 */}
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+          </TabsContent>
+
+          {/* ═══════ Tab 2：行政與保險體檢 ═══════ */}
+          <TabsContent value="admin" className="space-y-6 mt-0">
+
+            {/* 聘僱資料 */}
+            <FormSection icon={<Calendar className="w-3.5 h-3.5" />} title="聘僱資料">
+              {/* 聘僱時間 */}
+              <p className="text-[13px] font-medium text-muted-foreground flex items-center gap-1.5">
                 <Clock className="w-3 h-3" /> 聘僱時間
               </p>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">接續聘僱日期</Label>
+              <FormGrid cols={3}>
+                <FormField label="接續聘僱日期">
+                  <Input type="date" {...register("continuousEmploymentDate")} />
+                </FormField>
+                <FormField label="期間長度（月）">
                   <Input
-                    type="date"
-                    {...register("continuousEmploymentDate")}
-                    className="text-sm"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">期間長度（月）</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={36}
-                    placeholder="例：24"
+                    type="number" min={1} max={36} placeholder="例：24"
                     {...register("employmentPeriodMonths", {
                       setValueAs: (v: string) => v === "" || v === null || v === undefined ? null : Number(v),
                     })}
-                    className="text-sm"
                   />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">終止聘僱日期</Label>
-                  <Input
-                    type="date"
-                    {...register("terminationDate")}
-                    className="text-sm"
-                  />
-                </div>
-              </div>
-            </div>
+                </FormField>
+                <FormField label="終止聘僱日期">
+                  <Input type="date" {...register("terminationDate")} />
+                </FormField>
+              </FormGrid>
 
-            {/* 代辦事項 */}
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+              {/* 代辦事項 */}
+              <p className="text-[13px] font-medium text-muted-foreground flex items-center gap-1.5 mt-2">
                 <FileText className="w-3 h-3" /> 代辦事項
               </p>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">招募函代辦事項</Label>
+              <FormGrid cols={3}>
+                <FormField label="招募函代辦事項">
                   <Select
                     value={watchedRecruitmentAgency ?? "__none__"}
                     onValueChange={v => setValue("recruitmentAgencyItems", v === "__none__" ? null : v as any)}
                   >
-                    <SelectTrigger className="text-sm">
-                      <SelectValue placeholder="選擇" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="選擇" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">— 未設定 —</SelectItem>
-                      {AGENCY_ITEMS_OPTIONS.map(o => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
+                      {AGENCY_ITEMS_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">聘僱函代辦事項</Label>
+                </FormField>
+                <FormField label="聘僱函代辦事項">
                   <Select
                     value={watchedEmploymentAgency ?? "__none__"}
                     onValueChange={v => setValue("employmentAgencyItems", v === "__none__" ? null : v as any)}
                   >
-                    <SelectTrigger className="text-sm">
-                      <SelectValue placeholder="選擇" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="選擇" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">— 未設定 —</SelectItem>
-                      {AGENCY_ITEMS_OPTIONS.map(o => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
+                      {AGENCY_ITEMS_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">聘僱後尚未完成保險</Label>
+                </FormField>
+                <FormField label="聘僱後尚未完成保險">
                   <Select
                     value={watchedPostInsurance ?? "__none__"}
                     onValueChange={v => setValue("postEmploymentInsurance", v === "__none__" ? null : v as any)}
                   >
-                    <SelectTrigger className="text-sm">
-                      <SelectValue placeholder="選擇" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="選擇" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">— 未設定 —</SelectItem>
-                      {POST_INSURANCE_OPTIONS.map(o => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
+                      {POST_INSURANCE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
-            </div>
+                </FormField>
+              </FormGrid>
+            </FormSection>
 
-            {/* 聘僱許可函與情況 */}
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                <Shield className="w-3 h-3" /> 聘僱許可函與情況
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <FileField
-                  fileKey={watchedEmpPermitKey}
-                  uploading={uploadingEmpPermit}
-                  fieldName="employmentPermitFileKey"
-                  label="聘僱許可函"
-                  folder="employment-permits"
-                  setUploading={setUploadingEmpPermit}
-                  successMsg="聘僱許可函已上傳"
-                />
-                <div className="space-y-1.5">
-                  <Label className="text-xs flex items-center gap-1.5">
-                    <Shield className="w-3 h-3" />
-                    聘僱情況
-                  </Label>
+            {/* 聘僱許可函與情況（終止類，預設摺疊） */}
+            <FormSection icon={<Shield className="w-3.5 h-3.5" />} title="聘僱許可函與情況" defaultCollapsed>
+              <FormGrid cols={2}>
+                <FormField label="聘僱情況">
                   <Select
                     value={watchedEmpStatus ?? "__none__"}
                     onValueChange={v => setValue("employmentStatus", v === "__none__" ? null : v as any)}
                   >
-                    <SelectTrigger className="text-sm">
-                      <SelectValue placeholder="選擇聘僱情況" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="選擇聘僱情況" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">— 未設定 —</SelectItem>
-                      {EMPLOYMENT_STATUS_OPTIONS.map(o => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
+                      {EMPLOYMENT_STATUS_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
-              <FileField
+                </FormField>
+              </FormGrid>
+              <FileDropzone
+                label="聘僱許可函"
+                fileKey={watchedEmpPermitKey}
+                uploading={uploadingEmpPermit}
+                setUploading={setUploadingEmpPermit}
+                folder="employment-permits"
+                onUploaded={key => setValue("employmentPermitFileKey", key)}
+                onRemove={() => setValue("employmentPermitFileKey", null)}
+                successMsg="聘僱許可函已上傳"
+              />
+              <FileDropzone
+                label="終止函"
                 fileKey={watchedTerminationKey}
                 uploading={uploadingTermination}
-                fieldName="terminationLetterFileKey"
-                label="終止函"
-                folder="termination-letters"
                 setUploading={setUploadingTermination}
+                folder="termination-letters"
+                onUploaded={key => setValue("terminationLetterFileKey", key)}
+                onRemove={() => setValue("terminationLetterFileKey", null)}
                 successMsg="終止函已上傳"
               />
-            </div>
-          </section>
+            </FormSection>
 
-          <Separator />
+            {/* 承接通報 / 入國通報（3 日內） */}
+            <FormSection
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.1a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l.81-.81a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              }
+              title="承接通報 / 入國通報（3 日內）"
+            >
+              <FormGrid cols={3}>
+                <FormField label="通報書序號">
+                  <Input {...register("notificationNo")} placeholder="例：ABC-001" />
+                </FormField>
+                <FormField label="入國通報申請日">
+                  <Input {...register("entryNotificationDate")} type="date" />
+                </FormField>
+                <FormField label="證明書序號">
+                  <Input {...register("certificateNo")} placeholder="例：XYZ-002" />
+                </FormField>
+              </FormGrid>
+            </FormSection>
 
-          {/* ── 承接通報/入國通報（3 日內） ──────────────────────────── */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-500/10 text-blue-500">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.1a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l.81-.81a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-              </span>
-              承接通報 / 入國通報（3 日內）
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">通報書序號</Label>
-                <Input {...register("notificationNo")} placeholder="例：ABC-001" className="text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">入國通報申請日</Label>
-                <Input {...register("entryNotificationDate")} type="date" className="text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">證明書序號</Label>
-                <Input {...register("certificateNo")} placeholder="例：XYZ-002" className="text-sm" />
-              </div>
-            </div>
-          </section>
+            {/* 內政部移民署 */}
+            <FormSection
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              }
+              title="內政部移民署"
+            >
+              <FormGrid cols={3}>
+                <FormField label="一站式類別">
+                  <Input {...register("niaCategory")} placeholder="例：居留證申請" />
+                </FormField>
+                <FormField label="一站式序號">
+                  <Input {...register("niaNo")} placeholder="例：NIA-2025-001" />
+                </FormField>
+                <FormField label="居留證申請送審日">
+                  <Input {...register("residencePermitSubmitDate")} type="date" />
+                </FormField>
+              </FormGrid>
+            </FormSection>
 
-          <Separator />
+            {/* 勞動部聘僱許可函 */}
+            <FormSection
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              }
+              title="勞動部聘僱許可函"
+            >
+              <FormGrid cols={3}>
+                <FormField label="收文號">
+                  <Input {...register("molReceiptNo")} placeholder="例：MOL-2025-001" />
+                </FormField>
+                <FormField label="聘僱函類別">
+                  <Input {...register("employmentLetterCategory")} placeholder="例：初聘函" />
+                </FormField>
+                <FormField label="申請書送件日">
+                  <Input {...register("applicationSubmitDate")} type="date" />
+                </FormField>
+                <FormField label="發文日期">
+                  <Input {...register("issuanceDate")} type="date" />
+                </FormField>
+                <FormField label="核准收件日">
+                  <Input {...register("approvalReceiptDate")} type="date" />
+                </FormField>
+              </FormGrid>
+            </FormSection>
 
-          {/* ── 內政部移民署 ──────────────────────────────────────────── */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-purple-500/10 text-purple-500">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-              </span>
-              內政部移民署
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">一站式類別</Label>
-                <Input {...register("niaCategory")} placeholder="例：居留證申請" className="text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">一站式序號</Label>
-                <Input {...register("niaNo")} placeholder="例：NIA-2025-001" className="text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">居留證申請送審日</Label>
-                <Input {...register("residencePermitSubmitDate")} type="date" className="text-sm" />
-              </div>
-            </div>
-          </section>
-
-          <Separator />
-
-          {/* ── 勞動部聘僱許可函 ────────────────────────────────────── */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-amber-500/10 text-amber-500">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              </span>
-              勞動部聘僱許可函
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">收文號</Label>
-                <Input {...register("molReceiptNo")} placeholder="例：MOL-2025-001" className="text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">聘僱函類別</Label>
-                <Input {...register("employmentLetterCategory")} placeholder="例：初聘函" className="text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">申請書送件日</Label>
-                <Input {...register("applicationSubmitDate")} type="date" className="text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">發文日期</Label>
-                <Input {...register("issuanceDate")} type="date" className="text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">核准收件日</Label>
-                <Input {...register("approvalReceiptDate")} type="date" className="text-sm" />
-              </div>
-            </div>
-          </section>
-
-          <Separator />
-
-          {/* ── 保險管理 ──────────────────────────────────────── */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-teal-500/10 text-teal-500">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              </span>
-              保險管理
-            </h3>
-            {/* 健保 */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">健保投保（投保單位/編號）</Label>
-                <Input {...register("healthInsurance")} placeholder="例：全民健保局、健保就醫註峠山分局" className="text-sm" />
-              </div>
-              <FileField
+            {/* 保險管理 */}
+            <FormSection icon={<Shield className="w-3.5 h-3.5" />} title="保險管理">
+              <FormGrid cols={2}>
+                <FormField label="健保投保（投保單位/編號）">
+                  <Input {...register("healthInsurance")} placeholder="例：全民健保局、健保就醫分局" />
+                </FormField>
+              </FormGrid>
+              <FileDropzone
+                label="健保保單"
                 fileKey={watchedHealthPolicyKey}
                 uploading={uploadingHealthPolicy}
-                fieldName="healthInsurancePolicyKey"
-                label="健保保單"
-                folder="insurance"
                 setUploading={setUploadingHealthPolicy}
+                folder="insurance"
+                onUploaded={key => setValue("healthInsurancePolicyKey", key)}
+                onRemove={() => setValue("healthInsurancePolicyKey", null)}
                 successMsg="健保保單已上傳"
               />
-            </div>
-            {/* 意外險 */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">意外險（投保單位/編號）</Label>
-                <Input {...register("accidentInsurance")} placeholder="例：山山保險、意外險保單編號" className="text-sm" />
-              </div>
-              <FileField
+              <FormGrid cols={2}>
+                <FormField label="意外險（投保單位/編號）">
+                  <Input {...register("accidentInsurance")} placeholder="例：山山保險、意外險保單編號" />
+                </FormField>
+              </FormGrid>
+              <FileDropzone
+                label="意外險保單"
                 fileKey={watchedAccidentPolicyKey}
                 uploading={uploadingAccidentPolicy}
-                fieldName="accidentInsurancePolicyKey"
-                label="意外險保單"
-                folder="insurance"
                 setUploading={setUploadingAccidentPolicy}
+                folder="insurance"
+                onUploaded={key => setValue("accidentInsurancePolicyKey", key)}
+                onRemove={() => setValue("accidentInsurancePolicyKey", null)}
                 successMsg="意外險保單已上傳"
               />
-            </div>
-          </section>
+            </FormSection>
 
-          <Separator />
-
-          {/* ── 體檢管理 ──────────────────────────────────────── */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-emerald-500/10 text-emerald-500">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-              </span>
-              體檢管理
-            </h3>
-            {/* 前次體檢 */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">前次體檢日期</Label>
-                <Input {...register("prevMedicalExamDate")} type="date" className="text-sm" />
-              </div>
-              <FileField
+            {/* 體檢管理 */}
+            <FormSection icon={<Activity className="w-3.5 h-3.5" />} title="體檢管理">
+              {/* 前次體檢 */}
+              <FormGrid cols={2}>
+                <FormField label="前次體檢日期">
+                  <Input {...register("prevMedicalExamDate")} type="date" />
+                </FormField>
+              </FormGrid>
+              <FileDropzone
+                label="前次體檢報告"
                 fileKey={watchedPrevMedicalKey}
                 uploading={uploadingPrevMedical}
-                fieldName="prevMedicalReportKey"
-                label="前次體檢報告"
-                folder="medical"
                 setUploading={setUploadingPrevMedical}
+                folder="medical"
+                onUploaded={key => setValue("prevMedicalReportKey", key)}
+                onRemove={() => setValue("prevMedicalReportKey", null)}
                 successMsg="前次體檢報告已上傳"
               />
-            </div>
-            {/* 入境 3 天體檢 */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">入境 3 天體檢日期</Label>
-                <Input {...register("entryMedicalExamDate")} type="date" className="text-sm" />
-              </div>
-              <FileField
+              {/* 入境 3 天體檢 */}
+              <FormGrid cols={2}>
+                <FormField label="入境 3 天體檢日期">
+                  <Input {...register("entryMedicalExamDate")} type="date" />
+                </FormField>
+              </FormGrid>
+              <FileDropzone
+                label="入境 3 天體檢報告"
                 fileKey={watchedEntryMedicalKey}
                 uploading={uploadingEntryMedical}
-                fieldName="entryMedicalReportKey"
-                label="入境 3 天體檢報告"
-                folder="medical"
                 setUploading={setUploadingEntryMedical}
+                folder="medical"
+                onUploaded={key => setValue("entryMedicalReportKey", key)}
+                onRemove={() => setValue("entryMedicalReportKey", null)}
                 successMsg="入境 3 天體檢報告已上傳"
               />
-            </div>
-            {/* 6 / 18 / 30 個月體檢 */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">6 個月體檢日期</Label>
-                <Input {...register("exam6mDate")} type="date" className="text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">18 個月體檢日期</Label>
-                <Input {...register("exam18mDate")} type="date" className="text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">30 個月體檢日期</Label>
-                <Input {...register("exam30mDate")} type="date" className="text-sm" />
-              </div>
-              <FileField
+              {/* 6 / 18 / 30 個月體檢 */}
+              <FormGrid cols={3}>
+                <FormField label="6 個月體檢日期">
+                  <Input {...register("exam6mDate")} type="date" />
+                </FormField>
+                <FormField label="18 個月體檢日期">
+                  <Input {...register("exam18mDate")} type="date" />
+                </FormField>
+                <FormField label="30 個月體檢日期">
+                  <Input {...register("exam30mDate")} type="date" />
+                </FormField>
+              </FormGrid>
+              <FileDropzone
+                label="6 個月體檢報告"
                 fileKey={watched6mKey}
                 uploading={uploading6m}
-                fieldName="exam6mReportKey"
-                label="6 個月體檢報告"
-                folder="medical"
                 setUploading={setUploading6m}
+                folder="medical"
+                onUploaded={key => setValue("exam6mReportKey", key)}
+                onRemove={() => setValue("exam6mReportKey", null)}
                 successMsg="6 個月體檢報告已上傳"
               />
-              <FileField
+              <FileDropzone
+                label="18 個月體檢報告"
                 fileKey={watched18mKey}
                 uploading={uploading18m}
-                fieldName="exam18mReportKey"
-                label="18 個月體檢報告"
-                folder="medical"
                 setUploading={setUploading18m}
+                folder="medical"
+                onUploaded={key => setValue("exam18mReportKey", key)}
+                onRemove={() => setValue("exam18mReportKey", null)}
                 successMsg="18 個月體檢報告已上傳"
               />
-              <FileField
+              <FileDropzone
+                label="30 個月體檢報告"
                 fileKey={watched30mKey}
                 uploading={uploading30m}
-                fieldName="exam30mReportKey"
-                label="30 個月體檢報告"
-                folder="medical"
                 setUploading={setUploading30m}
+                folder="medical"
+                onUploaded={key => setValue("exam30mReportKey", key)}
+                onRemove={() => setValue("exam30mReportKey", null)}
                 successMsg="30 個月體檢報告已上傳"
               />
-            </div>
-          </section>
+            </FormSection>
 
-          <Separator />
+            {/* 備註 */}
+            <FormSection icon={<FileText className="w-3.5 h-3.5" />} title="備註">
+              <FormGrid cols={1}>
+                <FormField label="備註">
+                  <Textarea {...register("notes")} placeholder="案件說明、特殊需求..." rows={3} />
+                </FormField>
+              </FormGrid>
+            </FormSection>
 
-          {/* ── 備註 ────────────────────────────────────────────── */}
-          <div className="space-y-1.5">
-            <Label>備註</Label>
-            <Textarea {...register("notes")} placeholder="案件說明、特殊需求..." rows={3} />
-          </div>
-
-            </TabsContent>{/* end Tab 2 */}
-          </Tabs>
-
-          <DialogFooter className="shrink-0 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={onClose}>取消</Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || createMutation.isPending || updateMutation.isPending || uploadingPermit || uploadingEmpPermit || uploadingTermination}
-            >
-              {editingCase ? "儲存變更" : "建立案件"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </TabsContent>
+        </Tabs>
+      </form>
+    </FormModal>
   );
 }

@@ -62,7 +62,14 @@ export default function CustomerDetail() {
   const [, navigate] = useLocation();
   const [showEdit, setShowEdit] = useState(false);
 
-  const { data: customer, isLoading, refetch } = trpc.customers.getById.useQuery({ id: customerId });
+  const utils = trpc.useUtils();
+  const { data: customer, isLoading, refetch } = trpc.customers.getById.useQuery(
+    { id: customerId },
+    {
+      initialData: () => utils.customers.list.getData()?.find(c => c.id === customerId),
+      initialDataUpdatedAt: 0,
+    }
+  );
   const { data: allCases } = trpc.cases.list.useQuery({});
 
   const customerCases = allCases?.filter(c => c.customerId === customerId) ?? [];

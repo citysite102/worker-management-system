@@ -105,7 +105,7 @@ export default function Customers() {
       {/* 頁面標題 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">客戶管理</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">客戶管理</h1>
           <p className="text-sm text-muted-foreground mt-0.5">管理所有客戶資料與合約狀態</p>
         </div>
         <Button onClick={openCreate} size="sm" className="gap-1.5">

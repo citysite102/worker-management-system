@@ -60,7 +60,15 @@ export default function WorkerDetail() {
   const [, navigate] = useLocation();
   const [showEdit, setShowEdit] = useState(false);
 
-  const { data: worker, isLoading, refetch } = trpc.workers.getById.useQuery({ id: workerId });
+  const utils = trpc.useUtils();
+  const { data: worker, isLoading, refetch } = trpc.workers.getById.useQuery(
+    { id: workerId },
+    {
+      // 列表快取中若已有資料，先顯示它，不等待 getById 回應
+      initialData: () => utils.workers.list.getData()?.find(w => w.id === workerId),
+      initialDataUpdatedAt: 0, // 列表快取資料視為旧資料，使用後會在背景重新取得最新資料
+    }
+  );
   const { data: involvements } = trpc.caseAssignments.workerInvolvements.useQuery({});
 
   const workerCases = involvements?.filter(i => i.workerId === workerId) ?? [];

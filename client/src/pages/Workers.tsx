@@ -190,7 +190,7 @@ export default function Workers() {
       {/* 頁面標題 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">移工管理</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">移工管理</h1>
           <p className="text-sm text-muted-foreground mt-0.5">管理所有移工資料與狀態</p>
         </div>
         <div className="flex items-center gap-2">

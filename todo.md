@@ -169,11 +169,19 @@
 
 ## 詳情頁模組 v4.0
 
-- [ ] WorkerDetail 移工詳情頁：完整資料展示、附件預覽、關聯案件清單
-- [ ] CustomerDetail 客戶詳情頁：個人/公司雙類型、被照顧者資料、關聯案件清單
-- [ ] Workers 列表行可點擊跳轉 /workers/:id
-- [ ] Customers 列表行可點擊跳轉 /customers/:id
-- [ ] Cases 列表行確認點擊行為一致（已有詳情頁）
-- [ ] App.tsx 新增 /workers/:id 與 /customers/:id 路由
-- [ ] 後端 workers.getById 補充關聯案件查詢
-- [ ] 後端 customers.getById 補充關聯案件查詢
+- [x] WorkerDetail 移工詳情頁：完整資料展示、附件預覽、關聯案件清單
+- [x] CustomerDetail 客戶詳情頁：個人/公司雙類型、被照顧者資料、關聯案件清單
+- [x] Workers 列表行可點擊跳轉 /workers/:id
+- [x] Customers 列表行可點擊跳轉 /customers/:id
+- [x] Cases 列表行確認點擊行為一致（已有詳情頁）
+- [x] App.tsx 新增 /workers/:id 與 /customers/:id 路由
+- [x] 後端 workers.getById 補充關聯案件查詢
+- [x] 後端 customers.getById 補充關聯案件查詢
+
+## UI/效能優化（v4.1）
+
+- [x] 統一頁面標題字級：Workers.tsx、Customers.tsx 標題改為 text-2xl font-semibold tracking-tight
+- [x] 側邊欄 active 高亮：index.css 補充 --sidebar-accent CSS 變數，DashboardLayout 加強 active 樣式（font-medium + 左側指示線）
+- [x] 效能優化：QueryClient 全域快取（staleTime 5分鐘、refetchOnWindowFocus false）
+- [x] 效能優化：WorkerDetail 和 CustomerDetail 加入 initialData 從列表快取取得資料
+- [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤

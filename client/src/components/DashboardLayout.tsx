@@ -150,10 +150,17 @@ function DashboardLayoutContent({
                       isActive={isActive}
                       onClick={() => setLocation(item.path)}
                       tooltip={item.label}
-                      className={`h-10 transition-all font-normal`}
+                      className={`h-10 transition-all relative ${
+                        isActive
+                          ? "font-semibold text-sidebar-accent-foreground"
+                          : "font-normal text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                      }`}
                     >
+                      {isActive && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-white rounded-full" />
+                      )}
                       <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                        className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/50"}`}
                       />
                       <span>{item.label}</span>
                     </SidebarMenuButton>

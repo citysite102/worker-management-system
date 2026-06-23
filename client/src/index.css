@@ -48,6 +48,15 @@
   --color-status-gray-bg: oklch(0.975 0 0);
 
   --font-sans: "Inter", "Noto Sans TC", system-ui, sans-serif;
+  /* Sidebar 顏色變數 */
+  --color-sidebar: oklch(0.145 0 0);
+  --color-sidebar-foreground: oklch(0.92 0 0);
+  --color-sidebar-primary: oklch(0.985 0 0);
+  --color-sidebar-primary-foreground: oklch(0.145 0 0);
+  --color-sidebar-accent: oklch(0.25 0 0);
+  --color-sidebar-accent-foreground: oklch(0.985 0 0);
+  --color-sidebar-border: oklch(0.25 0 0);
+  --color-sidebar-ring: oklch(0.556 0 0);
 }
 
 @layer base {

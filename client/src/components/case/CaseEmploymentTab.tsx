@@ -175,7 +175,7 @@ export default function CaseEmploymentTab({ caseId }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   {assignedWorkers.length === 0 ? (
-                    <SelectItem value="" disabled>請先在媒合管理中加入配對人員</SelectItem>
+                    <SelectItem value="__empty__" disabled>請先在媒合管理中加入配對人員</SelectItem>
                   ) : assignedWorkers.map(w => (
                     <SelectItem key={w.id} value={String(w.id)}>
                       {w.name}{w.nameEn ? ` (${w.nameEn})` : ""}
@@ -187,12 +187,12 @@ export default function CaseEmploymentTab({ caseId }: Props) {
             <div className="space-y-1.5">
               <Label>關聯資格（選填）</Label>
               <Select
-                value={form.qualificationId ? String(form.qualificationId) : ""}
-                onValueChange={v => setField("qualificationId", v ? Number(v) : undefined)}
+                value={form.qualificationId ? String(form.qualificationId) : "__none__"}
+                onValueChange={v => setField("qualificationId", v === "__none__" ? undefined : Number(v))}
               >
                 <SelectTrigger><SelectValue placeholder="不指定資格" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">不指定資格</SelectItem>
+                  <SelectItem value="__none__">不指定資格</SelectItem>
                   {quals.map(q => <SelectItem key={q.id} value={String(q.id)}>{q.label}</SelectItem>)}
                 </SelectContent>
               </Select>

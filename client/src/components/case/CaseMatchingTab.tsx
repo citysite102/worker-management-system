@@ -310,10 +310,10 @@ export default function CaseMatchingTab({ caseId }: Props) {
           <div className="space-y-4 py-2 flex-1 overflow-y-auto">
             <div className="space-y-1.5">
               <Label>關聯需求（選填）</Label>
-              <Select value={selectedDemandId ? String(selectedDemandId) : ""} onValueChange={v => setSelectedDemandId(v ? Number(v) : undefined)}>
+              <Select value={selectedDemandId ? String(selectedDemandId) : "__none__"} onValueChange={v => setSelectedDemandId(v === "__none__" ? undefined : Number(v))}>
                 <SelectTrigger><SelectValue placeholder="不指定需求" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">不指定需求</SelectItem>
+                  <SelectItem value="__none__">不指定需求</SelectItem>
                   {demands.map(d => <SelectItem key={d.id} value={String(d.id)}>{d.label}</SelectItem>)}
                 </SelectContent>
               </Select>

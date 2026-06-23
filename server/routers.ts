@@ -605,7 +605,33 @@ export const appRouter = router({
         const customer = allCustomers.find(cu => cu.id === c.customerId);
         const manager = allManagers.find(m => m.id === c.managerId);
         const dims = await getCaseDimensions(c.id);
-        return { ...c, customerName: customer?.name ?? "", managerName: manager?.name ?? "", ...dims };
+        // 主要移工資料（自動帶入用）
+        let primaryWorker = null;
+        if (c.primaryWorkerId) {
+          primaryWorker = await getWorkerById(c.primaryWorkerId);
+        }
+        return {
+          ...c,
+          customerName: customer?.name ?? "",
+          managerName: manager?.name ?? "",
+          // 雇主資料（自動帶入）
+          customerPhone: customer?.phone ?? "",
+          customerAddress: customer?.address ?? "",
+          careReceiverName: customer?.careReceiverName ?? "",
+          careReceiverQualification: customer?.careReceiverQualification ?? "",
+          employerType: customer?.employerType ?? "",
+          // 移工資料（自動帶入）
+          workerNameCn: primaryWorker?.nameCn ?? primaryWorker?.name ?? "",
+          workerNameEn: primaryWorker?.nameEn ?? "",
+          workerResidentPermitNo: primaryWorker?.residentPermitNo ?? "",
+          workerResidentPermitExpiry: primaryWorker?.residentPermitExpiry ?? "",
+          workerPassportNo: primaryWorker?.passportNo ?? "",
+          workerPassportExpiry: primaryWorker?.passportExpiry ?? "",
+          workerPhone: primaryWorker?.phone ?? "",
+          workerBirthPlace: primaryWorker?.birthPlace ?? "",
+          workerNationality: primaryWorker?.nationality ?? "",
+          ...dims,
+        };
       }),
     create: publicProcedure
       .input(z.object({
@@ -613,11 +639,22 @@ export const appRouter = router({
         name: z.string().min(2, "案件名稱至少 2 字").max(100).transform(s => s.trim()),
         managerId: z.number().int().positive("負責人為必填"),
         status: z.enum(["in_progress", "completed", "paused", "cancelled"]).default("in_progress"),
+        caseCondition: z.string().max(100).optional().transform(s => s?.trim() || undefined),
+        primaryWorkerId: z.number().int().positive().optional(),
+        needsReview: z.boolean().optional().transform(v => v ? 1 : 0),
+        recruitmentPermitFileKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
         notes: z.string().optional().transform(s => s?.trim() || undefined),
       }))
       .mutation(async ({ input }) => {
-        await createCase(input);
-        return { success: true };
+        // 自動產生案件編號：GVC25-YYYYMMDD-NNN
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+        const allCases = await getAllCases();
+        const todayCases = allCases.filter(c => c.caseNo?.includes(dateStr));
+        const seq = String(todayCases.length + 1).padStart(3, "0");
+        const caseNo = `GVC25-${dateStr}-${seq}`;
+        await createCase({ ...input, caseNo });
+        return { success: true, caseNo };
       }),
     update: publicProcedure
       .input(z.object({
@@ -626,6 +663,10 @@ export const appRouter = router({
         name: z.string().min(2, "案件名稱至少 2 字").max(100).transform(s => s.trim()),
         managerId: z.number().int().positive("負責人為必填"),
         status: z.enum(["in_progress", "completed", "paused", "cancelled"]),
+        caseCondition: z.string().max(100).optional().transform(s => s?.trim() || undefined),
+        primaryWorkerId: z.number().int().positive().optional().nullable(),
+        needsReview: z.boolean().optional().transform(v => v ? 1 : 0),
+        recruitmentPermitFileKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
         notes: z.string().optional().transform(s => s?.trim() || undefined),
       }))
       .mutation(async ({ input }) => {

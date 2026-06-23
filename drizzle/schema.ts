@@ -218,6 +218,7 @@ export const cases = mysqlTable("cases", {
   id: int("id").autoincrement().primaryKey(),
   customerId: int("customerId").notNull(),               // → customers.id
   name: varchar("name", { length: 100 }).notNull(),      // 案件名稱
+  caseNo: varchar("caseNo", { length: 30 }),             // 案件編號（GVC25-YYYYMMDD-NNN）
   managerId: int("managerId").notNull(),                 // → managers.id
   status: mysqlEnum("status", [
     "in_progress",   // 進行中
@@ -225,6 +226,13 @@ export const cases = mysqlTable("cases", {
     "paused",        // 暫停
     "cancelled",     // 取消
   ]).notNull().default("in_progress"),
+  caseCondition: varchar("caseCondition", { length: 100 }), // 案件情況（自由文字）
+  // ── 主要移工 ──────────────────────────────────────────────────────────────
+  primaryWorkerId: int("primaryWorkerId"),               // → workers.id（主要外國人）
+  // ── 標記 ──────────────────────────────────────────────────────────────────
+  needsReview: int("needsReview").default(0).notNull(),  // 需檢查標記（0/1）
+  // ── 附件 ──────────────────────────────────────────────────────────────────
+  recruitmentPermitFileKey: varchar("recruitmentPermitFileKey", { length: 300 }), // 招募許可函（S3）
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

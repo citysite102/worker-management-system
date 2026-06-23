@@ -193,3 +193,19 @@
 - [x] WorkerDetail 關聯案件卡片加入客戶連結（點擊跳轉 /customers/:id）
 - [x] CustomerDetail 關聯案件卡片加入移工名列表（點擊跳轉 /workers/:id）
 - [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤
+
+## 案件管理 Phase 1：基本資料重構（v5.0）
+
+- [x] Schema：cases 主表新增 caseNo、primaryWorkerId、needsReview、recruitmentPermitFileKey
+- [x] Schema：執行資料庫遷移
+- [x] 後端：cases.list / getById / create / update 支援新欄位
+- [x] 後端：案件編號自動產生邏輯（GVC25-YYYYMMDD-NNN）
+- [x] 後端：cases.getById 回傳雇主完整資料（電話/地址/被照顧者）
+- [x] 後端：cases.getById 回傳主要移工完整資料（姓名/證件/手機）
+- [x] 前端 CaseModal：選雇主下拉 → 自動帶入電話、地址、被照顧者姓名/資格（唯讀）
+- [x] 前端 CaseModal：選移工下拉 → 自動帶入中英文姓名、居留證號、護照號、有效日期、手機（唯讀）
+- [x] 前端 CaseModal：招募許可函附件上傳（S3）
+- [x] 前端 CaseModal：需檢查標記 checkbox
+- [x] 前端 CaseDetail：基本資料 Tab 顯示自動帶入的雇主/移工資訊（含跳轉連結）
+- [x] 前端 Cases 列表：顯示案件編號欄位
+- [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤

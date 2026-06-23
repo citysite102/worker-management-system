@@ -121,6 +121,7 @@ export default function Cases() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/30">
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">案件編號</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">案件名稱</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">客戶</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">負責人</th>
@@ -153,6 +154,16 @@ export default function Cases() {
                   className="border-b hover:bg-muted/20 cursor-pointer transition-colors"
                   onClick={() => navigate(`/cases/${c.id}`)}
                 >
+                  <td className="px-4 py-4">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-xs text-muted-foreground">{(c as any).caseNo || "—"}</span>
+                      {(c as any).needsReview === 1 && (
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive/15 text-destructive" title="需檢查">
+                          <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-4 font-medium">{c.name}</td>
                   <td className="px-4 py-4 text-muted-foreground">{c.customerName}</td>
                   <td className="px-4 py-4 text-muted-foreground">{c.managerName}</td>

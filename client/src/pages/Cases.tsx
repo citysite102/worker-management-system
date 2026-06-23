@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import CaseModal from "@/components/CaseModal";
 
 export default function Cases() {
   const [, navigate] = useLocation();
+  const searchParams = useSearch();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -22,6 +23,23 @@ export default function Cases() {
   const [showModal, setShowModal] = useState(false);
   const [editingCase, setEditingCase] = useState<any>(null);
   const [deletingCase, setDeletingCase] = useState<any>(null);
+  const [prefilledCustomerId, setPrefilledCustomerId] = useState<number | null>(null);
+  const [prefilledWorkerId, setPrefilledWorkerId] = useState<number | null>(null);
+
+  // 讀取 URL 參數，自動開啟 Modal 並預填雇主或移工
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    const customerId = params.get("customerId");
+    const workerId = params.get("workerId");
+    if (customerId || workerId) {
+      setPrefilledCustomerId(customerId ? Number(customerId) : null);
+      setPrefilledWorkerId(workerId ? Number(workerId) : null);
+      setEditingCase(null);
+      setShowModal(true);
+      // 清除 URL 參數，避免重複觸發
+      navigate("/cases", { replace: true });
+    }
+  }, [searchParams]);
 
   // Debounce search input: 延遲 300ms 再觸發 API 請求
   useEffect(() => {
@@ -218,8 +236,15 @@ export default function Cases() {
       {showModal && (
         <CaseModal
           open={showModal}
-          onClose={() => { setShowModal(false); setEditingCase(null); }}
+          onClose={() => {
+            setShowModal(false);
+            setEditingCase(null);
+            setPrefilledCustomerId(null);
+            setPrefilledWorkerId(null);
+          }}
           editingCase={editingCase}
+          defaultCustomerId={prefilledCustomerId ?? undefined}
+          defaultWorkerId={prefilledWorkerId ?? undefined}
         />
       )}
 

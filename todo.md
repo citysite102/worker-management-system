@@ -243,3 +243,22 @@
 - [x] 體檢前端 CaseModal：新增「體檢管理」分區（日期 + 附件上傳）
 - [x] 體檢前端 CaseDetail：基本資料 Tab 新增體檢管理卡片
 - [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤
+
+## 保險管理 + 列表計數補完（v5.4）
+
+- [x] Schema：cases 主表新增 healthInsuranceEnrollDate、healthInsurancePolicyKey、accidentInsuranceEnrollDate、accidentInsurancePolicyKey
+- [x] 資料庫遷移執行成功
+- [x] 後端：cases CRUD 支援保險欄位
+- [x] 後端：cases.list 已有子表 COUNT 批次查詢（getCaseDimensionsBatch）
+- [x] 前端 CaseModal：新增「保險管理」分區（健保投保日期、意外險投保日期、保單附件上傳）
+- [x] 前端 CaseDetail：基本資料 Tab 新增保險管理卡片
+- [x] 前端 Cases.tsx：列表計數欄位已正確顯示（getCaseDimensionsBatch 批次查詢）
+- [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤
+
+## 關聯案件快速新增（v5.5）
+
+- [x] Cases.tsx 讀取 URL 參數 ?customerId=X 或 ?workerId=X，自動開啟 CaseModal 並預填對應欄位
+- [x] CaseModal 支援 defaultCustomerId 和 defaultWorkerId props，預填後唯讀顯示
+- [x] WorkerDetail 關聯案件區塊新增「+ 新增案件」按鈕，點擊直接嵌入 CaseModal
+- [x] CustomerDetail 關聯案件區塊新增「+ 新增案件」按鈕，點擊直接嵌入 CaseModal
+- [x] 新增案件後 onSuccess 回調自動刷新關聯案件列表

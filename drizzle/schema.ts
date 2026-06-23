@@ -284,6 +284,12 @@ export const cases = mysqlTable("cases", {
   issuanceDate: varchar("issuanceDate", { length: 10 }),             // 發文日期
   approvalReceiptDate: varchar("approvalReceiptDate", { length: 10 }), // 核准收件日
 
+  // Phase 4: 保險管理
+  healthInsuranceEnrollDate: varchar("healthInsuranceEnrollDate", { length: 10 }),   // 健保投保日期
+  healthInsurancePolicyKey: varchar("healthInsurancePolicyKey", { length: 300 }),    // 健保保單（S3）
+  accidentInsuranceEnrollDate: varchar("accidentInsuranceEnrollDate", { length: 10 }), // 意外險投保日期
+  accidentInsurancePolicyKey: varchar("accidentInsurancePolicyKey", { length: 300 }), // 意外險保單（S3）
+
   // Phase 4: 體檢管理
   prevMedicalExamDate: varchar("prevMedicalExamDate", { length: 10 }),       // 前次體檢日期
   prevMedicalReportKey: varchar("prevMedicalReportKey", { length: 300 }),    // 前次體檢報告（S3）

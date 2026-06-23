@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Pencil, ExternalLink, FileText, Image as ImageIcon, Building2, User, Users } from "lucide-react";
+import { ArrowLeft, Pencil, ExternalLink, FileText, Image as ImageIcon, Building2, User, Users, Plus } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getStatusLabel } from "@/lib/constants";
 import { CustomerModal } from "@/components/CustomerModal";
+import CaseModal from "@/components/CaseModal";
 
 function InfoRow({ label, value, className }: { label: string; value?: string | null; className?: string }) {
   if (!value) return null;
@@ -61,6 +62,7 @@ export default function CustomerDetail() {
   const customerId = Number(params.id);
   const [, navigate] = useLocation();
   const [showEdit, setShowEdit] = useState(false);
+  const [showCaseModal, setShowCaseModal] = useState(false);
 
   const utils = trpc.useUtils();
   const { data: customer, isLoading, refetch } = trpc.customers.getById.useQuery(
@@ -70,7 +72,7 @@ export default function CustomerDetail() {
       initialDataUpdatedAt: 0,
     }
   );
-  const { data: allCases } = trpc.cases.list.useQuery({});
+  const { data: allCases, refetch: refetchCases } = trpc.cases.list.useQuery({});
   const { data: allInvolvements } = trpc.caseAssignments.workerInvolvements.useQuery({});
 
   const customerCases = allCases?.filter(c => c.customerId === customerId) ?? [];
@@ -262,7 +264,16 @@ export default function CustomerDetail() {
 
           {/* 關聯案件 */}
           <div>
-            <SectionTitle>關聯案件</SectionTitle>
+            <div className="flex items-center justify-between mb-2">
+              <SectionTitle>關聯案件</SectionTitle>
+              <button
+                onClick={() => setShowCaseModal(true)}
+                className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors px-2 py-1 rounded-md hover:bg-primary/10"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                新增案件
+              </button>
+            </div>
             {customerCases.length === 0 ? (
               <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
                 尚無關聯案件
@@ -317,6 +328,16 @@ export default function CustomerDetail() {
           onClose={() => { setShowEdit(false); refetch(); }}
           onSuccess={() => { setShowEdit(false); refetch(); }}
           editId={customerId}
+        />
+      )}
+
+      {/* 新增案件 Modal（預填客戶） */}
+      {showCaseModal && (
+        <CaseModal
+          open={showCaseModal}
+          onClose={() => setShowCaseModal(false)}
+          onSuccess={() => { setShowCaseModal(false); refetchCases(); }}
+          defaultCustomerId={customerId}
         />
       )}
     </div>

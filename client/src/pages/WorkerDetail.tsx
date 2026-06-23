@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Pencil, ExternalLink, FileText, Image as ImageIcon, Calendar, User, Phone, Mail, Globe, Briefcase, Shield, AlertTriangle, Building2 } from "lucide-react";
+import { ArrowLeft, Pencil, ExternalLink, FileText, Image as ImageIcon, Calendar, User, Phone, Mail, Globe, Briefcase, Shield, AlertTriangle, Building2, Plus } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getStatusLabel } from "@/lib/constants";
 import { WorkerModal } from "@/components/WorkerModal";
+import CaseModal from "@/components/CaseModal";
 
 function daysLabel(days: number | null | undefined): { text: string; color: string } {
   if (days == null) return { text: "—", color: "text-muted-foreground" };
@@ -59,6 +60,7 @@ export default function WorkerDetail() {
   const workerId = Number(params.id);
   const [, navigate] = useLocation();
   const [showEdit, setShowEdit] = useState(false);
+  const [showCaseModal, setShowCaseModal] = useState(false);
 
   const utils = trpc.useUtils();
   const { data: worker, isLoading, refetch } = trpc.workers.getById.useQuery(
@@ -69,7 +71,7 @@ export default function WorkerDetail() {
       initialDataUpdatedAt: 0, // 列表快取資料視為旧資料，使用後會在背景重新取得最新資料
     }
   );
-  const { data: involvements } = trpc.caseAssignments.workerInvolvements.useQuery({});
+  const { data: involvements, refetch: refetchCases } = trpc.caseAssignments.workerInvolvements.useQuery({});
 
   const workerCases = involvements?.filter(i => i.workerId === workerId) ?? [];
 
@@ -237,7 +239,16 @@ export default function WorkerDetail() {
 
         {/* 右欄：關聯案件 */}
         <div>
-          <SectionTitle>關聯案件</SectionTitle>
+          <div className="flex items-center justify-between mb-2">
+            <SectionTitle>關聯案件</SectionTitle>
+            <button
+              onClick={() => setShowCaseModal(true)}
+              className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors px-2 py-1 rounded-md hover:bg-primary/10"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              新增案件
+            </button>
+          </div>
           {workerCases.length === 0 ? (
             <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
               尚無關聯案件
@@ -285,6 +296,16 @@ export default function WorkerDetail() {
           onClose={() => { setShowEdit(false); refetch(); }}
           onSuccess={() => { setShowEdit(false); refetch(); }}
           editId={workerId}
+        />
+      )}
+
+      {/* 新增案件 Modal（預填移工） */}
+      {showCaseModal && (
+        <CaseModal
+          open={showCaseModal}
+          onClose={() => setShowCaseModal(false)}
+          onSuccess={() => { setShowCaseModal(false); refetchCases(); }}
+          defaultWorkerId={workerId}
         />
       )}
     </div>

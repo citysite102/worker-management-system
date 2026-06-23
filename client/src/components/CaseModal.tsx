@@ -58,6 +58,11 @@ const schema = z.object({
   applicationSubmitDate: z.string().max(10).optional().nullable(),
   issuanceDate: z.string().max(10).optional().nullable(),
   approvalReceiptDate: z.string().max(10).optional().nullable(),
+  // Phase 4: 保險管理
+  healthInsuranceEnrollDate: z.string().max(10).optional().nullable(),
+  healthInsurancePolicyKey: z.string().max(300).optional().nullable(),
+  accidentInsuranceEnrollDate: z.string().max(10).optional().nullable(),
+  accidentInsurancePolicyKey: z.string().max(300).optional().nullable(),
   // Phase 4: 體檢管理
   prevMedicalExamDate: z.string().max(10).optional().nullable(),
   prevMedicalReportKey: z.string().max(300).optional().nullable(),
@@ -94,10 +99,13 @@ const EMPLOYMENT_STATUS_OPTIONS = [
 interface Props {
   open: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
   editingCase?: any;
+  defaultCustomerId?: number;
+  defaultWorkerId?: number;
 }
 
-export default function CaseModal({ open, onClose, editingCase }: Props) {
+export default function CaseModal({ open, onClose, onSuccess, editingCase, defaultCustomerId, defaultWorkerId }: Props) {
   const utils = trpc.useUtils();
   const { data: customers = [] } = trpc.customers.list.useQuery();
   const { data: managers = [] } = trpc.managers.list.useQuery();
@@ -106,6 +114,9 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
   const [uploadingPermit, setUploadingPermit] = useState(false);
   const [uploadingEmpPermit, setUploadingEmpPermit] = useState(false);
   const [uploadingTermination, setUploadingTermination] = useState(false);
+  // Phase 4: 保險保單上傳狀態
+  const [uploadingHealthPolicy, setUploadingHealthPolicy] = useState(false);
+  const [uploadingAccidentPolicy, setUploadingAccidentPolicy] = useState(false);
   // Phase 4: 體檢報告上傳狀態
   const [uploadingPrevMedical, setUploadingPrevMedical] = useState(false);
   const [uploadingEntryMedical, setUploadingEntryMedical] = useState(false);
@@ -148,6 +159,10 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
       applicationSubmitDate: null,
       issuanceDate: null,
       approvalReceiptDate: null,
+      healthInsuranceEnrollDate: null,
+      healthInsurancePolicyKey: null,
+      accidentInsuranceEnrollDate: null,
+      accidentInsurancePolicyKey: null,
       prevMedicalExamDate: null,
       prevMedicalReportKey: null,
       entryMedicalExamDate: null,
@@ -193,6 +208,10 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
         applicationSubmitDate: editingCase.applicationSubmitDate ?? null,
         issuanceDate: editingCase.issuanceDate ?? null,
         approvalReceiptDate: editingCase.approvalReceiptDate ?? null,
+        healthInsuranceEnrollDate: editingCase.healthInsuranceEnrollDate ?? null,
+        healthInsurancePolicyKey: editingCase.healthInsurancePolicyKey ?? null,
+        accidentInsuranceEnrollDate: editingCase.accidentInsuranceEnrollDate ?? null,
+        accidentInsurancePolicyKey: editingCase.accidentInsurancePolicyKey ?? null,
         prevMedicalExamDate: editingCase.prevMedicalExamDate ?? null,
         prevMedicalReportKey: editingCase.prevMedicalReportKey ?? null,
         entryMedicalExamDate: editingCase.entryMedicalExamDate ?? null,
@@ -207,12 +226,12 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
     } else {
       reset({
         status: "in_progress",
-        customerId: 0,
+        customerId: defaultCustomerId ?? 0,
         managerId: 0,
         name: "",
         notes: "",
         caseCondition: "",
-        primaryWorkerId: null,
+        primaryWorkerId: defaultWorkerId ?? null,
         needsReview: false,
         recruitmentPermitFileKey: null,
         continuousEmploymentDate: null,
@@ -247,12 +266,13 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
         exam30mReportKey: null,
       });
     }
-  }, [editingCase, reset]);
+  }, [editingCase, reset, defaultCustomerId, defaultWorkerId]);
 
   const createMutation = trpc.cases.create.useMutation({
     onSuccess: (res) => {
       toast.success(`案件已建立（${res.caseNo}）`);
       utils.cases.list.invalidate();
+      onSuccess?.();
       onClose();
     },
     onError: (e) => toast.error(e.message),
@@ -262,6 +282,7 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
     onSuccess: () => {
       toast.success("案件已更新");
       utils.cases.list.invalidate();
+      onSuccess?.();
       onClose();
     },
     onError: (e) => toast.error(e.message),
@@ -288,6 +309,8 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
   const watchedPostInsurance = watch("postEmploymentInsurance");
   const watchedEmpStatus = watch("employmentStatus");
   // Phase 4 watched file keys
+  const watchedHealthPolicyKey = watch("healthInsurancePolicyKey");
+  const watchedAccidentPolicyKey = watch("accidentInsurancePolicyKey");
   const watchedPrevMedicalKey = watch("prevMedicalReportKey");
   const watchedEntryMedicalKey = watch("entryMedicalReportKey");
   const watched6mKey = watch("exam6mReportKey");
@@ -834,6 +857,50 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
                 <Label className="text-xs">核准收件日</Label>
                 <Input {...register("approvalReceiptDate")} type="date" className="text-sm" />
               </div>
+            </div>
+          </section>
+
+          <Separator />
+
+          {/* ── 保險管理 ──────────────────────────────────────── */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-teal-500/10 text-teal-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              </span>
+              保險管理
+            </h3>
+            {/* 健保 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">健保投保日期</Label>
+                <Input {...register("healthInsuranceEnrollDate")} type="date" className="text-sm" />
+              </div>
+              <FileField
+                fileKey={watchedHealthPolicyKey}
+                uploading={uploadingHealthPolicy}
+                fieldName="healthInsurancePolicyKey"
+                label="健保保單"
+                folder="insurance"
+                setUploading={setUploadingHealthPolicy}
+                successMsg="健保保單已上傳"
+              />
+            </div>
+            {/* 意外險 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">意外險投保日期</Label>
+                <Input {...register("accidentInsuranceEnrollDate")} type="date" className="text-sm" />
+              </div>
+              <FileField
+                fileKey={watchedAccidentPolicyKey}
+                uploading={uploadingAccidentPolicy}
+                fieldName="accidentInsurancePolicyKey"
+                label="意外險保單"
+                folder="insurance"
+                setUploading={setUploadingAccidentPolicy}
+                successMsg="意外險保單已上傳"
+              />
             </div>
           </section>
 

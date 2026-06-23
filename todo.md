@@ -282,3 +282,9 @@
 - [x] CustomerDetail.tsx：改用 PageSkeleton
 - [x] CaseDetail.tsx：改用 PageSkeleton
 - [x] Settings.tsx：改用 InlineLoader
+
+## CaseModal 建立案件 validation 錯誤修正（v5.10）
+
+- [x] 修正 cases.create server-side input schema：Tab 2 所有選填欄位加上 .nullable()，enum 欄位加 transform(v => v ?? undefined)，解決前端送出 null 時的 invalid_type/invalid_value 錯誤
+- [x] 確認 cases.update 已有 .nullable()，不需修改
+- [x] TypeScript 零錯誤驗證通過

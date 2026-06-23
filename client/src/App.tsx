@@ -9,6 +9,8 @@ import Workers from "./pages/Workers";
 import Customers from "./pages/Customers";
 import Cases from "./pages/Cases";
 import CaseDetail from "./pages/CaseDetail";
+import WorkerDetail from "./pages/WorkerDetail";
+import CustomerDetail from "./pages/CustomerDetail";
 import Settings from "./pages/Settings";
 
 function Router() {
@@ -20,6 +22,8 @@ function Router() {
         <Route path="/customers" component={Customers} />
         <Route path="/cases" component={Cases} />
         <Route path="/cases/:id" component={CaseDetail} />
+        <Route path="/workers/:id" component={WorkerDetail} />
+        <Route path="/customers/:id" component={CustomerDetail} />
         <Route path="/settings" component={Settings} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />

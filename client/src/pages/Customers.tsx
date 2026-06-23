@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from "react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +85,7 @@ export default function Customers() {
     setEmployerTypeFilter("all");
   }, []);
 
+  const [, navigate] = useLocation();
   const openEdit = (id: number) => { setEditId(id); setModalOpen(true); };
   const openCreate = () => { setEditId(null); setModalOpen(true); };
 
@@ -346,9 +348,9 @@ export default function Customers() {
                 filtered.map(c => (
                   <tr
                     key={c.id}
-                    className="transition-colors cursor-default"
-                    onDoubleClick={() => openEdit(c.id)}
-                    title="雙擊編輯"
+                    className="transition-colors cursor-pointer hover:bg-muted/40"
+                    onClick={() => navigate(`/customers/${c.id}`)}
+                    title="點擊查看詳情"
                   >
                     <td className="px-4 py-3.5 font-medium">{c.name}</td>
                     <td className="px-4 py-3.5 hidden sm:table-cell">
@@ -383,7 +385,7 @@ export default function Customers() {
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                          onClick={() => openEdit(c.id)}
+                          onClick={(e) => { e.stopPropagation(); openEdit(c.id); }}
                           title="編輯"
                         >
                           <Pencil className="w-3.5 h-3.5" />
@@ -392,7 +394,7 @@ export default function Customers() {
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => setDeleteId(c.id)}
+                          onClick={(e) => { e.stopPropagation(); setDeleteId(c.id); }}
                           title="刪除"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

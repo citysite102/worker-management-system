@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
-import { useSearch } from "wouter";
+import { useSearch, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -169,6 +169,7 @@ export default function Workers() {
     setExpiryFilter("all");
   }, []);
 
+  const [, navigate] = useLocation();
   const openEdit = (id: number) => { setEditId(id); setModalOpen(true); };
   const openCreate = () => { setEditId(null); setModalOpen(true); };
 
@@ -467,9 +468,9 @@ export default function Workers() {
                   return (
                     <tr
                       key={w.id}
-                      className={`transition-colors cursor-default ${expiry.urgent ? "bg-red-50/40 hover:bg-red-50/70" : ""}`}
-                      onDoubleClick={() => openEdit(w.id)}
-                      title="雙擊編輯"
+                      className={`transition-colors cursor-pointer hover:bg-muted/40 ${expiry.urgent ? "bg-red-50/40 hover:bg-red-50/70" : ""}`}
+                      onClick={() => navigate(`/workers/${w.id}`)}
+                      title="點擊查看詳情"
                     >
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-1.5">
@@ -552,7 +553,7 @@ export default function Workers() {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                            onClick={() => openEdit(w.id)}
+                            onClick={(e) => { e.stopPropagation(); openEdit(w.id); }}
                             title="編輯"
                           >
                             <Pencil className="w-3.5 h-3.5" />
@@ -561,7 +562,7 @@ export default function Workers() {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                            onClick={() => setDeleteId(w.id)}
+                            onClick={(e) => { e.stopPropagation(); setDeleteId(w.id); }}
                             title="刪除"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

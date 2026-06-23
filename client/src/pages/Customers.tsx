@@ -249,8 +249,8 @@ export default function Customers() {
             </SelectContent>
           </Select>
 
-          {/* 定價篩選 */}
-          <Select value={pricingFilter} onValueChange={setPricingFilter}>
+          {/* 定價篩選（暂時隐藏，待定價資料建立後再開啟） */}
+          {/* <Select value={pricingFilter} onValueChange={setPricingFilter}>
             <SelectTrigger className="w-full sm:w-32">
               <SelectValue placeholder="定價" />
             </SelectTrigger>
@@ -260,7 +260,7 @@ export default function Customers() {
                 <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
               ))}
             </SelectContent>
-          </Select>
+          </Select> */}
         </div>
 
         {/* 篩選中提示列 */}
@@ -356,11 +356,11 @@ export default function Customers() {
                     <td className="px-4 py-3.5 hidden sm:table-cell">
                       {(c as any).employerType === "individual" ? (
                         <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground tracking-wide">
-                          <User className="w-3 h-3" />個人
+                          <User className="w-3 h-3" />個人雇主
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground tracking-wide">
-                          <Briefcase className="w-3 h-3" />公司
+                          <Briefcase className="w-3 h-3" />公司行號
                         </span>
                       )}
                     </td>

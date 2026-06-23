@@ -10,6 +10,7 @@ import { ImportWorkerModal } from "@/components/ImportWorkerModal";
 import { getStatusLabel, LIFECYCLE_STATUS_OPTIONS, DOCUMENT_STATUS_OPTIONS } from "@/lib/constants";
 import { toast } from "sonner";
 import { Plus, Search, Pencil, Trash2, Users, Briefcase, FileWarning, UserSearch, X, CalendarClock, ExternalLink, Upload } from "lucide-react";
+import { TableRowSkeleton } from "@/components/LoadingStates";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -428,14 +429,7 @@ export default function Workers() {
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
-                <tr>
-                  <td colSpan={9} className="px-4 py-14 text-center text-muted-foreground text-sm">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
-                      載入中...
-                    </div>
-                  </td>
-                </tr>
+                <TableRowSkeleton cols={9} rows={6} />
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-14 text-center">

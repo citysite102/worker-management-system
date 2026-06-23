@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PageSkeleton } from "@/components/LoadingStates";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Pencil, ExternalLink, FileText, Image as ImageIcon, Calendar, User, Phone, Mail, Globe, Briefcase, Shield, AlertTriangle, Building2, Plus } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -76,16 +76,7 @@ export default function WorkerDetail() {
   const workerCases = involvements?.filter(i => i.workerId === workerId) ?? [];
 
   if (isLoading) {
-    return (
-      <div className="p-6 space-y-4 max-w-4xl mx-auto">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-72" />
-        <div className="grid grid-cols-2 gap-4">
-          <Skeleton className="h-32" />
-          <Skeleton className="h-32" />
-        </div>
-      </div>
-    );
+    return <PageSkeleton cardRows={2} />;
   }
 
   if (!worker) {

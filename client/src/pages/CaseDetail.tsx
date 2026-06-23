@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PageSkeleton } from "@/components/LoadingStates";
 import { ArrowLeft, Pencil, Building2, User, Phone, MapPin, Heart, FileText, AlertTriangle, Paperclip, ExternalLink, Calendar, Clock, Shield } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getStatusLabel } from "@/lib/constants";
@@ -31,13 +31,7 @@ export default function CaseDetail() {
   );
 
   if (isLoading) {
-    return (
-      <div className="p-6 space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-72" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
+    return <PageSkeleton cardRows={3} />;
   }
 
   if (!caseData) {

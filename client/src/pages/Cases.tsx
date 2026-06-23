@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Plus, Search, Briefcase, CheckCircle2, PauseCircle, XCircle, Pencil, Trash2, ArrowRight } from "lucide-react";
+import { TableRowSkeleton } from "@/components/LoadingStates";
 import { getStatusLabel, getStatusColor, CASE_MGMT_STATUS_OPTIONS } from "@/lib/constants";
 import { StatusBadge } from "@/components/StatusBadge";
 import CaseModal from "@/components/CaseModal";
@@ -159,13 +159,7 @@ export default function Cases() {
           </thead>
           <tbody>
             {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className="border-b">
-                  {Array.from({ length: 8 }).map((_, j) => (
-                    <td key={j} className="px-4 py-4"><Skeleton className="h-4 w-full" /></td>
-                  ))}
-                </tr>
-              ))
+              <TableRowSkeleton cols={8} rows={5} />
             ) : cases.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">

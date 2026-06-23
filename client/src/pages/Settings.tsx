@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Plus, Trash2, Users } from "lucide-react";
+import { InlineLoader } from "@/components/LoadingStates";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -89,7 +90,7 @@ export default function Settings() {
         {/* 清單 */}
         <div className="divide-y divide-border">
           {isLoading ? (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">載入中...</div>
+            <InlineLoader />
           ) : managers.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">尚無負責人，請新增</div>
           ) : (

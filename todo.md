@@ -269,3 +269,16 @@
 - [x] 客戶列表：employerNo/contractStatus 補更新，類型欄位「個人」→「個人雇主」，隱藏空定價篩選器
 - [x] 職業欄位：OCCUPATION_OPTIONS 移至 constants.ts（共用），WorkerDetail 職業欄位改為顯示中文 label（家庭看護工 等），WorkerModal 改為從 constants.ts import
 - [x] CaseModal Tab 驗證錯誤 Badge：必填欄位未填時，對應 Tab 標籤顯示紅色錯誤數量（基本資料 Tab 包含案件名稱/負責人/雇主共 3 個必填欄位）
+
+## Loading 動畫統一（v5.9）
+
+- [x] 建立共用 PageSkeleton 元件（詳情頁用：標題 + 副標題 + 卡片群）
+- [x] 建立共用 TableRowSkeleton 元件（列表頁表格 row 用）
+- [x] 建立共用 InlineLoader 元件（Settings 等小區塊用：spinner + 載入中...）
+- [x] Workers.tsx：改用 TableRowSkeleton
+- [x] Customers.tsx：改用 TableRowSkeleton
+- [x] Cases.tsx：改用 TableRowSkeleton
+- [x] WorkerDetail.tsx：改用 PageSkeleton
+- [x] CustomerDetail.tsx：改用 PageSkeleton
+- [x] CaseDetail.tsx：改用 PageSkeleton
+- [x] Settings.tsx：改用 InlineLoader

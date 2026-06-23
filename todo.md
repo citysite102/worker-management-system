@@ -231,3 +231,15 @@
 - [x] 前端 CaseModal：新增「勞動部聘僱許可函」分區（收文號、聘僱函類別、申請書送件日、發文日期、核准收件日）
 - [x] 前端 CaseDetail：基本資料 Tab 新增三個行政流程卡片
 - [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤
+
+## 效能優化 + 體檢管理（v5.3）
+
+- [x] 效能：案件列表後端改為批次查詢（getCaseDimensionsBatch），消除 N+1
+- [x] 效能：CaseMatchingTab 和 CaseEmploymentTab 延遲載入（modal 開啟時才查詢）
+- [x] 效能：caseQualifications.listByCase 改用 getQuotaUsedBatch，消除 Nxd72 查詢
+- [x] 效能：Cases.tsx 搜尋輸入加入 300ms debounce
+- [x] 體檢 Schema：cases 主表新增 10 個體檢欄位（prevMedicalExamDate、entryMedicalExamDate、exam6m/18m/30m + 報告附件 key）
+- [x] 體檢後端：cases CRUD 支援體檢欄位
+- [x] 體檢前端 CaseModal：新增「體檢管理」分區（日期 + 附件上傳）
+- [x] 體檢前端 CaseDetail：基本資料 Tab 新增體檢管理卡片
+- [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤

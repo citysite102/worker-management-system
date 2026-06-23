@@ -19,7 +19,16 @@ export default function CaseDetail() {
   const [, navigate] = useLocation();
   const [showEdit, setShowEdit] = useState(false);
 
-  const { data: caseData, isLoading } = trpc.cases.getById.useQuery({ id: caseId });
+  const utils = trpc.useUtils();
+  const { data: caseData, isLoading } = trpc.cases.getById.useQuery(
+    { id: caseId },
+    {
+      initialData: () => {
+        const cached = utils.cases.list.getData();
+        return cached?.find((c: any) => c.id === caseId) as any;
+      },
+    }
+  );
 
   if (isLoading) {
     return (
@@ -430,6 +439,74 @@ export default function CaseDetail() {
                     <p className="font-medium">{(caseData as any).approvalReceiptDate || "—"}</p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* 體檢管理卡片 */}
+            {((caseData as any).prevMedicalExamDate || (caseData as any).prevMedicalReportKey ||
+              (caseData as any).entryMedicalExamDate || (caseData as any).entryMedicalReportKey ||
+              (caseData as any).exam6mDate || (caseData as any).exam6mReportKey ||
+              (caseData as any).exam18mDate || (caseData as any).exam18mReportKey ||
+              (caseData as any).exam30mDate || (caseData as any).exam30mReportKey) && (
+              <div className="rounded-lg border bg-card p-4 space-y-3 md:col-span-2">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                  體檢管理
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  {/* 前次體檢 */}
+                  {(caseData as any).prevMedicalExamDate && (
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-muted-foreground">前次體檢日期</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{(caseData as any).prevMedicalExamDate}</p>
+                        {(caseData as any).prevMedicalReportKey && (
+                          <a href={`/manus-storage/${(caseData as any).prevMedicalReportKey}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            報告
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {/* 入境3天體檢 */}
+                  {(caseData as any).entryMedicalExamDate && (
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-muted-foreground">入境3天體檢日期</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{(caseData as any).entryMedicalExamDate}</p>
+                        {(caseData as any).entryMedicalReportKey && (
+                          <a href={`/manus-storage/${(caseData as any).entryMedicalReportKey}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            報告
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {/* 6/18/30 個月體檢 */}
+                {((caseData as any).exam6mDate || (caseData as any).exam18mDate || (caseData as any).exam30mDate) && (
+                  <div className="grid grid-cols-3 gap-4 text-sm pt-2 border-t border-border/50">
+                    {[{label: "6個月體檢", dateKey: "exam6mDate", reportKey: "exam6mReportKey"},
+                      {label: "18個月體檢", dateKey: "exam18mDate", reportKey: "exam18mReportKey"},
+                      {label: "30個月體檢", dateKey: "exam30mDate", reportKey: "exam30mReportKey"}]
+                      .map(({ label, dateKey, reportKey }) => (
+                        <div key={dateKey} className="space-y-0.5">
+                          <p className="text-xs text-muted-foreground">{label}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{(caseData as any)[dateKey] || "—"}</p>
+                            {(caseData as any)[reportKey] && (
+                              <a href={`/manus-storage/${(caseData as any)[reportKey]}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                報告
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
             )}
 

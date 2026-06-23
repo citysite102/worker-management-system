@@ -284,6 +284,18 @@ export const cases = mysqlTable("cases", {
   issuanceDate: varchar("issuanceDate", { length: 10 }),             // 發文日期
   approvalReceiptDate: varchar("approvalReceiptDate", { length: 10 }), // 核准收件日
 
+  // Phase 4: 體檢管理
+  prevMedicalExamDate: varchar("prevMedicalExamDate", { length: 10 }),       // 前次體檢日期
+  prevMedicalReportKey: varchar("prevMedicalReportKey", { length: 300 }),    // 前次體檢報告（S3）
+  entryMedicalExamDate: varchar("entryMedicalExamDate", { length: 10 }),     // 入境3天體檢日期
+  entryMedicalReportKey: varchar("entryMedicalReportKey", { length: 300 }), // 入境3天體檢報告（S3）
+  exam6mDate: varchar("exam6mDate", { length: 10 }),                         // 6個月體檢日期
+  exam6mReportKey: varchar("exam6mReportKey", { length: 300 }),              // 6個月體檢報告（S3）
+  exam18mDate: varchar("exam18mDate", { length: 10 }),                       // 18個月體檢日期
+  exam18mReportKey: varchar("exam18mReportKey", { length: 300 }),            // 18個月體檢報告（S3）
+  exam30mDate: varchar("exam30mDate", { length: 10 }),                       // 30個月體檢日期
+  exam30mReportKey: varchar("exam30mReportKey", { length: 300 }),            // 30個月體檢報告（S3）
+
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

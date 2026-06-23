@@ -37,8 +37,9 @@ export default function CaseEmploymentTab({ caseId }: Props) {
   const [form, setForm] = useState({ ...EMPTY_FORM });
 
   const { data: employments = [], isLoading } = trpc.caseEmployments.listByCase.useQuery({ caseId });
-  const { data: quals = [] } = trpc.caseQualifications.listByCase.useQuery({ caseId });
-  const { data: assignments = [] } = trpc.caseAssignments.listByCase.useQuery({ caseId });
+  // 延遲載入：資格和配對資料只有 modal 開啟時才需要
+  const { data: quals = [] } = trpc.caseQualifications.listByCase.useQuery({ caseId }, { enabled: showModal });
+  const { data: assignments = [] } = trpc.caseAssignments.listByCase.useQuery({ caseId }, { enabled: showModal });
 
   // 從配對中取得所有已配對移工（去重）
   const assignedWorkers = Array.from(

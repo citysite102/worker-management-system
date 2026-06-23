@@ -44,9 +44,10 @@ export default function CaseMatchingTab({ caseId }: Props) {
 
   const { data: demands = [], isLoading: demandsLoading } = trpc.caseDemands.listByCase.useQuery({ caseId });
   const { data: assignments = [], isLoading: assignmentsLoading } = trpc.caseAssignments.listByCase.useQuery({ caseId });
-  const { data: allWorkers = [] } = trpc.workers.list.useQuery();
-  const { data: involvements = [] } = trpc.caseAssignments.workerInvolvements.useQuery({ excludeCaseId: caseId });
   const { data: quals = [] } = trpc.caseQualifications.listByCase.useQuery({ caseId });
+  // 延遲載入：只有「加入人員 modal」開啟時才載入全量移工和跨案件資料
+  const { data: allWorkers = [] } = trpc.workers.list.useQuery(undefined, { enabled: showAssignModal });
+  const { data: involvements = [] } = trpc.caseAssignments.workerInvolvements.useQuery({ excludeCaseId: caseId }, { enabled: showAssignModal });
 
   // 跨案件提醒：哪些移工在其他案件有活躍配對
   const involvedWorkerIds = useMemo(() => new Set(involvements.map(i => i.workerId)), [involvements]);

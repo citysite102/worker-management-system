@@ -58,6 +58,17 @@ const schema = z.object({
   applicationSubmitDate: z.string().max(10).optional().nullable(),
   issuanceDate: z.string().max(10).optional().nullable(),
   approvalReceiptDate: z.string().max(10).optional().nullable(),
+  // Phase 4: 體檢管理
+  prevMedicalExamDate: z.string().max(10).optional().nullable(),
+  prevMedicalReportKey: z.string().max(300).optional().nullable(),
+  entryMedicalExamDate: z.string().max(10).optional().nullable(),
+  entryMedicalReportKey: z.string().max(300).optional().nullable(),
+  exam6mDate: z.string().max(10).optional().nullable(),
+  exam6mReportKey: z.string().max(300).optional().nullable(),
+  exam18mDate: z.string().max(10).optional().nullable(),
+  exam18mReportKey: z.string().max(300).optional().nullable(),
+  exam30mDate: z.string().max(10).optional().nullable(),
+  exam30mReportKey: z.string().max(300).optional().nullable(),
   notes: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -95,6 +106,12 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
   const [uploadingPermit, setUploadingPermit] = useState(false);
   const [uploadingEmpPermit, setUploadingEmpPermit] = useState(false);
   const [uploadingTermination, setUploadingTermination] = useState(false);
+  // Phase 4: 體檢報告上傳狀態
+  const [uploadingPrevMedical, setUploadingPrevMedical] = useState(false);
+  const [uploadingEntryMedical, setUploadingEntryMedical] = useState(false);
+  const [uploading6m, setUploading6m] = useState(false);
+  const [uploading18m, setUploading18m] = useState(false);
+  const [uploading30m, setUploading30m] = useState(false);
 
   const {
     register, handleSubmit, reset, setValue, watch,
@@ -131,6 +148,16 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
       applicationSubmitDate: null,
       issuanceDate: null,
       approvalReceiptDate: null,
+      prevMedicalExamDate: null,
+      prevMedicalReportKey: null,
+      entryMedicalExamDate: null,
+      entryMedicalReportKey: null,
+      exam6mDate: null,
+      exam6mReportKey: null,
+      exam18mDate: null,
+      exam18mReportKey: null,
+      exam30mDate: null,
+      exam30mReportKey: null,
     },
   });
 
@@ -166,6 +193,16 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
         applicationSubmitDate: editingCase.applicationSubmitDate ?? null,
         issuanceDate: editingCase.issuanceDate ?? null,
         approvalReceiptDate: editingCase.approvalReceiptDate ?? null,
+        prevMedicalExamDate: editingCase.prevMedicalExamDate ?? null,
+        prevMedicalReportKey: editingCase.prevMedicalReportKey ?? null,
+        entryMedicalExamDate: editingCase.entryMedicalExamDate ?? null,
+        entryMedicalReportKey: editingCase.entryMedicalReportKey ?? null,
+        exam6mDate: editingCase.exam6mDate ?? null,
+        exam6mReportKey: editingCase.exam6mReportKey ?? null,
+        exam18mDate: editingCase.exam18mDate ?? null,
+        exam18mReportKey: editingCase.exam18mReportKey ?? null,
+        exam30mDate: editingCase.exam30mDate ?? null,
+        exam30mReportKey: editingCase.exam30mReportKey ?? null,
       });
     } else {
       reset({
@@ -198,6 +235,16 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
         applicationSubmitDate: null,
         issuanceDate: null,
         approvalReceiptDate: null,
+        prevMedicalExamDate: null,
+        prevMedicalReportKey: null,
+        entryMedicalExamDate: null,
+        entryMedicalReportKey: null,
+        exam6mDate: null,
+        exam6mReportKey: null,
+        exam18mDate: null,
+        exam18mReportKey: null,
+        exam30mDate: null,
+        exam30mReportKey: null,
       });
     }
   }, [editingCase, reset]);
@@ -240,6 +287,12 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
   const watchedEmploymentAgency = watch("employmentAgencyItems");
   const watchedPostInsurance = watch("postEmploymentInsurance");
   const watchedEmpStatus = watch("employmentStatus");
+  // Phase 4 watched file keys
+  const watchedPrevMedicalKey = watch("prevMedicalReportKey");
+  const watchedEntryMedicalKey = watch("entryMedicalReportKey");
+  const watched6mKey = watch("exam6mReportKey");
+  const watched18mKey = watch("exam18mReportKey");
+  const watched30mKey = watch("exam30mReportKey");
 
   const selectedCustomer = customers.find(c => c.id === watchedCustomerId);
   const selectedWorker = workers.find(w => w.id === watchedPrimaryWorkerId);
@@ -786,7 +839,93 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
 
           <Separator />
 
-          {/* ── 備註 ────────────────────────────────────────────────── */}
+          {/* ── 體檢管理 ──────────────────────────────────────── */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-emerald-500/10 text-emerald-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              </span>
+              體檢管理
+            </h3>
+            {/* 前次體檢 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">前次體檢日期</Label>
+                <Input {...register("prevMedicalExamDate")} type="date" className="text-sm" />
+              </div>
+              <FileField
+                fileKey={watchedPrevMedicalKey}
+                uploading={uploadingPrevMedical}
+                fieldName="prevMedicalReportKey"
+                label="前次體檢報告"
+                folder="medical"
+                setUploading={setUploadingPrevMedical}
+                successMsg="前次體檢報告已上傳"
+              />
+            </div>
+            {/* 入境3天體檢 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">入境3天體檢日期</Label>
+                <Input {...register("entryMedicalExamDate")} type="date" className="text-sm" />
+              </div>
+              <FileField
+                fileKey={watchedEntryMedicalKey}
+                uploading={uploadingEntryMedical}
+                fieldName="entryMedicalReportKey"
+                label="入境3天體檢報告"
+                folder="medical"
+                setUploading={setUploadingEntryMedical}
+                successMsg="入境3天體檢報告已上傳"
+              />
+            </div>
+            {/* 6/18/30 個月體檢 */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">6個月體檢日期</Label>
+                <Input {...register("exam6mDate")} type="date" className="text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">18個月體檢日期</Label>
+                <Input {...register("exam18mDate")} type="date" className="text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">30個月體檢日期</Label>
+                <Input {...register("exam30mDate")} type="date" className="text-sm" />
+              </div>
+              <FileField
+                fileKey={watched6mKey}
+                uploading={uploading6m}
+                fieldName="exam6mReportKey"
+                label="6個月體檢報告"
+                folder="medical"
+                setUploading={setUploading6m}
+                successMsg="6個月體檢報告已上傳"
+              />
+              <FileField
+                fileKey={watched18mKey}
+                uploading={uploading18m}
+                fieldName="exam18mReportKey"
+                label="18個月體檢報告"
+                folder="medical"
+                setUploading={setUploading18m}
+                successMsg="18個月體檢報告已上傳"
+              />
+              <FileField
+                fileKey={watched30mKey}
+                uploading={uploading30m}
+                fieldName="exam30mReportKey"
+                label="30個月體檢報告"
+                folder="medical"
+                setUploading={setUploading30m}
+                successMsg="30個月體檢報告已上傳"
+              />
+            </div>
+          </section>
+
+          <Separator />
+
+          {/* ── 備註 ────────────────────────────────────────────── */}
           <div className="space-y-1.5">
             <Label>備註</Label>
             <Textarea {...register("notes")} placeholder="案件說明、特殊需求..." rows={3} />

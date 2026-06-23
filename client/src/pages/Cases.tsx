@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -16,17 +16,24 @@ import CaseModal from "@/components/CaseModal";
 export default function Cases() {
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [managerFilter, setManagerFilter] = useState("all");
   const [showModal, setShowModal] = useState(false);
   const [editingCase, setEditingCase] = useState<any>(null);
   const [deletingCase, setDeletingCase] = useState<any>(null);
 
+  // Debounce search input: 延遲 300ms 再觸發 API 請求
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const utils = trpc.useUtils();
   const { data: cases = [], isLoading } = trpc.cases.list.useQuery({
     status: statusFilter !== "all" ? statusFilter : undefined,
     managerId: managerFilter !== "all" ? Number(managerFilter) : undefined,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   });
   const { data: managers = [] } = trpc.managers.list.useQuery();
   const deleteMutation = trpc.cases.delete.useMutation({

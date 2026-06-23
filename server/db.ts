@@ -1,4 +1,4 @@
-import { and, eq, ne, or } from "drizzle-orm";
+import { and, eq, inArray, ne, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, managers, workers, customers, InsertManager, InsertWorker, InsertCustomer, cases, caseQualifications, caseDemands, caseAssignments, caseAssignmentWorkers, caseEmployments, InsertCase, InsertCaseQualification, InsertCaseDemand, InsertCaseAssignment, InsertCaseAssignmentWorker, InsertCaseEmployment } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -291,17 +291,62 @@ export async function deleteQualification(id: number) {
 export async function getQuotaUsed(qualificationId: number): Promise<number> {
   const db = await getDb();
   if (!db) return 0;
-  // 找出所有 qualificationId = 此資格的配對
   const assignmentRows = await db.select({ id: caseAssignments.id }).from(caseAssignments).where(eq(caseAssignments.qualificationId, qualificationId));
   if (assignmentRows.length === 0) return 0;
   const assignmentIds = assignmentRows.map(a => a.id);
-  let count = 0;
-  for (const aid of assignmentIds) {
-    const members = await db.select().from(caseAssignmentWorkers)
-      .where(and(eq(caseAssignmentWorkers.assignmentId, aid), eq(caseAssignmentWorkers.stage, 'employed')));
-    count += members.length;
+  const members = await db.select().from(caseAssignmentWorkers)
+    .where(and(inArray(caseAssignmentWorkers.assignmentId, assignmentIds), eq(caseAssignmentWorkers.stage, 'employed')));
+  return members.length;
+}
+
+/** 批次計算多個資格的 quotaUsed（消除 N+1） */
+export async function getQuotaUsedBatch(qualificationIds: number[]): Promise<Map<number, number>> {
+  const result = new Map<number, number>(qualificationIds.map(id => [id, 0]));
+  if (qualificationIds.length === 0) return result;
+  const db = await getDb();
+  if (!db) return result;
+  const assignmentRows = await db.select({ id: caseAssignments.id, qualificationId: caseAssignments.qualificationId })
+    .from(caseAssignments).where(inArray(caseAssignments.qualificationId, qualificationIds));
+  if (assignmentRows.length === 0) return result;
+  const assignmentIds = assignmentRows.map(a => a.id);
+  const members = await db.select({ assignmentId: caseAssignmentWorkers.assignmentId })
+    .from(caseAssignmentWorkers)
+    .where(and(inArray(caseAssignmentWorkers.assignmentId, assignmentIds), eq(caseAssignmentWorkers.stage, 'employed')));
+  // 將 assignmentId 對映回 qualificationId
+  const assignmentToQual = new Map(assignmentRows.map(a => [a.id, a.qualificationId!]));
+  for (const m of members) {
+    const qualId = assignmentToQual.get(m.assignmentId);
+    if (qualId != null) result.set(qualId, (result.get(qualId) ?? 0) + 1);
   }
-  return count;
+  return result;
+}
+
+/** 批次取得多個案件的子表維度（消除 N+1） */
+export async function getCaseDimensionsBatch(caseIds: number[]): Promise<Map<number, { qualCount: number; demandCount: number; assignmentCount: number; memberCount: number }>> {
+  const empty = { qualCount: 0, demandCount: 0, assignmentCount: 0, memberCount: 0 };
+  const result = new Map(caseIds.map(id => [id, { ...empty }]));
+  if (caseIds.length === 0) return result;
+  const db = await getDb();
+  if (!db) return result;
+  const [quals, demands, assignments] = await Promise.all([
+    db.select({ caseId: caseQualifications.caseId }).from(caseQualifications).where(inArray(caseQualifications.caseId, caseIds)),
+    db.select({ caseId: caseDemands.caseId }).from(caseDemands).where(inArray(caseDemands.caseId, caseIds)),
+    db.select({ id: caseAssignments.id, caseId: caseAssignments.caseId }).from(caseAssignments).where(inArray(caseAssignments.caseId, caseIds)),
+  ]);
+  for (const q of quals) { const r = result.get(q.caseId); if (r) r.qualCount++; }
+  for (const d of demands) { const r = result.get(d.caseId); if (r) r.demandCount++; }
+  for (const a of assignments) { const r = result.get(a.caseId); if (r) r.assignmentCount++; }
+  if (assignments.length > 0) {
+    const assignmentIds = assignments.map(a => a.id);
+    const members = await db.select({ assignmentId: caseAssignmentWorkers.assignmentId })
+      .from(caseAssignmentWorkers).where(inArray(caseAssignmentWorkers.assignmentId, assignmentIds));
+    const assignmentToCaseId = new Map(assignments.map(a => [a.id, a.caseId]));
+    for (const m of members) {
+      const caseId = assignmentToCaseId.get(m.assignmentId);
+      if (caseId != null) { const r = result.get(caseId); if (r) r.memberCount++; }
+    }
+  }
+  return result;
 }
 
 // ─── Case Demands（需求）────────────────────────────────────────────────────

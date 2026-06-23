@@ -13,7 +13,7 @@ import {
   getDemandsByCaseId, getDemandById, createDemand, updateDemand, deleteDemand, getDemandProgress,
   getAssignmentsByCaseId, getAssignmentById, createAssignment, updateAssignment, deleteAssignment,
   getMembersByAssignmentId, getMembersByCaseId, getMemberById, createMember, updateMember, deleteMember,
-  getWorkerInvolvements, getCaseDimensions,
+  getWorkerInvolvements, getCaseDimensions, getCaseDimensionsBatch, getQuotaUsedBatch,
   getEmploymentsByCase, createEmployment, updateEmployment, deleteEmployment,
 } from "./db";
 import { storagePut } from "./storage";
@@ -579,37 +579,42 @@ export const appRouter = router({
       }).optional())
       .query(async ({ input }) => {
         const rows = await getAllCases(input);
-        // 附上客戶名稱、負責人名稱、三維度進度
-        const allCustomers = await getAllCustomers();
-        const allManagers = await getAllManagers();
-        const customerMap = new Map(allCustomers.map(c => [c.id, c]));
-        const managerMap = new Map(allManagers.map(m => [m.id, m]));
-        const result = await Promise.all(rows.map(async (c) => {
-          const dims = await getCaseDimensions(c.id);
+        if (rows.length === 0) return [];
+        // 批次取得客戶、負責人、子表維度（消除 N+1）
+        const caseIds = rows.map(c => c.id);
+        const [allCustomers, allManagers, dimsMap] = await Promise.all([
+          getAllCustomers(),
+          getAllManagers(),
+          getCaseDimensionsBatch(caseIds),
+        ]);
+        type CustomerRow = typeof allCustomers[0];
+        type ManagerRow = typeof allManagers[0];
+        const customerMap = new Map<number, CustomerRow>(allCustomers.map(c => [c.id, c]));
+        const managerMap = new Map<number, ManagerRow>(allManagers.map(m => [m.id, m]));
+        return rows.map((c) => {
+          const dims = dimsMap.get(c.id) ?? { qualCount: 0, demandCount: 0, assignmentCount: 0, memberCount: 0 };
           return {
             ...c,
             customerName: customerMap.get(c.customerId)?.name ?? "",
             managerName: managerMap.get(c.managerId)?.name ?? "",
             ...dims,
           };
-        }));
-        return result;
+        });
       }),
     getById: publicProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ input }) => {
         const c = await getCaseById(input.id);
         if (!c) throw new TRPCError({ code: "NOT_FOUND", message: "找不到此案件" });
-        const allCustomers = await getAllCustomers();
-        const allManagers = await getAllManagers();
-        const customer = allCustomers.find(cu => cu.id === c.customerId);
+        // 並行取得客戶、負責人、子表維度、主要移工（消除序列往返）
+        const [customer, allManagers, dimsMap, primaryWorker] = await Promise.all([
+          getCustomerById(c.customerId),
+          getAllManagers(),
+          getCaseDimensionsBatch([c.id]),
+          c.primaryWorkerId ? getWorkerById(c.primaryWorkerId) : Promise.resolve(null),
+        ]);
         const manager = allManagers.find(m => m.id === c.managerId);
-        const dims = await getCaseDimensions(c.id);
-        // 主要移工資料（自動帶入用）
-        let primaryWorker = null;
-        if (c.primaryWorkerId) {
-          primaryWorker = await getWorkerById(c.primaryWorkerId);
-        }
+        const dims = dimsMap.get(c.id) ?? { qualCount: 0, demandCount: 0, assignmentCount: 0, memberCount: 0 };
         return {
           ...c,
           customerName: customer?.name ?? "",
@@ -669,6 +674,17 @@ export const appRouter = router({
         applicationSubmitDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
         issuanceDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
         approvalReceiptDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        // Phase 4: 體檢管理
+        prevMedicalExamDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        prevMedicalReportKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+        entryMedicalExamDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        entryMedicalReportKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+        exam6mDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        exam6mReportKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+        exam18mDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        exam18mReportKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+        exam30mDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        exam30mReportKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
         notes: z.string().optional().transform(s => s?.trim() || undefined),
       }))
       .mutation(async ({ input }) => {
@@ -719,6 +735,17 @@ export const appRouter = router({
         applicationSubmitDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
         issuanceDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
         approvalReceiptDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        // Phase 4: 體檢管理
+        prevMedicalExamDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        prevMedicalReportKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
+        entryMedicalExamDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        entryMedicalReportKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
+        exam6mDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        exam6mReportKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
+        exam18mDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        exam18mReportKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
+        exam30mDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        exam30mReportKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
         notes: z.string().optional().transform(s => s?.trim() || undefined),
       }))
       .mutation(async ({ input }) => {
@@ -743,11 +770,14 @@ export const appRouter = router({
       .input(z.object({ caseId: z.number().int().positive() }))
       .query(async ({ input }) => {
         const quals = await getQualificationsByCaseId(input.caseId);
-        return Promise.all(quals.map(async q => ({
-          ...q,
-          quotaUsed: await getQuotaUsed(q.id),
-          quotaRemaining: q.quotaTotal - (await getQuotaUsed(q.id)),
-        })));
+        if (quals.length === 0) return [];
+        // 批次取得所有資格的 quotaUsed（消除 N×2 查詢）
+        const qualIds = quals.map(q => q.id);
+        const quotaUsedMap = await getQuotaUsedBatch(qualIds);
+        return quals.map(q => {
+          const quotaUsed = quotaUsedMap.get(q.id) ?? 0;
+          return { ...q, quotaUsed, quotaRemaining: q.quotaTotal - quotaUsed };
+        });
       }),
     getById: publicProcedure
       .input(z.object({ id: z.number().int().positive() }))

@@ -643,6 +643,18 @@ export const appRouter = router({
         primaryWorkerId: z.number().int().positive().optional(),
         needsReview: z.boolean().optional().transform(v => v ? 1 : 0),
         recruitmentPermitFileKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+        // Phase 2: 聘僱時間
+        continuousEmploymentDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        employmentPeriodMonths: z.number().int().min(1).max(36).optional(),
+        terminationDate: z.string().max(10).optional().transform(s => s?.trim() || undefined),
+        // Phase 2: 代辦事項
+        recruitmentAgencyItems: z.enum(["none", "self", "agency"]).optional(),
+        employmentAgencyItems: z.enum(["none", "self", "agency"]).optional(),
+        postEmploymentInsurance: z.enum(["none", "health", "accident", "both"]).optional(),
+        // Phase 2: 聘僱許可函與情況
+        employmentPermitFileKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
+        employmentStatus: z.enum(["normal", "suspended", "terminated", "transferred"]).optional(),
+        terminationLetterFileKey: z.string().max(300).optional().transform(s => s?.trim() || undefined),
         notes: z.string().optional().transform(s => s?.trim() || undefined),
       }))
       .mutation(async ({ input }) => {
@@ -667,6 +679,18 @@ export const appRouter = router({
         primaryWorkerId: z.number().int().positive().optional().nullable(),
         needsReview: z.boolean().optional().transform(v => v ? 1 : 0),
         recruitmentPermitFileKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
+        // Phase 2: 聘僱時間
+        continuousEmploymentDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        employmentPeriodMonths: z.number().int().min(1).max(36).optional().nullable(),
+        terminationDate: z.string().max(10).optional().nullable().transform(s => s?.trim() || undefined),
+        // Phase 2: 代辦事項
+        recruitmentAgencyItems: z.enum(["none", "self", "agency"]).optional().nullable(),
+        employmentAgencyItems: z.enum(["none", "self", "agency"]).optional().nullable(),
+        postEmploymentInsurance: z.enum(["none", "health", "accident", "both"]).optional().nullable(),
+        // Phase 2: 聘僱許可函與情況
+        employmentPermitFileKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
+        employmentStatus: z.enum(["normal", "suspended", "terminated", "transferred"]).optional().nullable(),
+        terminationLetterFileKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
         notes: z.string().optional().transform(s => s?.trim() || undefined),
       }))
       .mutation(async ({ input }) => {

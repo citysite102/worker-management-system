@@ -233,6 +233,40 @@ export const cases = mysqlTable("cases", {
   needsReview: int("needsReview").default(0).notNull(),  // 需檢查標記（0/1）
   // ── 附件 ──────────────────────────────────────────────────────────────────
   recruitmentPermitFileKey: varchar("recruitmentPermitFileKey", { length: 300 }), // 招募許可函（S3）
+
+  // ── 聘僱時間 ─────────────────────────────────────────────────────────────────────────────
+  continuousEmploymentDate: varchar("continuousEmploymentDate", { length: 10 }), // 本案接續聘僱日期 YYYY-MM-DD
+  employmentPeriodMonths: int("employmentPeriodMonths"),                          // 期間長度（月）
+  terminationDate: varchar("terminationDate", { length: 10 }),                    // 終止聘僱日期 YYYY-MM-DD
+
+  // ── 代辦事項 ─────────────────────────────────────────────────────────────────────────────
+  recruitmentAgencyItems: mysqlEnum("recruitmentAgencyItems", [  // 招募函代辦事項
+    "none",           // 無
+    "self",           // 自辦
+    "agency",         // 仓介代辦
+  ]),
+  employmentAgencyItems: mysqlEnum("employmentAgencyItems", [    // 聘僱函代辦事項
+    "none",           // 無
+    "self",           // 自辦
+    "agency",         // 仓介代辦
+  ]),
+  postEmploymentInsurance: mysqlEnum("postEmploymentInsurance", [ // 聘僱後尚未完成保险
+    "none",           // 無
+    "health",         // 健保待辦
+    "accident",       // 意外险待辦
+    "both",           // 健保+意外险待辦
+  ]),
+
+  // ── 聘僱許可函與情況 ───────────────────────────────────────────────────────────────
+  employmentPermitFileKey: varchar("employmentPermitFileKey", { length: 300 }),   // 聘僱許可函（S3）
+  employmentStatus: mysqlEnum("employmentStatus", [              // 聘僱情況
+    "normal",         // 正常
+    "suspended",      // 暫停
+    "terminated",     // 終止
+    "transferred",    // 轉就
+  ]),
+  terminationLetterFileKey: varchar("terminationLetterFileKey", { length: 300 }), // 終止函（S3）
+
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

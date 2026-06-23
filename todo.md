@@ -209,3 +209,12 @@
 - [x] 前端 CaseDetail：基本資料 Tab 顯示自動帶入的雇主/移工資訊（含跳轉連結）
 - [x] 前端 Cases 列表：顯示案件編號欄位
 - [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤
+
+## 案件管理 Phase 2：聘僱時間與代辦事項（v5.1）
+
+- [x] Schema：cases 主表新增 continuousEmploymentDate、employmentPeriodMonths、terminationDate、recruitmentAgencyItems、employmentAgencyItems、postEmploymentInsurance、employmentPermitFileKey、employmentStatus、terminationLetterFileKey
+- [x] Schema：執行資料庫遷移
+- [x] 後端：cases CRUD 支援新欄位
+- [x] 前端 CaseModal：新增「聘僱資料」分區（日期選擇、代辦事項下拉、附件上傳）
+- [x] 前端 CaseDetail：基本資料 Tab 新增聘僱時間與代辦事項卡片
+- [x] 30 個 Vitest 測試全部通過，TypeScript 零錯誤

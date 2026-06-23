@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Pencil, Building2, User, Phone, MapPin, Heart, FileText, AlertTriangle, Paperclip, ExternalLink } from "lucide-react";
+import { ArrowLeft, Pencil, Building2, User, Phone, MapPin, Heart, FileText, AlertTriangle, Paperclip, ExternalLink, Calendar, Clock, Shield } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getStatusLabel } from "@/lib/constants";
 import CaseModal from "@/components/CaseModal";
@@ -225,6 +225,133 @@ export default function CaseDetail() {
                 </div>
               )}
             </div>
+
+            {/* 聘僱時間與代辦事項卡片 */}
+            {((caseData as any).continuousEmploymentDate ||
+              (caseData as any).employmentPeriodMonths ||
+              (caseData as any).terminationDate ||
+              (caseData as any).recruitmentAgencyItems ||
+              (caseData as any).employmentAgencyItems ||
+              (caseData as any).postEmploymentInsurance ||
+              (caseData as any).employmentPermitFileKey ||
+              (caseData as any).employmentStatus ||
+              (caseData as any).terminationLetterFileKey) && (
+              <div className="rounded-lg border bg-card p-4 space-y-4 md:col-span-2">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Calendar className="w-4 h-4 text-primary" />聘僱資料
+                </div>
+
+                {/* 聘僱時間 */}
+                {((caseData as any).continuousEmploymentDate || (caseData as any).employmentPeriodMonths || (caseData as any).terminationDate) && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> 聘僱時間
+                    </p>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">接續聘僱日期</p>
+                        <p className="font-medium">{(caseData as any).continuousEmploymentDate || "—"}</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">期間長度</p>
+                        <p className="font-medium">
+                          {(caseData as any).employmentPeriodMonths
+                            ? `${(caseData as any).employmentPeriodMonths} 個月`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">終止聘僱日期</p>
+                        <p className="font-medium text-destructive">{(caseData as any).terminationDate || "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 代辦事項 */}
+                {((caseData as any).recruitmentAgencyItems || (caseData as any).employmentAgencyItems || (caseData as any).postEmploymentInsurance) && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                      <FileText className="w-3 h-3" /> 代辦事項
+                    </p>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">招募函代辦事項</p>
+                        <p className="font-medium">{{
+                          none: "無", self: "自辦", agency: "仲介代辦",
+                        }[(caseData as any).recruitmentAgencyItems as string] || "—"}</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">聘僱函代辦事項</p>
+                        <p className="font-medium">{{
+                          none: "無", self: "自辦", agency: "仲介代辦",
+                        }[(caseData as any).employmentAgencyItems as string] || "—"}</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">聘僱後尚未完成保險</p>
+                        <p className="font-medium">{{
+                          none: "無",
+                          health: "健保待辦",
+                          accident: "意外險待辦",
+                          both: "健保 + 意外險待辦",
+                        }[(caseData as any).postEmploymentInsurance as string] || "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 聘僱許可函與情況 */}
+                {((caseData as any).employmentPermitFileKey || (caseData as any).employmentStatus || (caseData as any).terminationLetterFileKey) && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                      <Shield className="w-3 h-3" /> 聘僱許可函與情況
+                    </p>
+                    <div className="flex flex-wrap gap-4 text-sm">
+                      {(caseData as any).employmentStatus && (
+                        <div className="space-y-0.5">
+                          <p className="text-xs text-muted-foreground">聘僱情況</p>
+                          <Badge variant={{
+                            normal: "default", suspended: "secondary",
+                            terminated: "destructive", transferred: "outline",
+                          }[(caseData as any).employmentStatus as string] as any || "secondary"}>
+                            {{
+                              normal: "正常", suspended: "暫停",
+                              terminated: "終止", transferred: "轉就",
+                            }[(caseData as any).employmentStatus as string] || (caseData as any).employmentStatus}
+                          </Badge>
+                        </div>
+                      )}
+                      {(caseData as any).employmentPermitFileKey && (
+                        <div className="space-y-0.5">
+                          <p className="text-xs text-muted-foreground">聘僱許可函</p>
+                          <a
+                            href={`/manus-storage/${(caseData as any).employmentPermitFileKey}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs text-primary hover:underline"
+                          >
+                            <Paperclip className="w-3 h-3" />檢視附件
+                          </a>
+                        </div>
+                      )}
+                      {(caseData as any).terminationLetterFileKey && (
+                        <div className="space-y-0.5">
+                          <p className="text-xs text-muted-foreground">終止函</p>
+                          <a
+                            href={`/manus-storage/${(caseData as any).terminationLetterFileKey}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs text-primary hover:underline"
+                          >
+                            <Paperclip className="w-3 h-3" />檢視附件
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 案件備註 */}
             {caseData.notes && (

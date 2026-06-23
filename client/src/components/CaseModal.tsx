@@ -16,8 +16,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { CASE_MGMT_STATUS_OPTIONS } from "@/lib/constants";
-import { Building2, User, Phone, MapPin, Heart, Briefcase, AlertTriangle, Upload, X } from "lucide-react";
+import {
+  Building2, User, Phone, MapPin, Heart, Briefcase, AlertTriangle,
+  Upload, X, Calendar, Clock, FileText, Shield,
+} from "lucide-react";
 
 const schema = z.object({
   customerId: z.number().int().positive("請選擇客戶"),
@@ -28,9 +32,39 @@ const schema = z.object({
   primaryWorkerId: z.number().int().positive().optional().nullable(),
   needsReview: z.boolean().optional(),
   recruitmentPermitFileKey: z.string().max(300).optional().nullable(),
+  // Phase 2: 聘僱時間
+  continuousEmploymentDate: z.string().max(10).optional().nullable(),
+  employmentPeriodMonths: z.number().int().min(1).max(36).optional().nullable(),
+  terminationDate: z.string().max(10).optional().nullable(),
+  // Phase 2: 代辦事項
+  recruitmentAgencyItems: z.enum(["none", "self", "agency"]).optional().nullable(),
+  employmentAgencyItems: z.enum(["none", "self", "agency"]).optional().nullable(),
+  postEmploymentInsurance: z.enum(["none", "health", "accident", "both"]).optional().nullable(),
+  // Phase 2: 聘僱許可函與情況
+  employmentPermitFileKey: z.string().max(300).optional().nullable(),
+  employmentStatus: z.enum(["normal", "suspended", "terminated", "transferred"]).optional().nullable(),
+  terminationLetterFileKey: z.string().max(300).optional().nullable(),
   notes: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
+
+const AGENCY_ITEMS_OPTIONS = [
+  { value: "none", label: "無" },
+  { value: "self", label: "自辦" },
+  { value: "agency", label: "仲介代辦" },
+];
+const POST_INSURANCE_OPTIONS = [
+  { value: "none", label: "無" },
+  { value: "health", label: "健保待辦" },
+  { value: "accident", label: "意外險待辦" },
+  { value: "both", label: "健保 + 意外險待辦" },
+];
+const EMPLOYMENT_STATUS_OPTIONS = [
+  { value: "normal", label: "正常" },
+  { value: "suspended", label: "暫停" },
+  { value: "terminated", label: "終止" },
+  { value: "transferred", label: "轉就" },
+];
 
 interface Props {
   open: boolean;
@@ -45,6 +79,8 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
   const { data: workers = [] } = trpc.workers.list.useQuery();
 
   const [uploadingPermit, setUploadingPermit] = useState(false);
+  const [uploadingEmpPermit, setUploadingEmpPermit] = useState(false);
+  const [uploadingTermination, setUploadingTermination] = useState(false);
 
   const {
     register, handleSubmit, reset, setValue, watch,
@@ -61,6 +97,15 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
       primaryWorkerId: null,
       needsReview: false,
       recruitmentPermitFileKey: null,
+      continuousEmploymentDate: null,
+      employmentPeriodMonths: null,
+      terminationDate: null,
+      recruitmentAgencyItems: null,
+      employmentAgencyItems: null,
+      postEmploymentInsurance: null,
+      employmentPermitFileKey: null,
+      employmentStatus: null,
+      terminationLetterFileKey: null,
     },
   });
 
@@ -76,6 +121,15 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
         primaryWorkerId: editingCase.primaryWorkerId ?? null,
         needsReview: editingCase.needsReview === 1 || editingCase.needsReview === true,
         recruitmentPermitFileKey: editingCase.recruitmentPermitFileKey ?? null,
+        continuousEmploymentDate: editingCase.continuousEmploymentDate ?? null,
+        employmentPeriodMonths: editingCase.employmentPeriodMonths ?? null,
+        terminationDate: editingCase.terminationDate ?? null,
+        recruitmentAgencyItems: editingCase.recruitmentAgencyItems ?? null,
+        employmentAgencyItems: editingCase.employmentAgencyItems ?? null,
+        postEmploymentInsurance: editingCase.postEmploymentInsurance ?? null,
+        employmentPermitFileKey: editingCase.employmentPermitFileKey ?? null,
+        employmentStatus: editingCase.employmentStatus ?? null,
+        terminationLetterFileKey: editingCase.terminationLetterFileKey ?? null,
       });
     } else {
       reset({
@@ -88,6 +142,15 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
         primaryWorkerId: null,
         needsReview: false,
         recruitmentPermitFileKey: null,
+        continuousEmploymentDate: null,
+        employmentPeriodMonths: null,
+        terminationDate: null,
+        recruitmentAgencyItems: null,
+        employmentAgencyItems: null,
+        postEmploymentInsurance: null,
+        employmentPermitFileKey: null,
+        employmentStatus: null,
+        terminationLetterFileKey: null,
       });
     }
   }, [editingCase, reset]);
@@ -110,8 +173,6 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
     onError: (e) => toast.error(e.message),
   });
 
-
-
   const onSubmit = (data: FormValues) => {
     if (editingCase) {
       updateMutation.mutate({ id: editingCase.id, ...data });
@@ -126,32 +187,99 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
   const watchedPrimaryWorkerId = watch("primaryWorkerId");
   const watchedNeedsReview = watch("needsReview");
   const watchedPermitKey = watch("recruitmentPermitFileKey");
+  const watchedEmpPermitKey = watch("employmentPermitFileKey");
+  const watchedTerminationKey = watch("terminationLetterFileKey");
+  const watchedRecruitmentAgency = watch("recruitmentAgencyItems");
+  const watchedEmploymentAgency = watch("employmentAgencyItems");
+  const watchedPostInsurance = watch("postEmploymentInsurance");
+  const watchedEmpStatus = watch("employmentStatus");
 
-  // 自動帶入：雇主資訊
   const selectedCustomer = customers.find(c => c.id === watchedCustomerId);
-  // 自動帶入：移工資訊
   const selectedWorker = workers.find(w => w.id === watchedPrimaryWorkerId);
 
-  const handlePermitUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingPermit(true);
+  // 通用附件上傳 helper
+  const handleFileUpload = async (
+    file: File,
+    folder: string,
+    fieldName: keyof FormValues,
+    setUploading: (v: boolean) => void,
+    successMsg: string,
+  ) => {
+    setUploading(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("folder", "recruitment-permits");
+      formData.append("folder", folder);
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json() as { key: string };
-      setValue("recruitmentPermitFileKey", data.key);
-      toast.success("招募許可函已上傳");
+      setValue(fieldName, data.key as any);
+      toast.success(successMsg);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "未知錯誤";
       toast.error("上傳失敗：" + msg);
     } finally {
-      setUploadingPermit(false);
+      setUploading(false);
     }
   };
+
+  // 附件顯示元件
+  const FileField = ({
+    fileKey,
+    uploading,
+    fieldName,
+    label,
+    folder,
+    setUploading,
+    successMsg,
+  }: {
+    fileKey: string | null | undefined;
+    uploading: boolean;
+    fieldName: keyof FormValues;
+    label: string;
+    folder: string;
+    setUploading: (v: boolean) => void;
+    successMsg: string;
+  }) => (
+    <div className="space-y-1.5">
+      <Label className="flex items-center gap-1.5">
+        <Upload className="w-3.5 h-3.5" />
+        {label}
+      </Label>
+      {fileKey ? (
+        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border border-border/50">
+          <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <span className="text-xs text-muted-foreground flex-1 truncate">{fileKey.split("/").pop()}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={() => setValue(fieldName, null as any)}
+          >
+            <X className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      ) : (
+        <label className="flex items-center gap-2 px-3 py-2 rounded-md border border-dashed border-border/70 cursor-pointer hover:bg-muted/30 transition-colors">
+          <Upload className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
+            {uploading ? "上傳中..." : "點擊上傳 PDF 或圖片"}
+          </span>
+          <input
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            className="hidden"
+            onChange={e => {
+              const file = e.target.files?.[0];
+              if (file) handleFileUpload(file, folder, fieldName, setUploading, successMsg);
+            }}
+            disabled={uploading}
+          />
+        </label>
+      )}
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -166,20 +294,18 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-5 py-2">
+        <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6 py-2">
 
           {/* ── 基本設定 ─────────────────────────────────────── */}
-          <div className="space-y-3">
+          <section className="space-y-3">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">基本設定</p>
 
-            {/* 案件名稱 */}
             <div className="space-y-1.5">
               <Label>案件名稱 <span className="text-destructive">*</span></Label>
               <Input {...register("name")} placeholder="例：台灣精密科技 2025 批次" />
               {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
 
-            {/* 負責人 + 狀態 + 案件情況 */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>負責人 <span className="text-destructive">*</span></Label>
@@ -221,7 +347,6 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
               <Input {...register("caseCondition")} placeholder="例：需先辦居留證展延申請" />
             </div>
 
-            {/* 需檢查標記 */}
             <div className="flex items-center gap-2 py-1">
               <Checkbox
                 id="needsReview"
@@ -233,10 +358,12 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
                 標記為「需檢查」
               </Label>
             </div>
-          </div>
+          </section>
+
+          <Separator />
 
           {/* ── 選擇雇主（自動帶入） ─────────────────────────── */}
-          <div className="space-y-3">
+          <section className="space-y-3">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5" /> 雇主資訊
             </p>
@@ -261,7 +388,6 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
               {errors.customerId && <p className="text-xs text-destructive">{errors.customerId.message}</p>}
             </div>
 
-            {/* 自動帶入：雇主資訊唯讀顯示 */}
             {selectedCustomer && (
               <div className="rounded-lg bg-muted/40 border border-border/50 p-3 space-y-2">
                 <p className="text-xs text-muted-foreground font-medium">自動帶入（唯讀）</p>
@@ -291,45 +417,21 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
               </div>
             )}
 
-            {/* 招募許可函 */}
-            <div className="space-y-1.5">
-              <Label className="flex items-center gap-1.5">
-                <Upload className="w-3.5 h-3.5" />
-                招募許可函
-              </Label>
-              {watchedPermitKey ? (
-                <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border border-border/50">
-                  <span className="text-xs text-muted-foreground flex-1 truncate">{watchedPermitKey.split("/").pop()}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() => setValue("recruitmentPermitFileKey", null)}
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              ) : (
-                <label className="flex items-center gap-2 px-3 py-2 rounded-md border border-dashed border-border/70 cursor-pointer hover:bg-muted/30 transition-colors">
-                  <Upload className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    {uploadingPermit ? "上傳中..." : "點擊上傳 PDF 或圖片"}
-                  </span>
-                  <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    className="hidden"
-                    onChange={handlePermitUpload}
-                    disabled={uploadingPermit}
-                  />
-                </label>
-              )}
-            </div>
-          </div>
+            <FileField
+              fileKey={watchedPermitKey}
+              uploading={uploadingPermit}
+              fieldName="recruitmentPermitFileKey"
+              label="招募許可函"
+              folder="recruitment-permits"
+              setUploading={setUploadingPermit}
+              successMsg="招募許可函已上傳"
+            />
+          </section>
+
+          <Separator />
 
           {/* ── 選擇外國人（自動帶入） ─────────────────────────── */}
-          <div className="space-y-3">
+          <section className="space-y-3">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <User className="w-3.5 h-3.5" /> 外國人資訊
             </p>
@@ -354,7 +456,6 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
               </Select>
             </div>
 
-            {/* 自動帶入：移工資訊唯讀顯示 */}
             {selectedWorker && (
               <div className="rounded-lg bg-muted/40 border border-border/50 p-3 space-y-2">
                 <p className="text-xs text-muted-foreground font-medium">自動帶入（唯讀）</p>
@@ -394,7 +495,163 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
                 </div>
               </div>
             )}
-          </div>
+          </section>
+
+          <Separator />
+
+          {/* ── 聘僱資料 ─────────────────────────────────────── */}
+          <section className="space-y-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5" /> 聘僱資料
+            </p>
+
+            {/* 聘僱時間 */}
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                <Clock className="w-3 h-3" /> 聘僱時間
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">接續聘僱日期</Label>
+                  <Input
+                    type="date"
+                    {...register("continuousEmploymentDate")}
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">期間長度（月）</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={36}
+                    placeholder="例：24"
+                    {...register("employmentPeriodMonths", {
+                      setValueAs: (v: string) => v === "" || v === null || v === undefined ? null : Number(v),
+                    })}
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">終止聘僱日期</Label>
+                  <Input
+                    type="date"
+                    {...register("terminationDate")}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 代辦事項 */}
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                <FileText className="w-3 h-3" /> 代辦事項
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">招募函代辦事項</Label>
+                  <Select
+                    value={watchedRecruitmentAgency ?? "__none__"}
+                    onValueChange={v => setValue("recruitmentAgencyItems", v === "__none__" ? null : v as any)}
+                  >
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="選擇" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— 未設定 —</SelectItem>
+                      {AGENCY_ITEMS_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">聘僱函代辦事項</Label>
+                  <Select
+                    value={watchedEmploymentAgency ?? "__none__"}
+                    onValueChange={v => setValue("employmentAgencyItems", v === "__none__" ? null : v as any)}
+                  >
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="選擇" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— 未設定 —</SelectItem>
+                      {AGENCY_ITEMS_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">聘僱後尚未完成保險</Label>
+                  <Select
+                    value={watchedPostInsurance ?? "__none__"}
+                    onValueChange={v => setValue("postEmploymentInsurance", v === "__none__" ? null : v as any)}
+                  >
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="選擇" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— 未設定 —</SelectItem>
+                      {POST_INSURANCE_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* 聘僱許可函與情況 */}
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                <Shield className="w-3 h-3" /> 聘僱許可函與情況
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <FileField
+                  fileKey={watchedEmpPermitKey}
+                  uploading={uploadingEmpPermit}
+                  fieldName="employmentPermitFileKey"
+                  label="聘僱許可函"
+                  folder="employment-permits"
+                  setUploading={setUploadingEmpPermit}
+                  successMsg="聘僱許可函已上傳"
+                />
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Shield className="w-3 h-3" />
+                    聘僱情況
+                  </Label>
+                  <Select
+                    value={watchedEmpStatus ?? "__none__"}
+                    onValueChange={v => setValue("employmentStatus", v === "__none__" ? null : v as any)}
+                  >
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="選擇聘僱情況" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— 未設定 —</SelectItem>
+                      {EMPLOYMENT_STATUS_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <FileField
+                fileKey={watchedTerminationKey}
+                uploading={uploadingTermination}
+                fieldName="terminationLetterFileKey"
+                label="終止函"
+                folder="termination-letters"
+                setUploading={setUploadingTermination}
+                successMsg="終止函已上傳"
+              />
+            </div>
+          </section>
+
+          <Separator />
 
           {/* ── 備註 ─────────────────────────────────────────── */}
           <div className="space-y-1.5">
@@ -406,7 +663,7 @@ export default function CaseModal({ open, onClose, editingCase }: Props) {
             <Button type="button" variant="outline" onClick={onClose}>取消</Button>
             <Button
               type="submit"
-              disabled={isSubmitting || createMutation.isPending || updateMutation.isPending || uploadingPermit}
+              disabled={isSubmitting || createMutation.isPending || updateMutation.isPending || uploadingPermit || uploadingEmpPermit || uploadingTermination}
             >
               {editingCase ? "儲存變更" : "建立案件"}
             </Button>

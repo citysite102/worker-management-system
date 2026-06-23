@@ -290,6 +290,15 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
   const isPending = isSubmitting || createMutation.isPending || updateMutation.isPending;
   const anyUploading = uploadingPermit || uploadingEmpPermit || uploadingTermination;
 
+  // ── Tab 錯誤計數 ──
+  // 基本資料 Tab 的必填欄位
+  const BASIC_TAB_FIELDS: (keyof FormValues)[] = ["name", "managerId", "customerId"];
+  // 行政與保險體檢 Tab 目前全部為選填，待日後新增必填欄位再擴充
+  const ADMIN_TAB_FIELDS: (keyof FormValues)[] = [];
+
+  const basicTabErrorCount = BASIC_TAB_FIELDS.filter(f => !!errors[f]).length;
+  const adminTabErrorCount = ADMIN_TAB_FIELDS.filter(f => !!errors[f]).length;
+
   return (
     <FormModal
       open={open}
@@ -320,8 +329,22 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
       <form id="case-modal-form" onSubmit={handleSubmit(onSubmit as any)}>
         <Tabs defaultValue="basic" className="flex flex-col">
           <TabsList className="grid grid-cols-2 mb-6">
-            <TabsTrigger value="basic">基本資料</TabsTrigger>
-            <TabsTrigger value="admin">行政與保險體檢</TabsTrigger>
+            <TabsTrigger value="basic" className="gap-1.5">
+              基本資料
+              {basicTabErrorCount > 0 && (
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none">
+                  {basicTabErrorCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="admin" className="gap-1.5">
+              行政與保險體檢
+              {adminTabErrorCount > 0 && (
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none">
+                  {adminTabErrorCount}
+                </span>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           {/* ═══════ Tab 1：基本資料 ═══════ */}

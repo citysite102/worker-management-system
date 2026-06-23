@@ -268,3 +268,4 @@
 - [x] 國籍代碼統一：「009 印尼」→「印尼」（資料庫 UPDATE + constants.ts + WorkerModal 同步）
 - [x] 客戶列表：employerNo/contractStatus 補更新，類型欄位「個人」→「個人雇主」，隱藏空定價篩選器
 - [x] 職業欄位：OCCUPATION_OPTIONS 移至 constants.ts（共用），WorkerDetail 職業欄位改為顯示中文 label（家庭看護工 等），WorkerModal 改為從 constants.ts import
+- [x] CaseModal Tab 驗證錯誤 Badge：必填欄位未填時，對應 Tab 標籤顯示紅色錯誤數量（基本資料 Tab 包含案件名稱/負責人/雇主共 3 個必填欄位）

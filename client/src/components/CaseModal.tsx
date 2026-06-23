@@ -312,7 +312,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
           )}
         </>
       }
-      className="max-w-3xl"
+
       footer={
         <>
           <Button type="button" variant="outline" onClick={onClose}>取消</Button>

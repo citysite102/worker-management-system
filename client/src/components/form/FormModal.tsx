@@ -1,7 +1,7 @@
 /**
  * FormModal — 統一 Modal 框架
  * header 固定 / body 可捲動 / footer 固定
- * 寬度：max-w-2xl（表單型預設），可透過 className 覆寫
+ * 寬度：sm:max-w-3xl（與 WorkerModal/CustomerModal 一致），可透過 className 覆寫
  */
 import { ReactNode } from "react";
 import {
@@ -19,7 +19,7 @@ interface FormModalProps {
   footer: ReactNode;
   /** body 內容 */
   children: ReactNode;
-  /** 覆寫 DialogContent 的 className（例如加寬：max-w-3xl） */
+  /** 覆寫 DialogContent 的 className（例如縮寬：sm:max-w-xl） */
   className?: string;
 }
 
@@ -35,7 +35,7 @@ export function FormModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={`max-w-2xl max-h-[85vh] flex flex-col overflow-hidden ${className ?? ""}`}
+        className={`sm:max-w-3xl max-h-[85vh] flex flex-col overflow-hidden ${className ?? ""}`}
       >
         {/* ── Header（固定） */}
         <DialogHeader className="shrink-0 px-6 pt-5 pb-0">

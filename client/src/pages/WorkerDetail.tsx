@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { getStatusLabel, OCCUPATION_OPTIONS } from "@/lib/constants";
 import { WorkerModal } from "@/components/WorkerModal";
 import CaseModal from "@/components/CaseModal";
+import { AttachmentPreviewModal } from "@/components/AttachmentPreviewModal";
 
 function daysLabel(days: number | null | undefined): { text: string; color: string } {
   if (days == null) return { text: "—", color: "text-muted-foreground" };
@@ -30,20 +31,30 @@ function InfoRow({ label, value, className }: { label: string; value?: string | 
 }
 
 function AttachmentItem({ label, fileKey }: { label: string; fileKey?: string | null }) {
+  const [previewOpen, setPreviewOpen] = React.useState(false);
   if (!fileKey) return null;
-  const url = `/manus-storage/${fileKey.split("/").pop()}`;
-  const isPdf = fileKey.toLowerCase().endsWith(".pdf");
+  const ext = fileKey.split(".").pop()?.toLowerCase() ?? "";
+  const isPdf = ext === "pdf";
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-2 px-3 py-2 rounded-md border bg-muted/30 hover:bg-muted/60 transition-colors text-sm"
-    >
-      {isPdf ? <FileText className="w-4 h-4 text-muted-foreground shrink-0" /> : <ImageIcon className="w-4 h-4 text-muted-foreground shrink-0" />}
-      <span className="truncate">{label}</span>
-      <ExternalLink className="w-3 h-3 text-muted-foreground ml-auto shrink-0" />
-    </a>
+    <>
+      <button
+        type="button"
+        onClick={() => setPreviewOpen(true)}
+        className="flex items-center gap-2 px-3 py-2 rounded-md border bg-muted/30 hover:bg-muted/60 transition-colors text-sm w-full text-left"
+      >
+        {isPdf
+          ? <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+          : <ImageIcon className="w-4 h-4 text-muted-foreground shrink-0" />}
+        <span className="truncate flex-1">{label}</span>
+        <span className="text-xs text-muted-foreground shrink-0">點擊預覽</span>
+      </button>
+      <AttachmentPreviewModal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        label={label}
+        fileKey={fileKey}
+      />
+    </>
   );
 }
 

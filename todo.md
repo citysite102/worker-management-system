@@ -300,3 +300,9 @@
 
 - [x] WorkerModal：加入 Tooltip import，計算 missingFields（nameCn/nameEn、managerId），Disabled 按鈕 + Tooltip
 - [x] CustomerModal：加入 Tooltip import，計算 missingFields（name、contractStatus、pricingTier、managerId），Disabled 按鈕 + Tooltip
+
+## 移工詳情頁附件 Lightbox / PDF 預覽（v5.13）
+
+- [x] 建立共用 AttachmentPreviewModal 元件（圖片 Lightbox + PDF iframe inline）
+- [x] WorkerDetail.tsx：AttachmentItem 改為點擊開啟 AttachmentPreviewModal
+- [x] 預覽 Modal 支援鍵盤 Esc 關閉、點擊背景關閉、下載、新分頁開啟

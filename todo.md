@@ -295,3 +295,8 @@
 - [x] 建立案件按鈕在必填未填時 Disabled
 - [x] 按鈕旁加入 Tooltip 列出尚未填寫的欄位名稱
 - [x] 編輯模式（editingCase）不套用 Disabled 邏輯（允許部分更新）
+
+## WorkerModal / CustomerModal Disabled 按鈕 + Tooltip（v5.12）
+
+- [x] WorkerModal：加入 Tooltip import，計算 missingFields（nameCn/nameEn、managerId），Disabled 按鈕 + Tooltip
+- [x] CustomerModal：加入 Tooltip import，計算 missingFields（name、contractStatus、pricingTier、managerId），Disabled 按鈕 + Tooltip

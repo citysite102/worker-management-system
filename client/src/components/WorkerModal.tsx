@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { ExternalLink, Upload, FileText, Image as ImageIcon, Loader2, CalendarClock } from "lucide-react";
 import { LIFECYCLE_STATUS_OPTIONS, DOCUMENT_STATUS_OPTIONS, NATIONALITY_OPTIONS, OCCUPATION_OPTIONS } from "@/lib/constants";
 import { useFormEnterNav } from "@/hooks/useFormEnterNav";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // ─── 選項定義 ─────────────────────────────────────────────────────────────────
 // NATIONALITY_OPTIONS 已從 constants.ts 導入，統一管理
@@ -343,6 +344,20 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
 
   const enterProps = { onKeyDown: handleEnterNav };
 
+  // ── 必填欄位缺少清單（僅新增模式）──
+  const watchedNameCn = watch("nameCn");
+  const watchedNameEn = watch("nameEn");
+  const watchedManagerId = watch("managerId");
+  const isPending = isSubmitting || createMutation.isPending || updateMutation.isPending;
+  const missingFields = !isEdit
+    ? [
+        ...(!watchedNameCn?.trim() && !watchedNameEn?.trim()
+          ? [{ key: "name", label: "中文或英文姓名" }]
+          : []),
+        ...(!watchedManagerId ? [{ key: "managerId", label: "負責人" }] : []),
+      ]
+    : [];
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -563,11 +578,31 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
           <DialogFooter className="pt-2 border-t">
             <p className="text-xs text-muted-foreground mr-auto hidden sm:block">Tab / Enter 切換欄位</p>
             <Button type="button" variant="outline" onClick={onClose}>取消</Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting
-                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />儲存中...</>
-                : (isEdit ? "儲存變更" : "新增移工")}
-            </Button>
+            {missingFields.length > 0 ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0} className="inline-flex">
+                    <Button type="submit" disabled className="pointer-events-none">
+                      {isEdit ? "儲存變更" : "新增移工"}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px]">
+                  <p className="font-medium mb-1">請先完成必填欄位：</p>
+                  <ul className="list-disc list-inside space-y-0.5 text-sm">
+                    {missingFields.map(f => (
+                      <li key={f.key}>{f.label}</li>
+                    ))}
+                  </ul>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button type="submit" disabled={isPending}>
+                {isPending
+                  ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />儲存中...</>
+                  : (isEdit ? "儲存變更" : "新增移工")}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

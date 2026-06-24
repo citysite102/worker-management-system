@@ -20,6 +20,7 @@ import {
 import { validateTwPhone, validateTaxId } from "@/lib/validation";
 import { useFormEnterNav } from "@/hooks/useFormEnterNav";
 import { Paperclip, X, Loader2, FileText, Image } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // ─── 型別 ─────────────────────────────────────────────────────────────────────
 interface CustomerFormData {
@@ -476,6 +477,20 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
   const isPending = createMutation.isPending || updateMutation.isPending;
   const enterProps = { onKeyDown: handleEnterNav };
 
+  // ── 必填欄位缺少清單（僅新增模式）──
+  const watchedName = watch("name");
+  const watchedContractStatus = watch("contractStatus");
+  const watchedPricingTier = watch("pricingTier");
+  const watchedManagerId = watch("managerId");
+  const missingFields = !isEdit
+    ? [
+        ...(!watchedName?.trim() || watchedName.trim().length < 2 ? [{ key: "name", label: "雇主名稱（至少 2 字）" }] : []),
+        ...(!watchedContractStatus ? [{ key: "contractStatus", label: "合約狀態" }] : []),
+        ...(!watchedPricingTier ? [{ key: "pricingTier", label: "定價級距" }] : []),
+        ...(!watchedManagerId ? [{ key: "managerId", label: "負責人" }] : []),
+      ]
+    : [];
+
   // ─── 選擇器輔助 ───────────────────────────────────────────────────────────
   const SelectField = ({
     id, label, fieldName, options, required, placeholder = "請選擇",
@@ -814,9 +829,29 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
 
             <DialogFooter className="pt-2 gap-2">
               <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>取消</Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? "儲存中..." : isEdit ? "儲存變更" : "新增雇主"}
-              </Button>
+              {missingFields.length > 0 ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0} className="inline-flex">
+                      <Button type="submit" disabled className="pointer-events-none">
+                        {isEdit ? "儲存變更" : "新增雇主"}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[220px]">
+                    <p className="font-medium mb-1">請先完成必填欄位：</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-sm">
+                      {missingFields.map(f => (
+                        <li key={f.key}>{f.label}</li>
+                      ))}
+                    </ul>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button type="submit" disabled={isPending}>
+                  {isPending ? "儲存中..." : isEdit ? "儲存變更" : "新增雇主"}
+                </Button>
+              )}
             </DialogFooter>
           </form>
         </DialogContent>

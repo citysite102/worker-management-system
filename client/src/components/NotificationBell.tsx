@@ -13,7 +13,8 @@ function daysUntilExpiry(dateStr: string): number {
 }
 
 type NotificationItem = {
-  id: number;
+  id: string; // 複合 key：`${workerId}-${expiryType}`
+  workerId: number;
   name: string;
   expiryDate: string;
   expiryType: "resident" | "passport" | "medical";
@@ -46,7 +47,8 @@ export function NotificationBell() {
       const makeItem = (dateStr: string, type: NotificationItem["expiryType"]): NotificationItem => {
         const days = daysUntilExpiry(dateStr);
         return {
-          id: w.id,
+          id: `${w.id}-${type}`, // 複合唯一 key
+          workerId: w.id,
           name: displayName,
           expiryDate: dateStr,
           expiryType: type,

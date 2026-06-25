@@ -11,10 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { ExternalLink, Upload, FileText, Image as ImageIcon, Loader2, CalendarClock } from "lucide-react";
+import { ExternalLink, Upload, FileText, Image as ImageIcon, Loader2, CalendarClock, CheckCircle2, AlertCircle } from "lucide-react";
 import { LIFECYCLE_STATUS_OPTIONS, DOCUMENT_STATUS_OPTIONS, NATIONALITY_OPTIONS, OCCUPATION_OPTIONS } from "@/lib/constants";
 import { useFormEnterNav } from "@/hooks/useFormEnterNav";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { validateResidentPermit, validatePassport } from "@shared/validation";
 
 // ─── 選項定義 ─────────────────────────────────────────────────────────────────
 // NATIONALITY_OPTIONS 已從 constants.ts 導入，統一管理
@@ -241,6 +242,14 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
   const nextMedicalExamDate = calcNextMedicalExamDate(lastMedicalExamDate);
   const nextMedicalExamDays = daysFromToday(nextMedicalExamDate);
 
+  // 居留證 / 護照即時格式驗證
+  const watchedPermitNo = watch("residentPermitNo");
+  const watchedPassportNo = watch("passportNo");
+  const permitNoStatus = !watchedPermitNo ? "empty"
+    : validateResidentPermit(watchedPermitNo) ? "valid" : "invalid";
+  const passportNoStatus = !watchedPassportNo ? "empty"
+    : validatePassport(watchedPassportNo) ? "valid" : "invalid";
+
   // 附件 key 監聽
   const photoKey = watch("photoKey");
   const ktpKey = watch("ktpKey");
@@ -443,7 +452,30 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>統一證碼（居留證號）</Label>
-                <Input placeholder="F901260600" {...register("residentPermitNo")} {...enterProps} className="font-mono" />
+                <div className="relative">
+                  <Input
+                    placeholder="F901260600 或 AB12345678"
+                    {...register("residentPermitNo")}
+                    {...enterProps}
+                    className={`font-mono pr-8 ${
+                      permitNoStatus === "valid" ? "border-green-500 focus-visible:ring-green-500" :
+                      permitNoStatus === "invalid" ? "border-amber-500 focus-visible:ring-amber-500" : ""
+                    }`}
+                    onChange={(e) => {
+                      const upper = e.target.value.toUpperCase();
+                      setValue("residentPermitNo", upper, { shouldValidate: false });
+                    }}
+                  />
+                  {permitNoStatus === "valid" && (
+                    <CheckCircle2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500 pointer-events-none" />
+                  )}
+                  {permitNoStatus === "invalid" && (
+                    <AlertCircle className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500 pointer-events-none" />
+                  )}
+                </div>
+                {permitNoStatus === "invalid" && (
+                  <p className="text-xs text-amber-600">舊式：字母+1或2+8碼數字；新式：2字母+8碼數字</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>居留證有效日期</Label>
@@ -452,7 +484,30 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
               </div>
               <div className="space-y-2">
                 <Label>護照號碼</Label>
-                <Input placeholder="E4608889" {...register("passportNo")} {...enterProps} className="font-mono" />
+                <div className="relative">
+                  <Input
+                    placeholder="E4608889"
+                    {...register("passportNo")}
+                    {...enterProps}
+                    className={`font-mono pr-8 ${
+                      passportNoStatus === "valid" ? "border-green-500 focus-visible:ring-green-500" :
+                      passportNoStatus === "invalid" ? "border-amber-500 focus-visible:ring-amber-500" : ""
+                    }`}
+                    onChange={(e) => {
+                      const upper = e.target.value.toUpperCase();
+                      setValue("passportNo", upper, { shouldValidate: false });
+                    }}
+                  />
+                  {passportNoStatus === "valid" && (
+                    <CheckCircle2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500 pointer-events-none" />
+                  )}
+                  {passportNoStatus === "invalid" && (
+                    <AlertCircle className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500 pointer-events-none" />
+                  )}
+                </div>
+                {passportNoStatus === "invalid" && (
+                  <p className="text-xs text-amber-600">格式：6−9 碼英數字</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>護照有效日期</Label>

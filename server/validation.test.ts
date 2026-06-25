@@ -33,14 +33,17 @@ describe("normalizePhone", () => {
 
 describe("validateResidentPermit", () => {
   it("accepts valid resident permit", () => {
-    expect(validateResidentPermit("A123456789")).toBe(true);
-    expect(validateResidentPermit("B212345678")).toBe(true);
+    expect(validateResidentPermit("A123456789")).toBe(true);  // 舊式：字母+9碼數字
+    expect(validateResidentPermit("F901260600")).toBe(true);  // 實際資料樣本
+    expect(validateResidentPermit("H901092480")).toBe(true);  // 實際資料樣本
+    expect(validateResidentPermit("B212345678")).toBe(true);  // 字母+9碼數字
+    expect(validateResidentPermit("AB12345678")).toBe(true);  // 新式：2字母+8碼數字
   });
   it("rejects invalid format", () => {
     expect(validateResidentPermit("1123456789")).toBe(false); // starts with digit
-    expect(validateResidentPermit("A323456789")).toBe(false); // second char not 1 or 2
-    expect(validateResidentPermit("A12345678")).toBe(false);  // too short
-    expect(validateResidentPermit("A1234567890")).toBe(false); // too long
+    expect(validateResidentPermit("A12345678")).toBe(false);  // too short (9 chars)
+    expect(validateResidentPermit("A1234567890")).toBe(false); // too long (11 chars)
+    expect(validateResidentPermit("")).toBe(false);            // empty
   });
 });
 

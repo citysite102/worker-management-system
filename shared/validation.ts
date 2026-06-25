@@ -15,13 +15,16 @@ export function normalizePhone(phone: string): string {
 }
 
 // ─── 居留證號格式驗證 ─────────────────────────────────────────────────────────
-// 兩種格式均接受（共 10 碼）：
-// 舊式 ARC：1 個英文字母 + [1 或 2] + 8 個數字（例：A123456789）
-// 新式 ARC（2021 年後）：2 個英文字母 + 8 個數字（例：AB12345678）
+// 台灣外籍人士居留證（ARC）統一格式：共 10 碼
+// 格式一（舊式/新式均適用）：1 個英文字母 + 9 個數字（例：F901260600、A901070683）
+// 格式二（新式 2021 後）：2 個英文字母 + 8 個數字（例：AB12345678）
+// 注意：第二碼數字不限於 1 或 2，可為任意數字 0-9
 export function validateResidentPermit(id: string): boolean {
-  const oldStyle = /^[A-Za-z][12]\d{8}$/.test(id);
-  const newStyle = /^[A-Za-z]{2}\d{8}$/.test(id);
-  return oldStyle || newStyle;
+  // 字母 + 9 碼數字（最常見格式）
+  const style1 = /^[A-Za-z]\d{9}$/.test(id);
+  // 2 字母 + 8 碼數字（新式格式）
+  const style2 = /^[A-Za-z]{2}\d{8}$/.test(id);
+  return style1 || style2;
 }
 
 // ─── 護照號碼格式驗證 ─────────────────────────────────────────────────────────

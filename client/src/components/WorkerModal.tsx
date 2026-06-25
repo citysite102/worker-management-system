@@ -474,7 +474,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
                   )}
                 </div>
                 {permitNoStatus === "invalid" && (
-                  <p className="text-xs text-amber-600">舊式：字母+1或2+8碼數字；新式：2字母+8碼數字</p>
+                  <p className="text-xs text-amber-600">格式：1字母+9碼數字，或2字母+8碼數字（共10碼）</p>
                 )}
               </div>
               <div className="space-y-2">

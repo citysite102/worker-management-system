@@ -127,7 +127,7 @@ function validateWorkerData(data: z.infer<typeof workerInput>, excludeId?: numbe
     // 居留證格式
     if (data.residentPermitNo) {
       if (!validateResidentPermit(data.residentPermitNo)) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "居留證統一證號格式不正確（舊式：字母+1或2+8碼數字；新式：2字母+8碼數字）" });
+        throw new TRPCError({ code: "BAD_REQUEST", message: "居留證統一證號格式不正確（格式：1字母+9碼數字，或2字母+8碼數字，共10碼）" });
       }
       // 唯一性
       const existing = await getWorkerByPermitNo(data.residentPermitNo, excludeId);

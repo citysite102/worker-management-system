@@ -230,6 +230,8 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
   );
 
   const [savedWorkerId, setSavedWorkerId] = useState<number | null>(null);
+  const [permitDuplicateError, setPermitDuplicateError] = useState<string | null>(null);
+  const [passportDuplicateError, setPassportDuplicateError] = useState<string | null>(null);
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<WorkerFormData>({
     defaultValues: EMPTY_FORM,
@@ -294,7 +296,19 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
       onSuccess?.();
       onClose();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => {
+      if (err.data?.code === "CONFLICT") {
+        if (err.message.includes("居留證")) {
+          setPermitDuplicateError("此居留證號碼已存在，請確認是否重複建檔");
+        } else if (err.message.includes("護照")) {
+          setPassportDuplicateError("此護照號碼已存在，請確認是否重複建檔");
+        } else {
+          toast.error(err.message);
+        }
+      } else {
+        toast.error(err.message);
+      }
+    },
   });
 
   const updateMutation = trpc.workers.update.useMutation({
@@ -304,10 +318,25 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
       onSuccess?.();
       onClose();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => {
+      if (err.data?.code === "CONFLICT") {
+        if (err.message.includes("居留證")) {
+          setPermitDuplicateError("此居留證號碼已存在，請確認是否重複建檔");
+        } else if (err.message.includes("護照")) {
+          setPassportDuplicateError("此護照號碼已存在，請確認是否重複建檔");
+        } else {
+          toast.error(err.message);
+        }
+      } else {
+        toast.error(err.message);
+      }
+    },
   });
 
   const onSubmit = async (data: WorkerFormData) => {
+    // 清除舊的重複錯誤
+    setPermitDuplicateError(null);
+    setPassportDuplicateError(null);
     const managerId = parseInt(data.managerId);
     if (!managerId) { toast.error("請選擇負責人"); return; }
     if (!data.nameCn.trim() && !data.nameEn.trim()) { toast.error("請填寫中文或英文姓名"); return; }
@@ -476,6 +505,12 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
                 {permitNoStatus === "invalid" && (
                   <p className="text-xs text-amber-600">格式：1字母+9碼數字，或2字母+8碼數字（共10碼）</p>
                 )}
+                {permitDuplicateError && (
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3 shrink-0" />
+                    {permitDuplicateError}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>居留證有效日期</Label>
@@ -507,6 +542,12 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
                 </div>
                 {passportNoStatus === "invalid" && (
                   <p className="text-xs text-amber-600">格式：6−9 碼英數字</p>
+                )}
+                {passportDuplicateError && (
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3 shrink-0" />
+                    {passportDuplicateError}
+                  </p>
                 )}
               </div>
               <div className="space-y-2">

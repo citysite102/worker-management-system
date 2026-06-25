@@ -327,3 +327,9 @@
 - [x] NotificationBell：點擊通知項目改為導航至 /workers/:workerId?highlight=resident|passport|medical
 - [x] WorkerDetail：讀取 URL ?highlight= 參數，自動滾動至對應証件區塊
 - [x] WorkerDetail：高亮動畫（橙色邊框 + 背景閃爍 2 秒）標示到期文件卡片
+
+## 居留證號碼重複檢查（v5.20）
+
+- [x] server-side workers.create：查詢 DB 是否已有相同 residentPermitNo，有則拋出 CONFLICT 錯誤
+- [x] server-side workers.update：同上，但排除自身 id（允許更新為相同號碼）
+- [x] 前端 WorkerModal：捕捉 CONFLICT 錯誤，在居留證/護照欄位下方顯示紅色 AlertCircle + 提示文字

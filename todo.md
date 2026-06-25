@@ -321,3 +321,9 @@
 - [x] Customers.tsx：加入「匯出 CSV」按鈕，匯出目前篩選的客戶資料（24 個欄位）
 - [x] Cases.tsx：加入「匯出 CSV」按鈕，匯出目前篩選的案件資料（25 個欄位）
 - [x] 匯出欄位含 label 轉換（enum → 中文）、日期格式化、空值顯示「—」
+
+## 通知點擊導航至移工詳情頁 + 高亮到期文件（v5.18）
+
+- [x] NotificationBell：點擊通知項目改為導航至 /workers/:workerId?highlight=resident|passport|medical
+- [x] WorkerDetail：讀取 URL ?highlight= 參數，自動滾動至對應証件區塊
+- [x] WorkerDetail：高亮動畫（橙色邊框 + 背景閃爍 2 秒）標示到期文件卡片

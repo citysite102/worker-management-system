@@ -104,12 +104,10 @@ export function NotificationBell() {
     return () => document.removeEventListener("keydown", handler);
   }, [open]);
 
-  // 點擊通知項目 → 導航至移工管理並自動篩選
-  const handleItemClick = (urgency: NotificationItem["urgency"]) => {
+  // 點擊通知項目 → 導航至該名移工詳情頁，並醒目對應文件區塊
+  const handleItemClick = (n: NotificationItem) => {
     setOpen(false);
-    // 導航至移工管理頁，並帶上篩選參數
-    const filter = urgency === "expired" ? "expired" : urgency === "critical" ? "expiring_30" : "expiring_90";
-    setLocation(`/workers?expiry=${filter}`);
+    setLocation(`/workers/${n.workerId}?highlight=${n.expiryType}`);
   };
 
   // urgency 樣式
@@ -183,7 +181,7 @@ export function NotificationBell() {
                     <button
                       key={n.id}
                       type="button"
-                      onClick={() => handleItemClick(n.urgency)}
+                      onClick={() => handleItemClick(n)}
                       className={`w-full px-4 py-3 text-left flex items-start gap-3 transition-colors ${s.bg} group`}
                     >
                       {/* 狀態點 */}

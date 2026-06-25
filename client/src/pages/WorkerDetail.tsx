@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useParams, useLocation } from "wouter";
+import React, { useState, useEffect, useRef } from "react";
+import { useParams, useLocation, useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -66,25 +66,59 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** 高亮區塊的 CSS 動畫 class */
+function highlightClass(active: boolean) {
+  if (!active) return "";
+  return "ring-2 ring-amber-400 ring-offset-2 rounded-lg bg-amber-50/40 transition-all duration-700";
+}
+
 export default function WorkerDetail() {
   const params = useParams<{ id: string }>();
   const workerId = Number(params.id);
   const [, navigate] = useLocation();
+  const search = useSearch();
   const [showEdit, setShowEdit] = useState(false);
   const [showCaseModal, setShowCaseModal] = useState(false);
+  const [highlightSection, setHighlightSection] = useState<string | null>(null);
+
+  // refs for scrolling to sections
+  const permitSectionRef = useRef<HTMLDivElement>(null);
+  const medicalSectionRef = useRef<HTMLDivElement>(null);
 
   const utils = trpc.useUtils();
   const { data: worker, isLoading, refetch } = trpc.workers.getById.useQuery(
     { id: workerId },
     {
-      // 列表快取中若已有資料，先顯示它，不等待 getById 回應
       initialData: () => utils.workers.list.getData()?.find(w => w.id === workerId),
-      initialDataUpdatedAt: 0, // 列表快取資料視為旧資料，使用後會在背景重新取得最新資料
+      initialDataUpdatedAt: 0,
     }
   );
   const { data: involvements, refetch: refetchCases } = trpc.caseAssignments.workerInvolvements.useQuery({});
 
   const workerCases = involvements?.filter(i => i.workerId === workerId) ?? [];
+
+  // 讀取 URL ?highlight= 參數，自動滾動至對應區塊並高亮
+  useEffect(() => {
+    const urlParams = new URLSearchParams(search);
+    const highlight = urlParams.get("highlight");
+    if (!highlight || isLoading) return;
+
+    setHighlightSection(highlight);
+
+    // 稍延等待 DOM 渲染完成再滾動
+    const scrollTimer = setTimeout(() => {
+      const ref = highlight === "medical" ? medicalSectionRef : permitSectionRef;
+      ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 400);
+
+    // 3 秒後自動移除高亮
+    const clearTimer = setTimeout(() => setHighlightSection(null), 3400);
+
+    return () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(clearTimer);
+    };
+  }, [search, isLoading]);
 
   if (isLoading) {
     return <PageSkeleton cardRows={2} />;
@@ -107,6 +141,10 @@ export default function WorkerDetail() {
 
   const hasAnyAttachment = worker.photoKey || worker.ktpKey || worker.residentPermitFrontKey ||
     worker.residentPermitBackKey || worker.passportKey || worker.passportEntryKey || worker.medicalReportKey;
+
+  // 判斷各 section 是否被高亮
+  const isPermitHighlighted = highlightSection === "resident" || highlightSection === "passport";
+  const isMedicalHighlighted = highlightSection === "medical";
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-0">
@@ -181,23 +219,30 @@ export default function WorkerDetail() {
           </div>
 
           <Separator className="my-5" />
-          <SectionTitle>證件資料</SectionTitle>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
-            <InfoRow label="統一證碼（居留證）" value={worker.residentPermitNo} />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-muted-foreground">居留證有效日期</span>
-              <span className={`text-sm ${permitDays.color}`}>
-                {worker.residentPermitExpiry ?? "—"}
-                {worker.residentPermitExpiry && <span className="ml-1.5 text-xs">({permitDays.text})</span>}
-              </span>
-            </div>
-            <InfoRow label="護照號碼" value={worker.passportNo} />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-muted-foreground">護照有效日期</span>
-              <span className={`text-sm ${passportDays.color}`}>
-                {worker.passportExpiry ?? "—"}
-                {worker.passportExpiry && <span className="ml-1.5 text-xs">({passportDays.text})</span>}
-              </span>
+
+          {/* 證件資料區塊（可被高亮） */}
+          <div
+            ref={permitSectionRef}
+            className={`p-3 -mx-3 transition-all duration-700 ${highlightClass(isPermitHighlighted)}`}
+          >
+            <SectionTitle>證件資料</SectionTitle>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
+              <InfoRow label="統一證碼（居留證）" value={worker.residentPermitNo} />
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">居留證有效日期</span>
+                <span className={`text-sm ${permitDays.color}`}>
+                  {worker.residentPermitExpiry ?? "—"}
+                  {worker.residentPermitExpiry && <span className="ml-1.5 text-xs">({permitDays.text})</span>}
+                </span>
+              </div>
+              <InfoRow label="護照號碼" value={worker.passportNo} />
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">護照有效日期</span>
+                <span className={`text-sm ${passportDays.color}`}>
+                  {worker.passportExpiry ?? "—"}
+                  {worker.passportExpiry && <span className="ml-1.5 text-xs">({passportDays.text})</span>}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -209,16 +254,23 @@ export default function WorkerDetail() {
           </div>
 
           <Separator className="my-5" />
-          <SectionTitle>體檢資料</SectionTitle>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
-            <InfoRow label="最近一次體檢日期" value={worker.lastMedicalExamDate} />
-            <InfoRow label="下次體檢類型" value={worker.nextMedicalExamType} />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-muted-foreground">下次體檢日期</span>
-              <span className={`text-sm ${medicalDays.color}`}>
-                {worker.nextMedicalExamDate ?? "—"}
-                {worker.nextMedicalExamDate && <span className="ml-1.5 text-xs">({medicalDays.text})</span>}
-              </span>
+
+          {/* 體檢資料區塊（可被高亮） */}
+          <div
+            ref={medicalSectionRef}
+            className={`p-3 -mx-3 transition-all duration-700 ${highlightClass(isMedicalHighlighted)}`}
+          >
+            <SectionTitle>體檢資料</SectionTitle>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
+              <InfoRow label="最近一次體檢日期" value={worker.lastMedicalExamDate} />
+              <InfoRow label="下次體檢類型" value={worker.nextMedicalExamType} />
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">下次體檢日期</span>
+                <span className={`text-sm ${medicalDays.color}`}>
+                  {worker.nextMedicalExamDate ?? "—"}
+                  {worker.nextMedicalExamDate && <span className="ml-1.5 text-xs">({medicalDays.text})</span>}
+                </span>
+              </div>
             </div>
           </div>
 

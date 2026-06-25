@@ -15,10 +15,13 @@ export function normalizePhone(phone: string): string {
 }
 
 // ─── 居留證號格式驗證 ─────────────────────────────────────────────────────────
-// 格式：1 個英文字母 + 1 個數字（1 或 2）+ 8 個數字，共 10 碼
-// 例：A123456789
+// 兩種格式均接受（共 10 碼）：
+// 舊式 ARC：1 個英文字母 + [1 或 2] + 8 個數字（例：A123456789）
+// 新式 ARC（2021 年後）：2 個英文字母 + 8 個數字（例：AB12345678）
 export function validateResidentPermit(id: string): boolean {
-  return /^[A-Za-z][12]\d{8}$/.test(id);
+  const oldStyle = /^[A-Za-z][12]\d{8}$/.test(id);
+  const newStyle = /^[A-Za-z]{2}\d{8}$/.test(id);
+  return oldStyle || newStyle;
 }
 
 // ─── 護照號碼格式驗證 ─────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,9 +9,28 @@ import { ArrowLeft, Pencil, Building2, User, Phone, MapPin, Heart, FileText, Ale
 import { StatusBadge } from "@/components/StatusBadge";
 import { getStatusLabel } from "@/lib/constants";
 import CaseModal from "@/components/CaseModal";
+import { AttachmentPreviewModal } from "@/components/AttachmentPreviewModal";
 import CaseQualificationsTab from "@/components/case/CaseQualificationsTab";
 import CaseMatchingTab from "@/components/case/CaseMatchingTab";
 import CaseEmploymentTab from "@/components/case/CaseEmploymentTab";
+
+/** 小型附件預覽按鈕（內嵌於各卡片中） */
+function AttachmentLink({ label, fileKey, className }: { label: string; fileKey?: string | null; className?: string }) {
+  const [open, setOpen] = React.useState(false);
+  if (!fileKey) return null;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={className ?? "flex items-center gap-1 text-xs text-primary hover:underline"}
+      >
+        <Paperclip className="w-3 h-3" />{label}
+      </button>
+      <AttachmentPreviewModal open={open} onClose={() => setOpen(false)} label={label} fileKey={fileKey} />
+    </>
+  );
+}
 
 export default function CaseDetail() {
   const params = useParams<{ id: string }>();
@@ -163,14 +182,11 @@ export default function CaseDetail() {
               {/* 招募許可函連結 */}
               {(caseData as any).recruitmentPermitFileKey && (
                 <div className="pt-2 border-t border-border/50">
-                  <a
-                    href={`/manus-storage/${(caseData as any).recruitmentPermitFileKey}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <AttachmentLink
+                    label="招募許可函"
+                    fileKey={(caseData as any).recruitmentPermitFileKey}
                     className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-                  >
-                    <Paperclip className="w-3.5 h-3.5" />招募許可函
-                  </a>
+                  />
                 </div>
               )}
             </div>
@@ -326,28 +342,14 @@ export default function CaseDetail() {
                       )}
                       {(caseData as any).employmentPermitFileKey && (
                         <div className="space-y-0.5">
-                          <p className="text-xs text-muted-foreground">聘僱許可函</p>
-                          <a
-                            href={`/manus-storage/${(caseData as any).employmentPermitFileKey}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-xs text-primary hover:underline"
-                          >
-                            <Paperclip className="w-3 h-3" />檢視附件
-                          </a>
+                          <p className="text-xs text-muted-foreground">聆僱許可函</p>
+                          <AttachmentLink label="檢視附件" fileKey={(caseData as any).employmentPermitFileKey} />
                         </div>
                       )}
                       {(caseData as any).terminationLetterFileKey && (
                         <div className="space-y-0.5">
                           <p className="text-xs text-muted-foreground">終止函</p>
-                          <a
-                            href={`/manus-storage/${(caseData as any).terminationLetterFileKey}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-xs text-primary hover:underline"
-                          >
-                            <Paperclip className="w-3 h-3" />檢視附件
-                          </a>
+                          <AttachmentLink label="檢視附件" fileKey={(caseData as any).terminationLetterFileKey} />
                         </div>
                       )}
                     </div>
@@ -455,10 +457,7 @@ export default function CaseDetail() {
                       <div className="flex items-center gap-2">
                         <p className="font-medium">{(caseData as any).prevMedicalExamDate}</p>
                         {(caseData as any).prevMedicalReportKey && (
-                          <a href={`/manus-storage/${(caseData as any).prevMedicalReportKey}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            報告
-                          </a>
+                          <AttachmentLink label="報告" fileKey={(caseData as any).prevMedicalReportKey} />
                         )}
                       </div>
                     </div>
@@ -470,10 +469,7 @@ export default function CaseDetail() {
                       <div className="flex items-center gap-2">
                         <p className="font-medium">{(caseData as any).entryMedicalExamDate}</p>
                         {(caseData as any).entryMedicalReportKey && (
-                          <a href={`/manus-storage/${(caseData as any).entryMedicalReportKey}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            報告
-                          </a>
+                          <AttachmentLink label="報告" fileKey={(caseData as any).entryMedicalReportKey} />
                         )}
                       </div>
                     </div>
@@ -491,10 +487,7 @@ export default function CaseDetail() {
                           <div className="flex items-center gap-2">
                             <p className="font-medium">{(caseData as any)[dateKey] || "—"}</p>
                             {(caseData as any)[reportKey] && (
-                              <a href={`/manus-storage/${(caseData as any)[reportKey]}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                報告
-                              </a>
+                              <AttachmentLink label="報告" fileKey={(caseData as any)[reportKey]} />
                             )}
                           </div>
                         </div>
@@ -522,10 +515,7 @@ export default function CaseDetail() {
                           <p className="font-medium">{(caseData as any).healthInsurance}</p>
                         )}
                         {(caseData as any).healthInsurancePolicyKey && (
-                          <a href={`/manus-storage/${(caseData as any).healthInsurancePolicyKey}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            保單
-                          </a>
+                          <AttachmentLink label="保單" fileKey={(caseData as any).healthInsurancePolicyKey} />
                         )}
                       </div>
                     </div>
@@ -539,10 +529,7 @@ export default function CaseDetail() {
                           <p className="font-medium">{(caseData as any).accidentInsurance}</p>
                         )}
                         {(caseData as any).accidentInsurancePolicyKey && (
-                          <a href={`/manus-storage/${(caseData as any).accidentInsurancePolicyKey}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            保單
-                          </a>
+                          <AttachmentLink label="保單" fileKey={(caseData as any).accidentInsurancePolicyKey} />
                         )}
                       </div>
                     </div>

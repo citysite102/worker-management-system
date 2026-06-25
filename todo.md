@@ -333,3 +333,14 @@
 - [x] server-side workers.create：查詢 DB 是否已有相同 residentPermitNo，有則拋出 CONFLICT 錯誤
 - [x] server-side workers.update：同上，但排除自身 id（允許更新為相同號碼）
 - [x] 前端 WorkerModal：捕捉 CONFLICT 錯誤，在居留證/護照欄位下方顯示紅色 AlertCircle + 提示文字
+
+## 品牌視覺導入 Phase 1（規劃與預覽）
+
+- [x] 掃描現有平台關鍵頁面（DashboardLayout、Workers、Customers、Cases、詳情頁、NotFound、Home）
+- [x] 產出全站視覺落點盤點表（位置 ↔ 資產 ↔ 姿態）
+- [x] 繪製 Logo SVG React 元件（燕子剪影，品牌主色 #1FA59B）
+- [x] 繪製吉祥物四姿態 SVG React 元件（比讚/揮手/文件審閱/慶祝）+ 新增疑惑/搜尋兩種缺漏姿態
+- [x] 建立 /brand-preview 預覽路由（展示 Logo、吉祥物、色票、套用範例）
+- [x] 產出元件 API 提案（Logo variant/size、Mascot pose/size、EmptyState props）
+- [x] 產出缺漏姿態清單（四姿態以外需要的新姿態）
+- [ ] 交用戶確認 Phase 1 交付物（等待 Samuel 確認後進入 Phase 2）

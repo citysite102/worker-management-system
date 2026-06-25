@@ -12,23 +12,30 @@ import CaseDetail from "./pages/CaseDetail";
 import WorkerDetail from "./pages/WorkerDetail";
 import CustomerDetail from "./pages/CustomerDetail";
 import Settings from "./pages/Settings";
+import BrandPreview from "./pages/BrandPreview";
 
 function Router() {
   return (
-    <DashboardLayout>
-      <Switch>
-        <Route path="/" component={Workers} />
-        <Route path="/workers" component={Workers} />
-        <Route path="/customers" component={Customers} />
-        <Route path="/cases" component={Cases} />
-        <Route path="/cases/:id" component={CaseDetail} />
-        <Route path="/workers/:id" component={WorkerDetail} />
-        <Route path="/customers/:id" component={CustomerDetail} />
-        <Route path="/settings" component={Settings} />
-        <Route path="/404" component={NotFound} />
-        <Route component={NotFound} />
-      </Switch>
-    </DashboardLayout>
+    <Switch>
+      {/* 品牌預覽頁：不需登入，不套用 DashboardLayout */}
+      <Route path="/brand-preview" component={BrandPreview} />
+      <Route>
+        <DashboardLayout>
+          <Switch>
+            <Route path="/" component={Workers} />
+            <Route path="/workers" component={Workers} />
+            <Route path="/customers" component={Customers} />
+            <Route path="/cases" component={Cases} />
+            <Route path="/cases/:id" component={CaseDetail} />
+            <Route path="/workers/:id" component={WorkerDetail} />
+            <Route path="/customers/:id" component={CustomerDetail} />
+            <Route path="/settings" component={Settings} />
+            <Route path="/404" component={NotFound} />
+            <Route component={NotFound} />
+          </Switch>
+        </DashboardLayout>
+      </Route>
+    </Switch>
   );
 }
 

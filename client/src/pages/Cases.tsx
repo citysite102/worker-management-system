@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Search, Briefcase, CheckCircle2, PauseCircle, XCircle, Pencil, Trash2, ArrowRight } from "lucide-react";
+import { Plus, Search, Briefcase, CheckCircle2, PauseCircle, XCircle, Pencil, Trash2, ArrowRight, Download } from "lucide-react";
 import { TableRowSkeleton } from "@/components/LoadingStates";
 import { getStatusLabel, getStatusColor, CASE_MGMT_STATUS_OPTIONS } from "@/lib/constants";
+import { exportToCsv } from "@/lib/exportToCsv";
 import { StatusBadge } from "@/components/StatusBadge";
 import CaseModal from "@/components/CaseModal";
 
@@ -70,6 +71,51 @@ export default function Cases() {
   const paused = cases.filter(c => c.status === "paused").length;
   const cancelled = cases.filter(c => c.status === "cancelled").length;
 
+  // ─── CSV 匯出 ────────────────────────────────────────────────────────────────
+  const handleExportCsv = () => {
+    const headers = [
+      "案件編號", "案件名稱", "狀態", "管理狀態",
+      "客戶（雇主）", "負責人",
+      "求職類型", "求職日期",
+      "招募許可函類型", "持續就業日期", "就業期間（月）",
+      "招募機構办理", "仒介機構办理",
+      "就業後保險待辦", "就業狀況",
+      "入國通報日期", "證明書序號",
+      "健保投保", "意外險投保",
+      "前次體檢日期", "入境體檢日期",
+      "6個月體檢日期", "18個月體檢日期", "30個月體檢日期",
+      "備註",
+    ];
+    const rows = cases.map((c: any) => [
+      c.caseNo || "",
+      c.name || "",
+      getStatusLabel(c.status),
+      getStatusLabel(c.managementStatus),
+      c.customerName || "",
+      c.managerName || "",
+      getStatusLabel(c.jobSeekerType),
+      c.jobSeekerDate || "",
+      getStatusLabel(c.recruitmentLetterType),
+      c.continuousEmploymentDate || "",
+      c.employmentPeriodMonths || "",
+      getStatusLabel(c.recruitmentAgencyItems),
+      getStatusLabel(c.employmentAgencyItems),
+      getStatusLabel(c.postEmploymentInsurance),
+      getStatusLabel(c.employmentStatus),
+      c.entryNotificationDate || "",
+      c.certificateNo || "",
+      c.healthInsurance || "",
+      c.accidentInsurance || "",
+      c.prevMedicalExamDate || "",
+      c.entryMedicalExamDate || "",
+      c.exam6mDate || "",
+      c.exam18mDate || "",
+      c.exam30mDate || "",
+      c.notes || "",
+    ]);
+    exportToCsv("案件名單", headers, rows);
+  };
+
   const statCards = [
     { label: "案件總數", value: total, icon: <Briefcase className="w-4 h-4" />, accent: false },
     { label: "進行中", value: inProgress, icon: <ArrowRight className="w-4 h-4" />, accent: inProgress > 0 },
@@ -86,9 +132,20 @@ export default function Cases() {
           <h1 className="text-2xl font-semibold tracking-tight">案件管理</h1>
           <p className="text-sm text-muted-foreground mt-0.5">管理所有媒合案件與進度</p>
         </div>
-        <Button onClick={() => { setEditingCase(null); setShowModal(true); }} className="gap-2">
-          <Plus className="w-4 h-4" />新增案件
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExportCsv}
+            className="gap-2"
+            title={`匯出目前 ${cases.length} 筆案件資料`}
+          >
+            <Download className="w-4 h-4" />
+            匯出 CSV
+          </Button>
+          <Button onClick={() => { setEditingCase(null); setShowModal(true); }} className="gap-2">
+            <Plus className="w-4 h-4" />新增案件
+          </Button>
+        </div>
       </div>
 
       {/* 統計卡 */}

@@ -306,3 +306,18 @@
 - [x] 建立共用 AttachmentPreviewModal 元件（圖片 Lightbox + PDF iframe inline）
 - [x] WorkerDetail.tsx：AttachmentItem 改為點擊開啟 AttachmentPreviewModal
 - [x] 預覽 Modal 支援鍵盤 Esc 關閉、點擊背景關閉、下載、新分頁開啟
+
+## 即將到期文件視覺提醒（v5.16）
+
+- [ ] server-side：新增 workers.getExpiringDocuments procedure（查詢 90 天內到期的居留證/護照/體檢）
+- [ ] Dashboard：加入「即將到期文件」提醒區塊（紅/橙/黃三段顏色，依到期天數區分）
+- [ ] CaseDetail：加入案件關聯移工的到期文件提醒 Banner
+- [ ] 到期狀態色彩規則：已過期=紅、14 天內=橙紅、30 天內=橙、90 天內=黃
+
+## CSV 匯出功能（v5.17）
+
+- [x] 建立共用 exportToCsv 工具函數（BOM + UTF-8，支援 Excel 中文正常顯示）
+- [x] Workers.tsx：加入「匯出 CSV」按鈕，匯出目前篩選的移工資料（20 個欄位）
+- [x] Customers.tsx：加入「匯出 CSV」按鈕，匯出目前篩選的客戶資料（24 個欄位）
+- [x] Cases.tsx：加入「匯出 CSV」按鈕，匯出目前篩選的案件資料（25 個欄位）
+- [x] 匯出欄位含 label 轉換（enum → 中文）、日期格式化、空值顯示「—」

@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "@/components/StatusBadge";
 import { CustomerModal } from "@/components/CustomerModal";
 import { getStatusLabel, CONTRACT_STATUS_OPTIONS, PRICING_TIER_OPTIONS, EMPLOYER_TYPE_OPTIONS } from "@/lib/constants";
+import { exportToCsv } from "@/lib/exportToCsv";
 import { toast } from "sonner";
-import { Plus, Search, Pencil, Trash2, Building2, CheckCircle, MessageSquare, RefreshCw, X, User, Briefcase } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Building2, CheckCircle, MessageSquare, RefreshCw, X, User, Briefcase, Download } from "lucide-react";
 import { TableRowSkeleton } from "@/components/LoadingStates";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -78,6 +79,45 @@ export default function Customers() {
 
   const hasActiveFilter = search || managerFilter !== "all" || contractFilter !== "all" || pricingFilter !== "all" || employerTypeFilter !== "all";
 
+  // ─── CSV 匯出 ────────────────────────────────────────────────────────────────
+  const handleExportCsv = useCallback(() => {
+    const headers = [
+      "雇主類型", "名稱", "雇主編號", "手機", "市話", "地址", "登記地址",
+      "尋人人", "合約狀態", "定價級距",
+      "身分證字號", "前課程編號",
+      "被看護者姓名", "被看護者生日", "被看護者身分證字號", "被看護者地址", "被看護者資格", "關係",
+      "統一編號", "產業別", "聯絡人", "聯絡電話",
+      "負責人", "備註",
+    ];
+    const rows = filtered.map((c: any) => [
+      c.employerType === "individual" ? "個人" : "公司",
+      c.name || "",
+      c.employerNo || "",
+      c.phone || "",
+      c.landline || "",
+      c.address || "",
+      c.registeredAddress || "",
+      c.referrer || "",
+      getStatusLabel(c.contractStatus),
+      getStatusLabel(c.pricingTier),
+      c.idNo || "",
+      c.preCourseNo || "",
+      c.careReceiverName || "",
+      c.careReceiverBirthDate || "",
+      c.careReceiverIdNo || "",
+      c.careReceiverAddress || "",
+      c.careReceiverQualification || "",
+      c.careReceiverRelation || "",
+      c.taxId || "",
+      c.industry || "",
+      c.contactName || "",
+      c.contactPhone || "",
+      managerMap[c.managerId] || "",
+      c.notes || "",
+    ]);
+    exportToCsv("客戶名單", headers, rows);
+  }, [filtered, managerMap]);
+
   const clearAllFilters = useCallback(() => {
     setSearch("");
     setManagerFilter("all");
@@ -109,10 +149,22 @@ export default function Customers() {
           <h1 className="text-2xl font-semibold tracking-tight">客戶管理</h1>
           <p className="text-sm text-muted-foreground mt-0.5">管理所有客戶資料與合約狀態</p>
         </div>
-        <Button onClick={openCreate} size="sm" className="gap-1.5">
-          <Plus className="w-4 h-4" />
-          新增雇主
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCsv}
+            className="gap-1.5"
+            title={`匯出目前笛選的 ${filtered.length} 筆客戶資料`}
+          >
+            <Download className="w-4 h-4" />
+            匯出 CSV
+          </Button>
+          <Button onClick={openCreate} size="sm" className="gap-1.5">
+            <Plus className="w-4 h-4" />
+            新增雇主
+          </Button>
+        </div>
       </div>
 
       {/* 統計卡 — 可點擊快速篩選 */}

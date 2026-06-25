@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "@/components/StatusBadge";
 import { WorkerModal } from "@/components/WorkerModal";
 import { ImportWorkerModal } from "@/components/ImportWorkerModal";
-import { getStatusLabel, LIFECYCLE_STATUS_OPTIONS, DOCUMENT_STATUS_OPTIONS } from "@/lib/constants";
+import { getStatusLabel, LIFECYCLE_STATUS_OPTIONS, DOCUMENT_STATUS_OPTIONS, OCCUPATION_OPTIONS } from "@/lib/constants";
+import { exportToCsv } from "@/lib/exportToCsv";
 import { toast } from "sonner";
-import { Plus, Search, Pencil, Trash2, Users, Briefcase, FileWarning, UserSearch, X, CalendarClock, ExternalLink, Upload } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Users, Briefcase, FileWarning, UserSearch, X, CalendarClock, ExternalLink, Upload, Download } from "lucide-react";
 import { TableRowSkeleton } from "@/components/LoadingStates";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -162,6 +163,42 @@ export default function Workers() {
 
   const hasActiveFilter = search || managerFilter !== "all" || lifecycleFilter !== "all" || documentFilter !== "all" || expiryFilter !== "all";
 
+  // ─── CSV 匯出 ────────────────────────────────────────────────────────────────
+  const handleExportCsv = useCallback(() => {
+    const occupationMap = Object.fromEntries(OCCUPATION_OPTIONS.map(o => [o.value, o.label]));
+    const headers = [
+      "中文姓名", "英文姓名", "性別", "國籍", "出生地", "職業類別",
+      "在職狀態", "文件狀態",
+      "居留證號", "居留證效期", "護照號碼", "護照效期",
+      "入境日期", "手機", "Email",
+      "最近體檢日", "下次體檢類型",
+      "負責人", "外部連結", "備註",
+    ];
+    const rows = filtered.map(w => [
+      w.nameCn || w.name || "",
+      w.nameEn || "",
+      w.gender === "male" ? "男" : w.gender === "female" ? "女" : w.gender === "other" ? "其他" : "",
+      w.nationality || "",
+      w.birthPlace || "",
+      occupationMap[w.occupation ?? ""] || w.occupation || "",
+      getStatusLabel(w.lifecycleStatus),
+      getStatusLabel(w.documentStatus),
+      w.residentPermitNo || "",
+      w.residentPermitExpiry || "",
+      w.passportNo || "",
+      w.passportExpiry || "",
+      w.entryDate || "",
+      w.phone || "",
+      w.email || "",
+      w.lastMedicalExamDate || "",
+      w.nextMedicalExamType || "",
+      managerMap[w.managerId] || "",
+      w.externalLink || "",
+      w.notes || "",
+    ]);
+    exportToCsv("移工名單", headers, rows);
+  }, [filtered, managerMap]);
+
   const clearAllFilters = useCallback(() => {
     setSearch("");
     setManagerFilter("all");
@@ -195,6 +232,16 @@ export default function Workers() {
           <p className="text-sm text-muted-foreground mt-0.5">管理所有移工資料與狀態</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCsv}
+            className="gap-1.5"
+            title={`匯出目前笛選的 ${filtered.length} 筆移工資料`}
+          >
+            <Download className="w-4 h-4" />
+            匯出 CSV
+          </Button>
           <Button
             variant="outline"
             size="sm"

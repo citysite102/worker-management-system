@@ -415,11 +415,13 @@ export async function getAssignmentById(id: number) {
   return result[0];
 }
 
-export async function createAssignment(data: InsertCaseAssignment) {
+export async function createAssignment(data: InsertCaseAssignment): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const result = await db.insert(caseAssignments).values(data);
-  return result;
+  // drizzle mysql2 回傳 [ResultSetHeader, FieldPacket[]]，insertId 在 result[0]
+  const insertId = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return Number(insertId);
 }
 
 export async function updateAssignment(id: number, data: Partial<InsertCaseAssignment>) {

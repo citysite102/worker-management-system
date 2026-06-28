@@ -937,8 +937,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "CONFLICT", message: `此移工已在本案件配對中（workerId: ${conflicts.join(", ")}）` });
         }
         // 建立配對
-        const result = await createAssignment(assignmentData);
-        const assignmentId = (result as any).insertId as number;
+        const assignmentId = await createAssignment(assignmentData);
         // 建立成員
         for (const workerId of workerIds) {
           await createMember({ assignmentId, caseId: input.caseId, workerId, stage: "candidate" });

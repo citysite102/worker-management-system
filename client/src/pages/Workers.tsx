@@ -67,6 +67,7 @@ export default function Workers() {
   const [lifecycleFilter, setLifecycleFilter] = useState("all");
   const [documentFilter, setDocumentFilter] = useState("all");
   const [expiryFilter, setExpiryFilter] = useState<ExpiryFilter>("all");
+  const [sortOrder, setSortOrder] = useState<"name" | "created_desc" | "created_asc">("created_desc");
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -115,7 +116,7 @@ export default function Workers() {
   }, []);
 
   const filtered = useMemo(() => {
-    return workers.filter(w => {
+    const list = workers.filter(w => {
       const q = search.trim().toLowerCase();
       const displayName = w.nameCn || w.nameEn || w.name;
       const matchSearch = !q ||
@@ -131,7 +132,17 @@ export default function Workers() {
       const matchExpiry = matchesExpiryFilter(w, expiryFilter);
       return matchSearch && matchManager && matchLifecycle && matchDocument && matchExpiry;
     });
-  }, [workers, search, managerFilter, lifecycleFilter, documentFilter, expiryFilter, managerMap, matchesExpiryFilter]);
+    return [...list].sort((a, b) => {
+      if (sortOrder === "name") {
+        const na = (a.nameCn || a.nameEn || a.name || "").toLowerCase();
+        const nb = (b.nameCn || b.nameEn || b.name || "").toLowerCase();
+        return na.localeCompare(nb, "zh-TW");
+      }
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return sortOrder === "created_desc" ? tb - ta : ta - tb;
+    });
+  }, [workers, search, managerFilter, lifecycleFilter, documentFilter, expiryFilter, managerMap, matchesExpiryFilter, sortOrder]);
 
   // ─── 統計卡 ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -407,6 +418,18 @@ export default function Workers() {
               {EXPIRY_QUICK_FILTERS.map(f => (
                 <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+
+          {/* 排序 */}
+          <Select value={sortOrder} onValueChange={v => setSortOrder(v as typeof sortOrder)}>
+            <SelectTrigger className="w-full sm:w-36">
+              <SelectValue placeholder="排序" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="created_desc">建立時間（新→舊）</SelectItem>
+              <SelectItem value="created_asc">建立時間（舊→新）</SelectItem>
+              <SelectItem value="name">姓名（A→Z）</SelectItem>
             </SelectContent>
           </Select>
         </div>

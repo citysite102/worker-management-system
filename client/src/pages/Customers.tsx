@@ -22,6 +22,7 @@ export default function Customers() {
   const [contractFilter, setContractFilter] = useState("all");
   const [pricingFilter, setPricingFilter] = useState("all");
   const [employerTypeFilter, setEmployerTypeFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState<"name" | "created_desc" | "created_asc">("created_desc");
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -47,7 +48,7 @@ export default function Customers() {
   }, [managers]);
 
   const filtered = useMemo(() => {
-    return customers.filter(c => {
+    const list = customers.filter(c => {
       const q = search.trim().toLowerCase();
       const ca = c as any;
       const matchSearch = !q ||
@@ -65,7 +66,15 @@ export default function Customers() {
       const matchEmployerType = employerTypeFilter === "all" || (ca.employerType ?? "company") === employerTypeFilter;
       return matchSearch && matchManager && matchContract && matchPricing && matchEmployerType;
     });
-  }, [customers, search, managerFilter, contractFilter, pricingFilter, employerTypeFilter, managerMap]);
+    return [...list].sort((a, b) => {
+      if (sortOrder === "name") {
+        return a.name.localeCompare(b.name, "zh-TW");
+      }
+      const ta = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+      const tb = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+      return sortOrder === "created_desc" ? tb - ta : ta - tb;
+    });
+  }, [customers, search, managerFilter, contractFilter, pricingFilter, employerTypeFilter, managerMap, sortOrder]);
 
   // 統計卡
   const stats = useMemo(() => ({
@@ -314,6 +323,18 @@ export default function Customers() {
               ))}
             </SelectContent>
           </Select> */}
+
+          {/* 排序 */}
+          <Select value={sortOrder} onValueChange={v => setSortOrder(v as typeof sortOrder)}>
+            <SelectTrigger className="w-full sm:w-36">
+              <SelectValue placeholder="排序" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="created_desc">建立時間（新→舊）</SelectItem>
+              <SelectItem value="created_asc">建立時間（舊→新）</SelectItem>
+              <SelectItem value="name">名稱（A→Z）</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* 篩選中提示列 */}

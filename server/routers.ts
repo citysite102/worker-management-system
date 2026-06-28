@@ -576,6 +576,7 @@ export const appRouter = router({
         status: z.string().optional(),
         managerId: z.number().int().positive().optional(),
         search: z.string().optional(),
+        orderBy: z.enum(["created_desc", "created_asc", "name"]).optional(),
       }).optional())
       .query(async ({ input }) => {
         const rows = await getAllCases(input);
@@ -591,7 +592,8 @@ export const appRouter = router({
         type ManagerRow = typeof allManagers[0];
         const customerMap = new Map<number, CustomerRow>(allCustomers.map(c => [c.id, c]));
         const managerMap = new Map<number, ManagerRow>(allManagers.map(m => [m.id, m]));
-        return rows.map((c) => {
+        const orderBy = input?.orderBy ?? "created_desc";
+        const enriched = rows.map((c) => {
           const dims = dimsMap.get(c.id) ?? { qualCount: 0, demandCount: 0, assignmentCount: 0, memberCount: 0 };
           return {
             ...c,
@@ -599,6 +601,12 @@ export const appRouter = router({
             managerName: managerMap.get(c.managerId)?.name ?? "",
             ...dims,
           };
+        });
+        return enriched.sort((a, b) => {
+          if (orderBy === "name") return a.name.localeCompare(b.name, "zh-TW");
+          const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return orderBy === "created_desc" ? tb - ta : ta - tb;
         });
       }),
     getById: publicProcedure

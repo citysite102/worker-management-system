@@ -21,6 +21,7 @@ export default function Cases() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [managerFilter, setManagerFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState<"created_desc" | "created_asc" | "name">("created_desc");
   const [showModal, setShowModal] = useState(false);
   const [editingCase, setEditingCase] = useState<any>(null);
   const [deletingCase, setDeletingCase] = useState<any>(null);
@@ -53,6 +54,7 @@ export default function Cases() {
     status: statusFilter !== "all" ? statusFilter : undefined,
     managerId: managerFilter !== "all" ? Number(managerFilter) : undefined,
     search: debouncedSearch || undefined,
+    orderBy: sortOrder,
   });
   const { data: managers = [] } = trpc.managers.list.useQuery();
   const deleteMutation = trpc.cases.delete.useMutation({
@@ -194,6 +196,17 @@ export default function Cases() {
             {CASE_MGMT_STATUS_OPTIONS.map(o => (
               <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        {/* 排序 */}
+        <Select value={sortOrder} onValueChange={v => setSortOrder(v as typeof sortOrder)}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="排序" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="created_desc">建立時間（新→舊）</SelectItem>
+            <SelectItem value="created_asc">建立時間（舊→新）</SelectItem>
+            <SelectItem value="name">名稱（A→Z）</SelectItem>
           </SelectContent>
         </Select>
       </div>

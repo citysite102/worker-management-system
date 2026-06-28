@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageSkeleton } from "@/components/LoadingStates";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Pencil, ExternalLink, FileText, Image as ImageIcon, Building2, User, Users, Plus } from "lucide-react";
+import { ArrowLeft, Pencil, FileText, Image as ImageIcon, User, Users, Plus } from "lucide-react";
+import { CustomerCareReceivers } from "@/components/CustomerCareReceivers";
+import { CustomerQualifications } from "@/components/CustomerQualifications";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getStatusLabel } from "@/lib/constants";
 import { CustomerModal } from "@/components/CustomerModal";
@@ -111,8 +113,6 @@ export default function CustomerDetail() {
   }
 
   const hasIdAttachment = customer.idFrontKey || customer.idBackKey;
-  const hasCareReceiverAttachment = customer.careReceiverIdFrontKey || customer.careReceiverIdBackKey;
-  const hasDocAttachment = customer.jobSeekerFileKey || customer.recruitmentLetterFileKey || customer.employmentLetterFileKey;
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-0">
@@ -174,72 +174,17 @@ export default function CustomerDetail() {
             </>
           )}
 
-          {/* 被照顧者（個人雇主） */}
-          {isPersonal && (customer.careReceiverName || customer.careReceiverIdNo || hasCareReceiverAttachment) && (
+          {/* 被照顧者（個人雇主，多筆） */}
+          {isPersonal && (
             <>
               <Separator className="my-5" />
-              <SectionTitle>被照顧者基本資料</SectionTitle>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
-                <InfoRow label="被看護者編號" value={customer.careReceiverNo} />
-                <InfoRow label="被照顧者姓名" value={customer.careReceiverName} />
-                <InfoRow label="出生年月日" value={customer.careReceiverBirthDate} />
-                <InfoRow label="身分證字號" value={customer.careReceiverIdNo} />
-                <InfoRow label="戶籍地址" value={customer.careReceiverAddress} />
-                <InfoRow label="申請資格" value={customer.careReceiverQualification} />
-                <InfoRow label="與被看護者關係" value={customer.careReceiverRelation} />
-              </div>
-              {hasCareReceiverAttachment && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
-                  <AttachmentItem label="被看護者身分證正面" fileKey={customer.careReceiverIdFrontKey} />
-                  <AttachmentItem label="被看護者身分證反面" fileKey={customer.careReceiverIdBackKey} />
-                </div>
-              )}
+              <CustomerCareReceivers customerId={customerId} />
             </>
           )}
 
-          {/* 申請資格 */}
-          {(customer.jobSeekerType || customer.jobSeekerDate || customer.recruitmentLetterType) && (
-            <>
-              <Separator className="my-5" />
-              <SectionTitle>申請資格</SectionTitle>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
-                <InfoRow label="求才類別" value={customer.jobSeekerType ? JOB_SEEKER_TYPE_LABEL[customer.jobSeekerType] : null} />
-                <InfoRow label="求才日期" value={customer.jobSeekerDate} />
-                <InfoRow label="招募函類別" value={customer.recruitmentLetterType ? RECRUITMENT_LETTER_TYPE_LABEL[customer.recruitmentLetterType] : null} />
-                <InfoRow label="招募函申請日期" value={customer.recruitmentLetterDate} />
-                <InfoRow label="招募許可情況說明" value={customer.recruitmentPermitNote} />
-                <InfoRow label="許可天數" value={customer.recruitmentPermitDays?.toString()} />
-                <InfoRow label="舊工離境日期" value={customer.previousWorkerDepartureDate} />
-              </div>
-            </>
-          )}
-
-          {/* 聘僱函 */}
-          {(customer.employmentLetterType || customer.approvedStartDate) && (
-            <>
-              <Separator className="my-5" />
-              <SectionTitle>聘僱函</SectionTitle>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
-                <InfoRow label="聘僱函類別" value={customer.employmentLetterType ? EMPLOYMENT_LETTER_TYPE_LABEL[customer.employmentLetterType] : null} />
-                <InfoRow label="聘僱函申請日期" value={customer.employmentLetterDate} />
-                <InfoRow label="核准聘僱起始日" value={customer.approvedStartDate} />
-                <InfoRow label="核准聘僱期限" value={customer.approvedPeriod} />
-                <InfoRow label="核准聘僱截止日" value={customer.approvedEndDate} />
-              </div>
-            </>
-          )}
-
-          {hasDocAttachment && (
-            <>
-              <Separator className="my-5" />
-              <SectionTitle>文件附件</SectionTitle>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <AttachmentItem label="求才資格檔案" fileKey={customer.jobSeekerFileKey} />
-                <AttachmentItem label="招募函許可檔案" fileKey={customer.recruitmentLetterFileKey} />
-                <AttachmentItem label="聘僱函檔案" fileKey={customer.employmentLetterFileKey} />
-              </div>
-            </>
-          )}
+          {/* 申請資格（多筆，個人雇主 + 公司行號共用） */}
+          <Separator className="my-5" />
+          <CustomerQualifications customerId={customerId} isPersonal={isPersonal} />
         </div>
 
         {/* 右欄：媒合案件 + 關聯案件 */}

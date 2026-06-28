@@ -441,3 +441,77 @@ export const caseEmployments = mysqlTable("case_employments", {
 });
 export type CaseEmployment = typeof caseEmployments.$inferSelect;
 export type InsertCaseEmployment = typeof caseEmployments.$inferInsert;
+
+// ─── Customer Care Receivers（被照顧者，個人雇主用）─────────────────────────
+export const customerCareReceivers = mysqlTable("customer_care_receivers", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId").notNull(),              // → customers.id
+  careReceiverNo: varchar("careReceiverNo", { length: 20 }),   // 被看護者編號
+  careReceiverName: varchar("careReceiverName", { length: 50 }), // 被照顧者姓名
+  careReceiverBirthDate: varchar("careReceiverBirthDate", { length: 10 }), // 出生年月日 YYYY-MM-DD
+  careReceiverIdNo: varchar("careReceiverIdNo", { length: 12 }), // 被照顧者國民身分證字號
+  careReceiverAddress: varchar("careReceiverAddress", { length: 200 }), // 被照顧者戶籍地址
+  careReceiverQualification: varchar("careReceiverQualification", { length: 100 }), // 被照顧者申請資格
+  careReceiverRelation: varchar("careReceiverRelation", { length: 50 }), // 聘前講習上課者與被看護者關係
+  careReceiverIdFrontKey: varchar("careReceiverIdFrontKey", { length: 300 }), // 被看護者身分證正面（S3）
+  careReceiverIdBackKey: varchar("careReceiverIdBackKey", { length: 300 }),   // 被看護者身分證反面（S3）
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CustomerCareReceiver = typeof customerCareReceivers.$inferSelect;
+export type InsertCustomerCareReceiver = typeof customerCareReceivers.$inferInsert;
+
+// ─── Customer Qualifications（申請資格，個人雇主 + 公司行號共用）────────────
+export const customerQualifications = mysqlTable("customer_qualifications", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId").notNull(),              // → customers.id
+  careReceiverId: int("careReceiverId"),                // 可選 → customer_care_receivers.id（個人雇主用）
+  caseId: int("caseId"),                               // 可選 → cases.id（關聯案件）
+  label: varchar("label", { length: 100 }),            // 顯示用標籤（如「建築工人申請」）
+  // ── 媒合案件 ──────────────────────────────────────────────────────────────
+  caseNo: varchar("caseNo", { length: 20 }),           // 媒合案件編號（文字，可與 cases.caseNo 對應）
+  caseStatus: mysqlEnum("caseStatus", [
+    "pending",      // 待處理
+    "processing",   // 處理中
+    "matched",      // 已媒合
+    "completed",    // 已完成
+    "cancelled",    // 已取消
+  ]),
+  managerId: int("managerId"),                         // 管理負責人 → managers.id
+  // ── 申請資格 ──────────────────────────────────────────────────────────────
+  jobSeekerType: mysqlEnum("jobSeekerType", [
+    "new_hire",     // 新聘
+    "renewal",      // 續聘
+    "transfer",     // 轉換雇主
+    "supplement",   // 補件
+  ]),
+  jobSeekerDate: varchar("jobSeekerDate", { length: 10 }),
+  jobSeekerFileKey: varchar("jobSeekerFileKey", { length: 300 }),
+  recruitmentLetterType: mysqlEnum("recruitmentLetterType", [
+    "domestic",     // 國內招募
+    "overseas",     // 國外招募
+    "both",         // 國內外
+  ]),
+  recruitmentLetterDate: varchar("recruitmentLetterDate", { length: 10 }),
+  recruitmentLetterFileKey: varchar("recruitmentLetterFileKey", { length: 300 }),
+  recruitmentPermitNote: text("recruitmentPermitNote"),
+  recruitmentPermitDays: int("recruitmentPermitDays"),
+  previousWorkerDepartureDate: varchar("previousWorkerDepartureDate", { length: 10 }),
+  // ── 聘僱函 ────────────────────────────────────────────────────────────────
+  employmentLetterType: mysqlEnum("employmentLetterType", [
+    "initial",      // 初次聘僱
+    "renewal",      // 續聘
+    "transfer",     // 轉換
+  ]),
+  employmentLetterDate: varchar("employmentLetterDate", { length: 10 }),
+  employmentLetterFileKey: varchar("employmentLetterFileKey", { length: 300 }),
+  approvedStartDate: varchar("approvedStartDate", { length: 10 }),
+  approvedPeriod: varchar("approvedPeriod", { length: 50 }),
+  approvedEndDate: varchar("approvedEndDate", { length: 10 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CustomerQualification = typeof customerQualifications.$inferSelect;
+export type InsertCustomerQualification = typeof customerQualifications.$inferInsert;

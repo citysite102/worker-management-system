@@ -1,6 +1,6 @@
 import { and, eq, inArray, ne, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, managers, workers, customers, InsertManager, InsertWorker, InsertCustomer, cases, caseQualifications, caseDemands, caseAssignments, caseAssignmentWorkers, caseEmployments, InsertCase, InsertCaseQualification, InsertCaseDemand, InsertCaseAssignment, InsertCaseAssignmentWorker, InsertCaseEmployment } from "../drizzle/schema";
+import { InsertUser, users, managers, workers, customers, InsertManager, InsertWorker, InsertCustomer, cases, caseQualifications, caseDemands, caseAssignments, caseAssignmentWorkers, caseEmployments, InsertCase, InsertCaseQualification, InsertCaseDemand, InsertCaseAssignment, InsertCaseAssignmentWorker, InsertCaseEmployment, customerCareReceivers, customerQualifications, InsertCustomerCareReceiver, InsertCustomerQualification } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -534,4 +534,50 @@ export async function deleteEmployment(id: number) {
   const db = await getDb();
   if (!db) throw new Error('DB not available');
   await db.delete(caseEmployments).where(eq(caseEmployments.id, id));
+}
+
+// ─── Customer Care Receivers（被照顧者）──────────────────────────────────────
+export async function getCareReceiversByCustomerId(customerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(customerCareReceivers).where(eq(customerCareReceivers.customerId, customerId));
+}
+export async function createCareReceiver(data: InsertCustomerCareReceiver) {
+  const db = await getDb();
+  if (!db) throw new Error('DB not available');
+  const [result] = await db.insert(customerCareReceivers).values(data);
+  return (result as any)[0]?.insertId ?? (result as any).insertId as number;
+}
+export async function updateCareReceiver(id: number, data: Partial<InsertCustomerCareReceiver>) {
+  const db = await getDb();
+  if (!db) throw new Error('DB not available');
+  await db.update(customerCareReceivers).set(data).where(eq(customerCareReceivers.id, id));
+}
+export async function deleteCareReceiver(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error('DB not available');
+  await db.delete(customerCareReceivers).where(eq(customerCareReceivers.id, id));
+}
+
+// ─── Customer Qualifications（申請資格）──────────────────────────────────────
+export async function getQualificationsByCustomerId(customerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(customerQualifications).where(eq(customerQualifications.customerId, customerId));
+}
+export async function createCustomerQualification(data: InsertCustomerQualification) {
+  const db = await getDb();
+  if (!db) throw new Error('DB not available');
+  const [result] = await db.insert(customerQualifications).values(data);
+  return (result as any)[0]?.insertId ?? (result as any).insertId as number;
+}
+export async function updateCustomerQualification(id: number, data: Partial<InsertCustomerQualification>) {
+  const db = await getDb();
+  if (!db) throw new Error('DB not available');
+  await db.update(customerQualifications).set(data).where(eq(customerQualifications.id, id));
+}
+export async function deleteCustomerQualification(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error('DB not available');
+  await db.delete(customerQualifications).where(eq(customerQualifications.id, id));
 }

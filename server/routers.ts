@@ -15,6 +15,8 @@ import {
   getMembersByAssignmentId, getMembersByCaseId, getMemberById, createMember, updateMember, deleteMember,
   getWorkerInvolvements, getCaseDimensions, getCaseDimensionsBatch, getQuotaUsedBatch,
   getEmploymentsByCase, createEmployment, updateEmployment, deleteEmployment,
+  getCareReceiversByCustomerId, createCareReceiver, updateCareReceiver, deleteCareReceiver,
+  getQualificationsByCustomerId, createCustomerQualification, updateCustomerQualification, deleteCustomerQualification,
 } from "./db";
 import { storagePut } from "./storage";
 import {
@@ -566,9 +568,131 @@ export const appRouter = router({
         const { key: storedKey, url } = await storagePut(key, buffer, input.mimeType);
         return { key: storedKey, url };
       }),
+    // ─── Care Receivers CRUD ───────────────────────────────────────────────────────────────────────────────
+    careReceivers: router({
+      listByCustomer: publicProcedure
+        .input(z.object({ customerId: z.number().int().positive() }))
+        .query(async ({ input }) => getCareReceiversByCustomerId(input.customerId)),
+      create: publicProcedure
+        .input(z.object({
+          customerId: z.number().int().positive(),
+          careReceiverNo: z.string().max(20).optional().nullable(),
+          careReceiverName: z.string().max(50).optional().nullable(),
+          careReceiverBirthDate: z.string().max(10).optional().nullable(),
+          careReceiverIdNo: z.string().max(12).optional().nullable(),
+          careReceiverAddress: z.string().max(200).optional().nullable(),
+          careReceiverQualification: z.string().max(100).optional().nullable(),
+          careReceiverRelation: z.string().max(50).optional().nullable(),
+          careReceiverIdFrontKey: z.string().max(300).optional().nullable(),
+          careReceiverIdBackKey: z.string().max(300).optional().nullable(),
+          notes: z.string().optional().nullable(),
+        }))
+        .mutation(async ({ input }) => {
+          const id = await createCareReceiver(input);
+          return { id };
+        }),
+      update: publicProcedure
+        .input(z.object({
+          id: z.number().int().positive(),
+          careReceiverNo: z.string().max(20).optional().nullable(),
+          careReceiverName: z.string().max(50).optional().nullable(),
+          careReceiverBirthDate: z.string().max(10).optional().nullable(),
+          careReceiverIdNo: z.string().max(12).optional().nullable(),
+          careReceiverAddress: z.string().max(200).optional().nullable(),
+          careReceiverQualification: z.string().max(100).optional().nullable(),
+          careReceiverRelation: z.string().max(50).optional().nullable(),
+          careReceiverIdFrontKey: z.string().max(300).optional().nullable(),
+          careReceiverIdBackKey: z.string().max(300).optional().nullable(),
+          notes: z.string().optional().nullable(),
+        }))
+        .mutation(async ({ input }) => {
+          const { id, ...data } = input;
+          await updateCareReceiver(id, data);
+          return { success: true };
+        }),
+      delete: publicProcedure
+        .input(z.object({ id: z.number().int().positive() }))
+        .mutation(async ({ input }) => {
+          await deleteCareReceiver(input.id);
+          return { success: true };
+        }),
+    }),
+    // ─── Customer Qualifications CRUD ─────────────────────────────────────────────────────────────────────
+    qualifications: router({
+      listByCustomer: publicProcedure
+        .input(z.object({ customerId: z.number().int().positive() }))
+        .query(async ({ input }) => getQualificationsByCustomerId(input.customerId)),
+      create: publicProcedure
+        .input(z.object({
+          customerId: z.number().int().positive(),
+          careReceiverId: z.number().int().positive().optional().nullable(),
+          caseId: z.number().int().positive().optional().nullable(),
+          label: z.string().max(100).optional().nullable(),
+          caseNo: z.string().max(20).optional().nullable(),
+          caseStatus: z.enum(['pending','processing','matched','completed','cancelled']).optional().nullable(),
+          managerId: z.number().int().positive().optional().nullable(),
+          jobSeekerType: z.enum(['new_hire','renewal','transfer','supplement']).optional().nullable(),
+          jobSeekerDate: z.string().max(10).optional().nullable(),
+          jobSeekerFileKey: z.string().max(300).optional().nullable(),
+          recruitmentLetterType: z.enum(['domestic','overseas','both']).optional().nullable(),
+          recruitmentLetterDate: z.string().max(10).optional().nullable(),
+          recruitmentLetterFileKey: z.string().max(300).optional().nullable(),
+          recruitmentPermitNote: z.string().optional().nullable(),
+          recruitmentPermitDays: z.number().int().optional().nullable(),
+          previousWorkerDepartureDate: z.string().max(10).optional().nullable(),
+          employmentLetterType: z.enum(['initial','renewal','transfer']).optional().nullable(),
+          employmentLetterDate: z.string().max(10).optional().nullable(),
+          employmentLetterFileKey: z.string().max(300).optional().nullable(),
+          approvedStartDate: z.string().max(10).optional().nullable(),
+          approvedPeriod: z.string().max(50).optional().nullable(),
+          approvedEndDate: z.string().max(10).optional().nullable(),
+          notes: z.string().optional().nullable(),
+        }))
+        .mutation(async ({ input }) => {
+          const id = await createCustomerQualification(input);
+          return { id };
+        }),
+      update: publicProcedure
+        .input(z.object({
+          id: z.number().int().positive(),
+          careReceiverId: z.number().int().positive().optional().nullable(),
+          caseId: z.number().int().positive().optional().nullable(),
+          label: z.string().max(100).optional().nullable(),
+          caseNo: z.string().max(20).optional().nullable(),
+          caseStatus: z.enum(['pending','processing','matched','completed','cancelled']).optional().nullable(),
+          managerId: z.number().int().positive().optional().nullable(),
+          jobSeekerType: z.enum(['new_hire','renewal','transfer','supplement']).optional().nullable(),
+          jobSeekerDate: z.string().max(10).optional().nullable(),
+          jobSeekerFileKey: z.string().max(300).optional().nullable(),
+          recruitmentLetterType: z.enum(['domestic','overseas','both']).optional().nullable(),
+          recruitmentLetterDate: z.string().max(10).optional().nullable(),
+          recruitmentLetterFileKey: z.string().max(300).optional().nullable(),
+          recruitmentPermitNote: z.string().optional().nullable(),
+          recruitmentPermitDays: z.number().int().optional().nullable(),
+          previousWorkerDepartureDate: z.string().max(10).optional().nullable(),
+          employmentLetterType: z.enum(['initial','renewal','transfer']).optional().nullable(),
+          employmentLetterDate: z.string().max(10).optional().nullable(),
+          employmentLetterFileKey: z.string().max(300).optional().nullable(),
+          approvedStartDate: z.string().max(10).optional().nullable(),
+          approvedPeriod: z.string().max(50).optional().nullable(),
+          approvedEndDate: z.string().max(10).optional().nullable(),
+          notes: z.string().optional().nullable(),
+        }))
+        .mutation(async ({ input }) => {
+          const { id, ...data } = input;
+          await updateCustomerQualification(id, data);
+          return { success: true };
+        }),
+      delete: publicProcedure
+        .input(z.object({ id: z.number().int().positive() }))
+        .mutation(async ({ input }) => {
+          await deleteCustomerQualification(input.id);
+          return { success: true };
+        }),
+    }),
   }),
 
-  // ─── Cases Router ─────────────────────────────────────────────────────────
+  // ─── Cases Router ─────────────────────────────────────────────────────
   cases: router({
     list: publicProcedure
       .input(z.object({

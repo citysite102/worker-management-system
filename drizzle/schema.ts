@@ -229,6 +229,7 @@ export const cases = mysqlTable("cases", {
   caseCondition: varchar("caseCondition", { length: 100 }), // 案件情況（自由文字）
   // ── 主要移工 ──────────────────────────────────────────────────────────────
   primaryWorkerId: int("primaryWorkerId"),               // → workers.id（主要外國人）
+  careReceiverId: int("careReceiverId"),                  // → customer_care_receivers.id（個人雇主時關聯被照顧者）
   // ── 標記 ──────────────────────────────────────────────────────────────────
   needsReview: int("needsReview").default(0).notNull(),  // 需檢查標記（0/1）
   // ── 附件 ──────────────────────────────────────────────────────────────────

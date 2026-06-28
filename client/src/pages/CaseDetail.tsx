@@ -49,6 +49,17 @@ export default function CaseDetail() {
     }
   );
 
+  // 被照顧者：從新子表讀取
+  const careReceiverId = (caseData as any)?.careReceiverId;
+  const customerId = (caseData as any)?.customerId;
+  const { data: careReceivers = [] } = trpc.customers.careReceivers.listByCustomer.useQuery(
+    { customerId: customerId ?? 0 },
+    { enabled: !!customerId }
+  );
+  const linkedCareReceiver = careReceiverId
+    ? careReceivers.find((cr: any) => cr.id === careReceiverId) ?? null
+    : null;
+
   if (isLoading) {
     return <PageSkeleton cardRows={3} />;
   }
@@ -172,18 +183,37 @@ export default function CaseDetail() {
                   <span className="text-muted-foreground w-20 shrink-0">通訊地址</span>
                   <span className="font-medium">{(caseData as any).customerAddress || "—"}</span>
                 </div>
-                {(caseData as any).careReceiverName && (
+                {linkedCareReceiver ? (
+                  <>
+                    <div className="flex items-start gap-2">
+                      <span className="text-muted-foreground w-20 shrink-0">被照顧者</span>
+                      <span className="font-medium">{linkedCareReceiver.careReceiverName || "—"}</span>
+                    </div>
+                    {linkedCareReceiver.careReceiverRelation && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-muted-foreground w-20 shrink-0">關係</span>
+                        <span className="font-medium">{linkedCareReceiver.careReceiverRelation}</span>
+                      </div>
+                    )}
+                    {linkedCareReceiver.careReceiverQualification && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-muted-foreground w-20 shrink-0">申請資格</span>
+                        <Badge variant="secondary" className="text-xs">{linkedCareReceiver.careReceiverQualification}</Badge>
+                      </div>
+                    )}
+                    {linkedCareReceiver.careReceiverIdNo && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-muted-foreground w-20 shrink-0">身分證</span>
+                        <span className="font-medium font-mono text-xs">{linkedCareReceiver.careReceiverIdNo}</span>
+                      </div>
+                    )}
+                  </>
+                ) : careReceiverId ? (
                   <div className="flex items-start gap-2">
                     <span className="text-muted-foreground w-20 shrink-0">被照顧者</span>
-                    <span className="font-medium">{(caseData as any).careReceiverName}</span>
+                    <span className="text-xs text-muted-foreground">載入中...</span>
                   </div>
-                )}
-                {(caseData as any).careReceiverQualification && (
-                  <div className="flex items-start gap-2">
-                    <span className="text-muted-foreground w-20 shrink-0">申請資格</span>
-                    <Badge variant="secondary" className="text-xs">{(caseData as any).careReceiverQualification}</Badge>
-                  </div>
-                )}
+                ) : null}
               </div>
               {/* 招募許可函連結 */}
               {(caseData as any).recruitmentPermitFileKey && (

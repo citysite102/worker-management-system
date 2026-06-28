@@ -33,6 +33,7 @@ const schema = z.object({
   status: z.enum(["in_progress", "completed", "paused", "cancelled"]),
   caseCondition: z.string().max(100).optional(),
   primaryWorkerId: z.number().int().positive().optional().nullable(),
+  careReceiverId: z.number().int().positive().optional().nullable(),
   needsReview: z.boolean().optional(),
   recruitmentPermitFileKey: z.string().max(300).optional().nullable(),
   // 聘僱時間
@@ -107,6 +108,7 @@ const EMPTY_DEFAULTS: FormValues = {
   notes: "",
   caseCondition: "",
   primaryWorkerId: null,
+  careReceiverId: null,
   needsReview: false,
   recruitmentPermitFileKey: null,
   continuousEmploymentDate: null,
@@ -159,6 +161,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
   const { data: customers = [] } = trpc.customers.list.useQuery();
   const { data: managers = [] } = trpc.managers.list.useQuery();
   const { data: workers = [] } = trpc.workers.list.useQuery();
+  const [selectedCareReceiverId, setSelectedCareReceiverId] = useState<number | null>(null);
 
   // ── 附件上傳狀態 ──
   const [uploadingPermit, setUploadingPermit] = useState(false);
@@ -190,6 +193,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
         notes: editingCase.notes ?? "",
         caseCondition: editingCase.caseCondition ?? "",
         primaryWorkerId: editingCase.primaryWorkerId ?? null,
+        careReceiverId: editingCase.careReceiverId ?? null,
         needsReview: editingCase.needsReview === 1 || editingCase.needsReview === true,
         recruitmentPermitFileKey: editingCase.recruitmentPermitFileKey ?? null,
         continuousEmploymentDate: editingCase.continuousEmploymentDate ?? null,
@@ -266,6 +270,10 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
 
   // ── watched values ──
   const watchedCustomerId = watch("customerId");
+  const { data: careReceivers = [] } = trpc.customers.careReceivers.listByCustomer.useQuery(
+    { customerId: watchedCustomerId },
+    { enabled: !!watchedCustomerId }
+  );
   const watchedManagerId = watch("managerId");
   const watchedStatus = watch("status");
   const watchedPrimaryWorkerId = watch("primaryWorkerId");
@@ -470,7 +478,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
               </FormGrid>
 
               {selectedCustomer && (
-                <div className="rounded-lg bg-muted/40 border border-border/50 p-3 space-y-2">
+                <div className="rounded-lg bg-muted/40 border border-border/50 p-3 space-y-3">
                   <p className="text-xs text-muted-foreground font-medium">自動帶入（唯讀）</p>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="flex items-center gap-1.5">
@@ -478,23 +486,57 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
                       <span className="text-muted-foreground text-xs">電話：</span>
                       <span className="font-medium">{selectedCustomer.phone || "—"}</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Heart className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-muted-foreground text-xs">被照顧者：</span>
-                      <span className="font-medium">{(selectedCustomer as any).careReceiverName || "—"}</span>
-                    </div>
                     <div className="flex items-start gap-1.5 col-span-2">
                       <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                       <span className="text-muted-foreground text-xs">通訊地址：</span>
                       <span className="font-medium">{selectedCustomer.address || "—"}</span>
                     </div>
-                    {(selectedCustomer as any).careReceiverQualification && (
-                      <div className="flex items-center gap-1.5 col-span-2">
-                        <span className="text-muted-foreground text-xs">被照顧者資格：</span>
-                        <Badge variant="secondary" className="text-xs">{(selectedCustomer as any).careReceiverQualification}</Badge>
-                      </div>
-                    )}
                   </div>
+                  {/* 個人雇主：被照顧者選擇 */}
+                  {(selectedCustomer as any).employerType === "individual" && (
+                    <div className="border-t border-border/40 pt-3">
+                      <FormField label="選擇被照顧者">
+                        {careReceivers.length === 0 ? (
+                          <p className="text-xs text-muted-foreground py-1">此客戶尚未建立被照顧者資料</p>
+                        ) : (
+                          <Select
+                            value={watch("careReceiverId") ? String(watch("careReceiverId")) : "__none__"}
+                            onValueChange={v => {
+                              const id = v === "__none__" ? null : Number(v);
+                              setValue("careReceiverId", id);
+                              setSelectedCareReceiverId(id);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="選擇被照顧者" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">— 不指定 —</SelectItem>
+                              {careReceivers.map((cr: any) => (
+                                <SelectItem key={cr.id} value={String(cr.id)}>
+                                  {cr.careReceiverName || `被照顧者 #${cr.id}`}
+                                  {cr.careReceiverRelation ? ` · ${cr.careReceiverRelation}` : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </FormField>
+                      {/* 選定被照顧者後顯示詳情 */}
+                      {(() => {
+                        const crId = watch("careReceiverId");
+                        const cr = careReceivers.find((c: any) => c.id === crId);
+                        if (!cr) return null;
+                        return (
+                          <div className="mt-2 rounded bg-background/60 border border-border/40 p-2 text-xs space-y-1">
+                            {cr.careReceiverIdNo && <div className="flex gap-1"><span className="text-muted-foreground">身分證：</span><span>{cr.careReceiverIdNo}</span></div>}
+                            {cr.careReceiverAddress && <div className="flex gap-1"><span className="text-muted-foreground">戶籍地：</span><span>{cr.careReceiverAddress}</span></div>}
+                            {cr.careReceiverQualification && <div className="flex gap-1"><span className="text-muted-foreground">申請資格：</span><Badge variant="secondary" className="text-xs">{cr.careReceiverQualification}</Badge></div>}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
               )}
 

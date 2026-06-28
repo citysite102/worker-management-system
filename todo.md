@@ -344,3 +344,12 @@
 - [x] 產出元件 API 提案（Logo variant/size、Mascot pose/size、EmptyState props）
 - [x] 產出缺漏姿態清單（四姿態以外需要的新姿態）
 - [ ] 交用戶確認 Phase 1 交付物（等待 Samuel 確認後進入 Phase 2）
+
+## 案件邏輯更新（配合多資格架構）
+
+- [ ] cases 表新增 careReceiverId 欄位（FK → customer_care_receivers.id）
+- [ ] cases.create / cases.update API 支援 careReceiverId
+- [ ] CaseModal：選擇個人雇主後，從新子表載入被照顧者清單，支援下拉選擇；只有一位時自動預選
+- [ ] CaseModal：移除舊的 careReceiverName / careReceiverQualification 靜態顯示，改為動態子表資料
+- [ ] CaseDetail：被照顧者資訊改從 customer_care_receivers 子表讀取（透過 careReceiverId）
+- [ ] Customers.tsx 搜尋邏輯：移除舊 careReceiverName 等欄位的搜尋（改為搜尋子表）

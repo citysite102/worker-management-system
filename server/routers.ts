@@ -778,6 +778,7 @@ export const appRouter = router({
         status: z.enum(["in_progress", "completed", "paused", "cancelled"]).default("in_progress"),
         caseCondition: z.string().max(100).optional().nullable().transform(s => s?.trim() || undefined),
         primaryWorkerId: z.number().int().positive().optional().nullable(),
+        careReceiverId: z.number().int().positive().optional().nullable(),
         needsReview: z.boolean().optional().nullable().transform(v => v ? 1 : 0),
         recruitmentPermitFileKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
         // Phase 2: 脩僱時間
@@ -844,6 +845,7 @@ export const appRouter = router({
         status: z.enum(["in_progress", "completed", "paused", "cancelled"]),
         caseCondition: z.string().max(100).optional().transform(s => s?.trim() || undefined),
         primaryWorkerId: z.number().int().positive().optional().nullable(),
+        careReceiverId: z.number().int().positive().optional().nullable(),
         needsReview: z.boolean().optional().transform(v => v ? 1 : 0),
         recruitmentPermitFileKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
         // Phase 2: 聘僱時間

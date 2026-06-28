@@ -14,8 +14,6 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import {
   CONTRACT_STATUS_OPTIONS, PRICING_TIER_OPTIONS, EMPLOYER_TYPE_OPTIONS,
-  CASE_STATUS_OPTIONS, JOB_SEEKER_TYPE_OPTIONS,
-  RECRUITMENT_LETTER_TYPE_OPTIONS, EMPLOYMENT_LETTER_TYPE_OPTIONS,
 } from "@/lib/constants";
 import { validateTwPhone, validateTaxId } from "@/lib/validation";
 import { useFormEnterNav } from "@/hooks/useFormEnterNav";
@@ -36,36 +34,11 @@ interface CustomerFormData {
   // 個人雇主
   idNo: string;
   preCourseNo: string;
-  // 被照顧者
-  careReceiverNo: string;
-  careReceiverName: string;
-  careReceiverBirthDate: string;
-  careReceiverIdNo: string;
-  careReceiverAddress: string;
-  careReceiverQualification: string;
-  careReceiverRelation: string;
   // 公司行號
   taxId: string;
   industry: string;
   contactName: string;
   contactPhone: string;
-  // 媒合案件
-  caseNo: string;
-  caseStatus: string;
-  // 申請資格
-  jobSeekerType: string;
-  jobSeekerDate: string;
-  recruitmentLetterType: string;
-  recruitmentLetterDate: string;
-  recruitmentPermitNote: string;
-  recruitmentPermitDays: string;
-  previousWorkerDepartureDate: string;
-  // 聘僱函
-  employmentLetterType: string;
-  employmentLetterDate: string;
-  approvedStartDate: string;
-  approvedPeriod: string;
-  approvedEndDate: string;
   // 系統
   contractStatus: string;
   pricingTier: string;
@@ -75,9 +48,7 @@ interface CustomerFormData {
 
 // 附件 key 欄位
 type AttachmentKey =
-  | "idFrontKey" | "idBackKey"
-  | "careReceiverIdFrontKey" | "careReceiverIdBackKey"
-  | "jobSeekerFileKey" | "recruitmentLetterFileKey" | "employmentLetterFileKey";
+  | "idFrontKey" | "idBackKey";
 
 interface AttachmentState {
   key: string | null;
@@ -90,11 +61,6 @@ type AttachmentsState = Record<AttachmentKey, AttachmentState>;
 const ATTACHMENT_LABELS: Record<AttachmentKey, { label: string; accept: string; isImage: boolean }> = {
   idFrontKey: { label: "雇主身分證正面", accept: "image/*", isImage: true },
   idBackKey: { label: "雇主身分證反面", accept: "image/*", isImage: true },
-  careReceiverIdFrontKey: { label: "被看護者身分證正面", accept: "image/*", isImage: true },
-  careReceiverIdBackKey: { label: "被看護者身分證反面", accept: "image/*", isImage: true },
-  jobSeekerFileKey: { label: "求才資格檔案", accept: ".pdf,image/*", isImage: false },
-  recruitmentLetterFileKey: { label: "招募函許可檔案", accept: ".pdf,image/*", isImage: false },
-  employmentLetterFileKey: { label: "聘僱函檔案", accept: ".pdf,image/*", isImage: false },
 };
 
 const emptyAttachments = (): AttachmentsState =>
@@ -218,15 +184,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
       name: "", employerNo: "", phone: "", landline: "",
       address: "", registeredAddress: "", referrer: "",
       idNo: "", preCourseNo: "",
-      careReceiverNo: "", careReceiverName: "", careReceiverBirthDate: "",
-      careReceiverIdNo: "", careReceiverAddress: "", careReceiverQualification: "", careReceiverRelation: "",
       taxId: "", industry: "", contactName: "", contactPhone: "",
-      caseNo: "", caseStatus: "",
-      jobSeekerType: "", jobSeekerDate: "",
-      recruitmentLetterType: "", recruitmentLetterDate: "",
-      recruitmentPermitNote: "", recruitmentPermitDays: "", previousWorkerDepartureDate: "",
-      employmentLetterType: "", employmentLetterDate: "",
-      approvedStartDate: "", approvedPeriod: "", approvedEndDate: "",
       contractStatus: "", pricingTier: "", managerId: "", notes: "",
     },
   });
@@ -259,31 +217,10 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
         referrer: c.referrer ?? "",
         idNo: c.idNo ?? "",
         preCourseNo: c.preCourseNo ?? "",
-        careReceiverNo: c.careReceiverNo ?? "",
-        careReceiverName: c.careReceiverName ?? "",
-        careReceiverBirthDate: c.careReceiverBirthDate ?? "",
-        careReceiverIdNo: c.careReceiverIdNo ?? "",
-        careReceiverAddress: c.careReceiverAddress ?? "",
-        careReceiverQualification: c.careReceiverQualification ?? "",
-        careReceiverRelation: c.careReceiverRelation ?? "",
         taxId: c.taxId ?? "",
         industry: c.industry ?? "",
         contactName: c.contactName ?? "",
         contactPhone: c.contactPhone ?? "",
-        caseNo: c.caseNo ?? "",
-        caseStatus: c.caseStatus ?? "",
-        jobSeekerType: c.jobSeekerType ?? "",
-        jobSeekerDate: c.jobSeekerDate ?? "",
-        recruitmentLetterType: c.recruitmentLetterType ?? "",
-        recruitmentLetterDate: c.recruitmentLetterDate ?? "",
-        recruitmentPermitNote: c.recruitmentPermitNote ?? "",
-        recruitmentPermitDays: c.recruitmentPermitDays != null ? String(c.recruitmentPermitDays) : "",
-        previousWorkerDepartureDate: c.previousWorkerDepartureDate ?? "",
-        employmentLetterType: c.employmentLetterType ?? "",
-        employmentLetterDate: c.employmentLetterDate ?? "",
-        approvedStartDate: c.approvedStartDate ?? "",
-        approvedPeriod: c.approvedPeriod ?? "",
-        approvedEndDate: c.approvedEndDate ?? "",
         contractStatus: c.contractStatus ?? "",
         pricingTier: c.pricingTier ?? "",
         managerId: String(c.managerId),
@@ -302,15 +239,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
         name: "", employerNo: "", phone: "", landline: "",
         address: "", registeredAddress: "", referrer: "",
         idNo: "", preCourseNo: "",
-        careReceiverNo: "", careReceiverName: "", careReceiverBirthDate: "",
-        careReceiverIdNo: "", careReceiverAddress: "", careReceiverQualification: "", careReceiverRelation: "",
         taxId: "", industry: "", contactName: "", contactPhone: "",
-        caseNo: "", caseStatus: "",
-        jobSeekerType: "", jobSeekerDate: "",
-        recruitmentLetterType: "", recruitmentLetterDate: "",
-        recruitmentPermitNote: "", recruitmentPermitDays: "", previousWorkerDepartureDate: "",
-        employmentLetterType: "", employmentLetterDate: "",
-        approvedStartDate: "", approvedPeriod: "", approvedEndDate: "",
         contractStatus: "", pricingTier: "", managerId: "", notes: "",
       });
       setAttachments(emptyAttachments());
@@ -390,36 +319,10 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
     preCourseNo: data.preCourseNo.trim() || undefined,
     idFrontKey: attachments.idFrontKey.key || undefined,
     idBackKey: attachments.idBackKey.key || undefined,
-    careReceiverNo: data.careReceiverNo.trim() || undefined,
-    careReceiverName: data.careReceiverName.trim() || undefined,
-    careReceiverBirthDate: data.careReceiverBirthDate.trim() || undefined,
-    careReceiverIdNo: data.careReceiverIdNo.trim() || undefined,
-    careReceiverAddress: data.careReceiverAddress.trim() || undefined,
-    careReceiverQualification: data.careReceiverQualification.trim() || undefined,
-    careReceiverRelation: data.careReceiverRelation.trim() || undefined,
-    careReceiverIdFrontKey: attachments.careReceiverIdFrontKey.key || undefined,
-    careReceiverIdBackKey: attachments.careReceiverIdBackKey.key || undefined,
     taxId: data.taxId.trim() || undefined,
     industry: data.industry.trim() || undefined,
     contactName: data.contactName.trim() || undefined,
     contactPhone: data.contactPhone.trim() || undefined,
-    caseNo: data.caseNo.trim() || undefined,
-    caseStatus: (data.caseStatus || undefined) as any,
-    jobSeekerType: (data.jobSeekerType || undefined) as any,
-    jobSeekerDate: data.jobSeekerDate.trim() || undefined,
-    jobSeekerFileKey: attachments.jobSeekerFileKey.key || undefined,
-    recruitmentLetterType: (data.recruitmentLetterType || undefined) as any,
-    recruitmentLetterDate: data.recruitmentLetterDate.trim() || undefined,
-    recruitmentLetterFileKey: attachments.recruitmentLetterFileKey.key || undefined,
-    recruitmentPermitNote: data.recruitmentPermitNote.trim() || undefined,
-    recruitmentPermitDays: data.recruitmentPermitDays ? parseInt(data.recruitmentPermitDays) : undefined,
-    previousWorkerDepartureDate: data.previousWorkerDepartureDate.trim() || undefined,
-    employmentLetterType: (data.employmentLetterType || undefined) as any,
-    employmentLetterDate: data.employmentLetterDate.trim() || undefined,
-    employmentLetterFileKey: attachments.employmentLetterFileKey.key || undefined,
-    approvedStartDate: data.approvedStartDate.trim() || undefined,
-    approvedPeriod: data.approvedPeriod.trim() || undefined,
-    approvedEndDate: data.approvedEndDate.trim() || undefined,
     contractStatus: data.contractStatus as any,
     pricingTier: data.pricingTier as any,
     managerId: parseInt(data.managerId),
@@ -680,139 +583,6 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
               </>
             )}
 
-            {/* ── 被照顧者基本資料（個人雇主） ──────────────────────────── */}
-            {isIndividual && (
-              <>
-                <SectionTitle>被照顧者基本資料</SectionTitle>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="c-careReceiverNo">被看護者編號</Label>
-                    <Input id="c-careReceiverNo" {...register("careReceiverNo")} {...enterProps} placeholder="例：00033" className="mt-2 font-mono" />
-                  </div>
-                  <div>
-                    <Label htmlFor="c-careReceiverName">被照顧者姓名</Label>
-                    <Input id="c-careReceiverName" {...register("careReceiverName")} {...enterProps} placeholder="請輸入姓名" className="mt-2" autoComplete="off" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="c-careReceiverBirthDate">出生年月日</Label>
-                    <Input id="c-careReceiverBirthDate" {...register("careReceiverBirthDate")} {...enterProps} type="date" className="mt-2" />
-                  </div>
-                  <div>
-                    <Label htmlFor="c-careReceiverIdNo">國民身分證字號</Label>
-                    <Input id="c-careReceiverIdNo" {...register("careReceiverIdNo")} {...enterProps} placeholder="A123456789" className="mt-2 font-mono" maxLength={10} />
-                  </div>
-                  <div>
-                    <Label htmlFor="c-careReceiverQualification">被照顧者申請資格</Label>
-                    <Input id="c-careReceiverQualification" {...register("careReceiverQualification")} {...enterProps} placeholder="請輸入申請資格" className="mt-2" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="c-careReceiverAddress">被照顧者戶籍地址</Label>
-                    <Input id="c-careReceiverAddress" {...register("careReceiverAddress")} {...enterProps} placeholder="請輸入戶籍地址" className="mt-2" autoComplete="off" />
-                  </div>
-                  <div>
-                    <Label htmlFor="c-careReceiverRelation">聘前講習上課者與被看護者關係</Label>
-                    <Input id="c-careReceiverRelation" {...register("careReceiverRelation")} {...enterProps} placeholder="例：子女、配偶" className="mt-2" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <AttachmentUploader fieldKey="careReceiverIdFrontKey" state={attachments.careReceiverIdFrontKey} onUpload={handleUpload} onRemove={handleRemove} />
-                  <AttachmentUploader fieldKey="careReceiverIdBackKey" state={attachments.careReceiverIdBackKey} onUpload={handleUpload} onRemove={handleRemove} />
-                </div>
-              </>
-            )}
-
-            {/* ── 媒合案件 ─────────────────────────────────────────────────── */}
-            <SectionTitle>媒合案件</SectionTitle>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="c-caseNo">媒合案件編號</Label>
-                <Input id="c-caseNo" {...register("caseNo")} {...enterProps} placeholder="例：00033" className="mt-2 font-mono" />
-              </div>
-              <SelectField id="c-caseStatus" label="管理狀態" fieldName="caseStatus" options={CASE_STATUS_OPTIONS} />
-              <div>
-                <Label>管理負責人 <span className="text-destructive">*</span></Label>
-                <Select
-                  value={watch("managerId") || ""}
-                  onValueChange={(v) => { setValue("managerId", v); clearErrors("managerId"); }}
-                >
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="請選擇負責人" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {managers?.map((m) => (
-                      <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.managerId && <p className="field-error" data-field-error>{errors.managerId.message}</p>}
-              </div>
-            </div>
-
-            {/* ── 申請資格 ─────────────────────────────────────────────────── */}
-            <SectionTitle>申請資格</SectionTitle>
-            <div className="grid grid-cols-3 gap-4">
-              <SelectField id="c-jobSeekerType" label="求才類別" fieldName="jobSeekerType" options={JOB_SEEKER_TYPE_OPTIONS} />
-              <div>
-                <Label htmlFor="c-jobSeekerDate">求才日期</Label>
-                <Input id="c-jobSeekerDate" {...register("jobSeekerDate")} type="date" className="mt-2" />
-              </div>
-              <AttachmentUploader fieldKey="jobSeekerFileKey" state={attachments.jobSeekerFileKey} onUpload={handleUpload} onRemove={handleRemove} />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <SelectField id="c-recruitmentLetterType" label="招募函類別" fieldName="recruitmentLetterType" options={RECRUITMENT_LETTER_TYPE_OPTIONS} />
-              <div>
-                <Label htmlFor="c-recruitmentLetterDate">招募函申請日期</Label>
-                <Input id="c-recruitmentLetterDate" {...register("recruitmentLetterDate")} type="date" className="mt-2" />
-              </div>
-              <AttachmentUploader fieldKey="recruitmentLetterFileKey" state={attachments.recruitmentLetterFileKey} onUpload={handleUpload} onRemove={handleRemove} />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
-                <Label htmlFor="c-recruitmentPermitNote">招募許可情況說明</Label>
-                <Input id="c-recruitmentPermitNote" {...register("recruitmentPermitNote")} {...enterProps} placeholder="請輸入說明" className="mt-2" />
-              </div>
-              <div>
-                <Label htmlFor="c-recruitmentPermitDays">許可天數</Label>
-                <Input id="c-recruitmentPermitDays" {...register("recruitmentPermitDays")} {...enterProps} type="number" min={0} placeholder="天數" className="mt-2" inputMode="numeric" />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="c-previousWorkerDepartureDate">舊工離境日期</Label>
-              <Input id="c-previousWorkerDepartureDate" {...register("previousWorkerDepartureDate")} type="date" className="mt-2 max-w-[200px]" />
-            </div>
-
-            {/* ── 聘僱函 ───────────────────────────────────────────────────── */}
-            <SectionTitle>聘僱函</SectionTitle>
-            <div className="grid grid-cols-3 gap-4">
-              <SelectField id="c-employmentLetterType" label="聘僱函類別" fieldName="employmentLetterType" options={EMPLOYMENT_LETTER_TYPE_OPTIONS} />
-              <div>
-                <Label htmlFor="c-employmentLetterDate">聘僱函申請日期</Label>
-                <Input id="c-employmentLetterDate" {...register("employmentLetterDate")} type="date" className="mt-2" />
-              </div>
-              <AttachmentUploader fieldKey="employmentLetterFileKey" state={attachments.employmentLetterFileKey} onUpload={handleUpload} onRemove={handleRemove} />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="c-approvedStartDate">核准聘僱起始日</Label>
-                <Input id="c-approvedStartDate" {...register("approvedStartDate")} type="date" className="mt-2" />
-              </div>
-              <div>
-                <Label htmlFor="c-approvedPeriod">核准聘僱期限</Label>
-                <Input id="c-approvedPeriod" {...register("approvedPeriod")} {...enterProps} placeholder="例：3年" className="mt-2" />
-              </div>
-              <div>
-                <Label htmlFor="c-approvedEndDate">核准聘僱截止日</Label>
-                <Input id="c-approvedEndDate" {...register("approvedEndDate")} type="date" className="mt-2" />
-              </div>
-            </div>
 
             {/* ── 系統管理 ─────────────────────────────────────────────────── */}
             <SectionTitle>系統管理</SectionTitle>

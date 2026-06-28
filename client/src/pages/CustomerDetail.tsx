@@ -160,6 +160,7 @@ export default function CustomerDetail() {
             {!isPersonal && <InfoRow label="產業" value={customer.industry} />}
             {!isPersonal && <InfoRow label="聯絡窗口" value={customer.contactName} />}
             {!isPersonal && <InfoRow label="聯絡窗口電話" value={customer.contactPhone} />}
+            <InfoRow label="建立時間" value={customer.createdAt ? new Date(customer.createdAt).toLocaleString("zh-TW") : undefined} />
           </div>
 
           {hasIdAttachment && (

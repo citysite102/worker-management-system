@@ -95,6 +95,12 @@ export default function CaseDetail() {
                   <span className="text-amber-600 font-medium">{(caseData as any).caseCondition}</span>
                 </>
               )}
+              {caseData.createdAt && (
+                <>
+                  <span>·</span>
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" />建立 {new Date(caseData.createdAt).toLocaleString("zh-TW")}</span>
+                </>
+              )}
             </div>
           </div>
         </div>

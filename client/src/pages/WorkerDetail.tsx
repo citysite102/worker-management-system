@@ -216,6 +216,7 @@ export default function WorkerDetail() {
             <InfoRow label="職業" value={OCCUPATION_OPTIONS.find(o => o.value === worker.occupation)?.label ?? worker.occupation ?? "—"} />
             <InfoRow label="入境日期" value={worker.entryDate} />
             <InfoRow label="備註" value={worker.notes} className="col-span-2" />
+            <InfoRow label="建立時間" value={worker.createdAt ? new Date(worker.createdAt).toLocaleString("zh-TW") : undefined} />
           </div>
 
           <Separator className="my-5" />

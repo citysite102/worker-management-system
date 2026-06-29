@@ -587,6 +587,13 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
             {/* ── 系統管理 ─────────────────────────────────────────────────── */}
             <SectionTitle>系統管理</SectionTitle>
             <div className="grid grid-cols-2 gap-4">
+              <SelectField
+                id="c-managerId"
+                label="負責人"
+                fieldName="managerId"
+                options={(managers ?? []).map((m) => ({ value: String(m.id), label: m.name }))}
+                required
+              />
               <SelectField id="c-contractStatus" label="合約狀態" fieldName="contractStatus" options={CONTRACT_STATUS_OPTIONS} required />
               <SelectField id="c-pricingTier" label="定價級距" fieldName="pricingTier" options={PRICING_TIER_OPTIONS} required />
             </div>

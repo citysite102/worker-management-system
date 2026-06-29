@@ -401,6 +401,32 @@ export async function getDemandProgress(demandId: number): Promise<{ matchedCoun
   return { matchedCount, employedCount };
 }
 
+/** 批次計算多筆需求的進度（消除 N+1）：總計 2 次查詢 */
+export async function getDemandProgressBatch(demandIds: number[]): Promise<Map<number, { matchedCount: number; employedCount: number }>> {
+  const result = new Map<number, { matchedCount: number; employedCount: number }>(
+    demandIds.map(id => [id, { matchedCount: 0, employedCount: 0 }])
+  );
+  if (demandIds.length === 0) return result;
+  const db = await getDb();
+  if (!db) return result;
+  const assignmentRows = await db.select({ id: caseAssignments.id, demandId: caseAssignments.demandId })
+    .from(caseAssignments).where(inArray(caseAssignments.demandId, demandIds));
+  if (assignmentRows.length === 0) return result;
+  const assignmentIds = assignmentRows.map(a => a.id);
+  const assignmentToDemand = new Map(assignmentRows.map(a => [a.id, a.demandId!]));
+  const members = await db.select({ assignmentId: caseAssignmentWorkers.assignmentId, stage: caseAssignmentWorkers.stage })
+    .from(caseAssignmentWorkers).where(inArray(caseAssignmentWorkers.assignmentId, assignmentIds));
+  for (const m of members) {
+    const demandId = assignmentToDemand.get(m.assignmentId);
+    if (demandId == null) continue;
+    const r = result.get(demandId);
+    if (!r) continue;
+    if (['confirmed', 'upcoming', 'employed'].includes(m.stage)) r.matchedCount++;
+    if (m.stage === 'employed') r.employedCount++;
+  }
+  return result;
+}
+
 // ─── Case Assignments（配對）────────────────────────────────────────────────
 export async function getAssignmentsByCaseId(caseId: number) {
   const db = await getDb();

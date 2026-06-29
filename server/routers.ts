@@ -10,9 +10,9 @@ import {
   getAllCustomers, getCustomerById, getCustomerByTaxId, getCustomerByName, createCustomer, updateCustomer, deleteCustomer,
   getAllCases, getCaseById, createCase, updateCase, deleteCase, getCaseChildCounts,
   getQualificationsByCaseId, getQualificationById, createQualification, updateQualification, deleteQualification, getQuotaUsed,
-  getDemandsByCaseId, getDemandById, createDemand, updateDemand, deleteDemand, getDemandProgress,
+  getDemandsByCaseId, getDemandById, createDemand, updateDemand, deleteDemand, getDemandProgressBatch,
   getAssignmentsByCaseId, getAssignmentById, createAssignment, updateAssignment, deleteAssignment,
-  getMembersByAssignmentId, getMembersByCaseId, getMemberById, createMember, updateMember, deleteMember,
+  getMembersByCaseId, getMemberById, createMember, updateMember, deleteMember,
   getWorkerInvolvements, getCaseDimensions, getCaseDimensionsBatch, getQuotaUsedBatch,
   getEmploymentsByCase, createEmployment, updateEmployment, deleteEmployment,
   getCareReceiversByCustomerId, createCareReceiver, updateCareReceiver, deleteCareReceiver,
@@ -1057,11 +1057,13 @@ export const appRouter = router({
       .input(z.object({ caseId: z.number().int().positive() }))
       .query(async ({ input }) => {
         const demands = await getDemandsByCaseId(input.caseId);
-        return Promise.all(demands.map(async d => {
-          const { matchedCount, employedCount } = await getDemandProgress(d.id);
+        if (demands.length === 0) return [];
+        const progressMap = await getDemandProgressBatch(demands.map(d => d.id));
+        return demands.map(d => {
+          const { matchedCount, employedCount } = progressMap.get(d.id) ?? { matchedCount: 0, employedCount: 0 };
           const progress = d.neededCount > 0 ? Math.round((matchedCount / d.neededCount) * 100) : 0;
           return { ...d, matchedCount, employedCount, progress };
-        }));
+        });
       }),
     create: publicProcedure
       .input(z.object({
@@ -1105,11 +1107,21 @@ export const appRouter = router({
     listByCase: publicProcedure
       .input(z.object({ caseId: z.number().int().positive(), stage: z.string().optional() }))
       .query(async ({ input }) => {
-        const assignments = await getAssignmentsByCaseId(input.caseId);
-        const allWorkers = await getAllWorkers();
+        const [assignments, allMembers, allWorkers] = await Promise.all([
+          getAssignmentsByCaseId(input.caseId),
+          getMembersByCaseId(input.caseId),
+          getAllWorkers(),
+        ]);
         const workerMap = new Map(allWorkers.map(w => [w.id, w]));
-        return Promise.all(assignments.map(async a => {
-          const members = await getMembersByAssignmentId(a.id);
+        // 依 assignmentId 分組成員（一次查詢取代逐一查詢，消除 N+1）
+        const membersByAssignment = new Map<number, typeof allMembers>();
+        for (const m of allMembers) {
+          const list = membersByAssignment.get(m.assignmentId) ?? [];
+          list.push(m);
+          membersByAssignment.set(m.assignmentId, list);
+        }
+        return assignments.map(a => {
+          const members = membersByAssignment.get(a.id) ?? [];
           const enrichedMembers = members
             .filter(m => !input.stage || m.stage === input.stage)
             .map(m => ({
@@ -1121,7 +1133,7 @@ export const appRouter = router({
               workerLifecycleStatus: workerMap.get(m.workerId)?.lifecycleStatus ?? "",
             }));
           return { ...a, members: enrichedMembers };
-        }));
+        });
       }),
     create: publicProcedure
       .input(z.object({

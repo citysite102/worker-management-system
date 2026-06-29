@@ -38,6 +38,7 @@ export const workers = mysqlTable("workers", {
 
   // ── 基本資料 ──────────────────────────────────────────────────────────────
   /** 系統流水編號（如 00026），自動由 id 補零產生，不存 DB，前端計算 */
+  workerNo: varchar("workerNo", { length: 50 }),        // 編號（手動輸入，自由文字）
   nameEn: varchar("nameEn", { length: 100 }),           // 英文姓名
   nameCn: varchar("nameCn", { length: 50 }),             // 中文姓名
   /** 相容舊欄位：若 nameCn 有值則優先顯示，否則 fallback 至 name */
@@ -58,11 +59,11 @@ export const workers = mysqlTable("workers", {
 
   // ── 狀態 ──────────────────────────────────────────────────────────────────
   lifecycleStatus: mysqlEnum("lifecycleStatus", [
-    "recruiting",           // 招募中
-    "document_processing",  // 文件辦理
-    "employed",             // 在職中
-    "pending_renewal",      // 待續聘
-    "departed",             // 已離境
+    "employed",          // 在職中
+    "idle_in_tw",        // 待業中（在台灣）
+    "preparing_abroad",  // 準備來台（在母國）
+    "returned",          // 已回國（結案，未來可聯繫）
+    "absconded",         // 逃跑（已結案）
   ]).notNull(),
   documentStatus: mysqlEnum("documentStatus", [
     "not_started",          // 未啟動

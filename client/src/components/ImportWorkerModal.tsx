@@ -21,16 +21,29 @@ const GENDER_MAP: Record<string, string> = {
 };
 
 const LIFECYCLE_MAP: Record<string, string> = {
-  "招募中": "recruiting",
-  "recruiting": "recruiting",
-  "文件辦理": "document_processing",
-  "document_processing": "document_processing",
+  // 新狀態
+  "在職中": "employed",
   "在職": "employed",
   "employed": "employed",
-  "待續聘": "pending_renewal",
-  "pending_renewal": "pending_renewal",
-  "已離境": "departed",
-  "departed": "departed",
+  "待業中（在台灣）": "idle_in_tw",
+  "待業中": "idle_in_tw",
+  "idle_in_tw": "idle_in_tw",
+  "準備來台（在母國）": "preparing_abroad",
+  "準備來台": "preparing_abroad",
+  "preparing_abroad": "preparing_abroad",
+  "已回國": "returned",
+  "returned": "returned",
+  "逃跑": "absconded",
+  "absconded": "absconded",
+  // 舊狀態相容對應
+  "招募中": "preparing_abroad",
+  "recruiting": "preparing_abroad",
+  "文件辦理": "preparing_abroad",
+  "document_processing": "preparing_abroad",
+  "待續聘": "idle_in_tw",
+  "pending_renewal": "idle_in_tw",
+  "已離境": "returned",
+  "departed": "returned",
 };
 
 const DOCUMENT_MAP: Record<string, string> = {

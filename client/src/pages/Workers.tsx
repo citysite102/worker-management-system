@@ -166,7 +166,7 @@ export default function Workers() {
       total: workers.length,
       employed: workers.filter(w => w.lifecycleStatus === "employed").length,
       pendingSupplement: workers.filter(w => w.documentStatus === "pending_supplement").length,
-      recruiting: workers.filter(w => w.lifecycleStatus === "recruiting").length,
+      preparingAbroad: workers.filter(w => w.lifecycleStatus === "preparing_abroad").length,
       expiring30,
       expired,
     };
@@ -223,11 +223,11 @@ export default function Workers() {
   const openCreate = () => { setEditId(null); setModalOpen(true); };
 
   // 統計卡點擊快速篩選
-  const handleStatClick = (type: "employed" | "pendingSupplement" | "recruiting" | "expiring30") => {
+  const handleStatClick = (type: "employed" | "pendingSupplement" | "preparingAbroad" | "expiring30") => {
     clearAllFilters();
     if (type === "employed") setLifecycleFilter("employed");
     else if (type === "pendingSupplement") setDocumentFilter("pending_supplement");
-    else if (type === "recruiting") setLifecycleFilter("recruiting");
+    else if (type === "preparingAbroad") setLifecycleFilter("preparing_abroad");
     else if (type === "expiring30") setExpiryFilter("expiring_30");
   };
 
@@ -296,12 +296,12 @@ export default function Workers() {
             type: "pendingSupplement" as const,
             active: documentFilter === "pending_supplement",
           },
-          // 招募中 → 警示，琥珀色
+          // 準備來台 → 警示，琥珀色
           {
-            label: "招募中", value: stats.recruiting, icon: UserSearch,
+            label: "準備來台", value: stats.preparingAbroad, icon: UserSearch,
             warn: true, danger: false,
-            type: "recruiting" as const,
-            active: lifecycleFilter === "recruiting",
+            type: "preparingAbroad" as const,
+            active: lifecycleFilter === "preparing_abroad",
           },
           // 證件即將到期 → 有數則紅色警示，無則灰色
           {

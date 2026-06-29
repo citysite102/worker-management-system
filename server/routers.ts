@@ -28,6 +28,7 @@ import {
 const workerInput = z.object({
   // 基本資料
   name: z.string().min(1, "姓名為必填").max(100).transform(s => s.trim()),
+  workerNo: z.string().max(50).optional().transform(s => s?.trim() || undefined),
   nameEn: z.string().max(100).optional().transform(s => s?.trim() || undefined),
   nameCn: z.string().max(50).optional().transform(s => s?.trim() || undefined),
   birthDate: z.string().optional().transform(s => s?.trim() || undefined),
@@ -36,7 +37,7 @@ const workerInput = z.object({
   birthPlace: z.string().max(100).optional().transform(s => s?.trim() || undefined),
   occupation: z.enum(["caregiver_family", "caregiver_hospital", "manufacturing", "construction", "agriculture", "fishery", "other"]).optional(),
   // 狀態
-  lifecycleStatus: z.enum(["recruiting", "document_processing", "employed", "pending_renewal", "departed"]),
+  lifecycleStatus: z.enum(["employed", "idle_in_tw", "preparing_abroad", "returned", "absconded"]),
   documentStatus: z.enum(["not_started", "pending_supplement", "expiring_soon", "complete"]),
   managerId: z.number().int().positive("負責人為必填"),
   // 證件
@@ -243,22 +244,23 @@ export const appRouter = router({
         }));
 
       const workersByLifecycle = countBy(workers, "lifecycleStatus",
-        ["recruiting", "document_processing", "employed", "pending_renewal", "departed"] as const);
+        ["employed", "idle_in_tw", "preparing_abroad", "returned", "absconded"] as const);
       const casesByStatus = countBy(cases, "status",
         ["in_progress", "completed", "paused", "cancelled"] as const);
       const customersByType = countBy(customers, "employerType",
         ["individual", "company"] as const);
 
-      // 證件到期：計算距今天數，含已過期（負值）與 60 天內即將到期；排除已離境者
+      // 證件到期：計算距今天數，含已過期（負值）與 60 天內即將到期；排除已結案者（已回國 / 逃跑）
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const daysUntil = (dateStr: string) => {
         const d = new Date(dateStr + "T00:00:00");
         return Math.round((d.getTime() - today.getTime()) / 86400000);
       };
+      const CLOSED_STATUSES = ["returned", "absconded"];
       const EXPIRY_WINDOW_DAYS = 60;
       const expiringDocuments = workers
-        .filter(w => w.lifecycleStatus !== "departed")
+        .filter(w => !CLOSED_STATUSES.includes(w.lifecycleStatus))
         .flatMap(w => {
           const docs: { docType: "residentPermit" | "passport"; expiry: string }[] = [];
           if (w.residentPermitExpiry) docs.push({ docType: "residentPermit", expiry: w.residentPermitExpiry });
@@ -341,6 +343,7 @@ export const appRouter = router({
         const phone = input.phone ? normalizePhone(input.phone) : undefined;
         const newId = await createWorker({
           name: input.nameCn || input.nameEn || input.name,
+          workerNo: input.workerNo || null,
           nameEn: input.nameEn || null,
           nameCn: input.nameCn || null,
           birthDate: input.birthDate || null,
@@ -380,6 +383,7 @@ export const appRouter = router({
         const phone = data.phone ? normalizePhone(data.phone) : undefined;
         await updateWorker(id, {
           name: data.nameCn || data.nameEn || data.name,
+          workerNo: data.workerNo || null,
           nameEn: data.nameEn || null,
           nameCn: data.nameCn || null,
           birthDate: data.birthDate || null,

@@ -192,7 +192,7 @@ describe("workers.import batch import", () => {
         {
           name: "測試二",
           passportNo: "VN123456",
-          lifecycleStatus: "recruiting",
+          lifecycleStatus: "preparing_abroad",
           documentStatus: "not_started",
           managerId: 1,
         },
@@ -216,7 +216,7 @@ describe("workers.import batch import", () => {
         {
           name: "測試二",
           passportNo: "VN123456",
-          lifecycleStatus: "recruiting",
+          lifecycleStatus: "preparing_abroad",
           documentStatus: "not_started",
           managerId: 1,
         },

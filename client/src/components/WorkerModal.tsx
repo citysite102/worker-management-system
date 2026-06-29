@@ -171,6 +171,7 @@ function FileUploadField({ label, fieldName, workerId, currentKey, onUploaded, a
 
 // ─── 表單資料型別 ─────────────────────────────────────────────────────────────
 interface WorkerFormData {
+  workerNo: string;
   nameEn: string;
   nameCn: string;
   birthDate: string;
@@ -202,8 +203,9 @@ interface WorkerFormData {
 }
 
 const EMPTY_FORM: WorkerFormData = {
+  workerNo: "",
   nameEn: "", nameCn: "", birthDate: "", gender: "", nationality: "", birthPlace: "",
-  occupation: "", lifecycleStatus: "recruiting", documentStatus: "not_started", managerId: "",
+  occupation: "", lifecycleStatus: "preparing_abroad", documentStatus: "not_started", managerId: "",
   residentPermitNo: "", residentPermitExpiry: "", passportNo: "", passportExpiry: "",
   entryDate: "", phone: "", email: "", lastMedicalExamDate: "", nextMedicalExamType: "",
   photoKey: "", ktpKey: "", residentPermitFrontKey: "", residentPermitBackKey: "",
@@ -267,6 +269,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
     if (isEdit && existingWorker) {
       const w = existingWorker;
       reset({
+        workerNo: w.workerNo ?? "",
         nameEn: w.nameEn ?? "", nameCn: w.nameCn ?? "",
         birthDate: w.birthDate ?? "", gender: w.gender ?? "",
         nationality: w.nationality ?? "", birthPlace: w.birthPlace ?? "",
@@ -343,6 +346,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
 
     const payload = {
       name: data.nameCn || data.nameEn,
+      workerNo: data.workerNo || undefined,
       nameEn: data.nameEn || undefined,
       nameCn: data.nameCn || undefined,
       birthDate: data.birthDate || undefined,
@@ -412,6 +416,10 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
           <div className="space-y-4 pb-5">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-2">基本資料</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>編號</Label>
+                <Input placeholder="自由輸入，如 W-00026" {...register("workerNo")} {...enterProps} autoComplete="off" />
+              </div>
               <div className="space-y-2">
                 <Label>英文姓名</Label>
                 <Input placeholder="INTAN SUSELA" {...register("nameEn")} {...enterProps} autoComplete="off" />

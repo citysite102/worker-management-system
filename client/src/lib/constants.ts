@@ -1,10 +1,10 @@
 // ─── 移工：生命週期狀態 ───────────────────────────────────────────────────────
 export const LIFECYCLE_STATUS_OPTIONS = [
-  { value: "recruiting", label: "招募中" },
-  { value: "document_processing", label: "文件辦理" },
-  { value: "employed", label: "在職" },
-  { value: "pending_renewal", label: "待續聘" },
-  { value: "departed", label: "已離境" },
+  { value: "employed", label: "在職中" },
+  { value: "idle_in_tw", label: "待業中（在台灣）" },
+  { value: "preparing_abroad", label: "準備來台（在母國）" },
+  { value: "returned", label: "已回國" },
+  { value: "absconded", label: "逃跑" },
 ] as const;
 
 export type LifecycleStatus = (typeof LIFECYCLE_STATUS_OPTIONS)[number]["value"];
@@ -174,8 +174,7 @@ const STATUS_COLOR_MAP: Record<string, StatusColor> = {
   matched: "green",
   completed: "green",
   // 琥珀色
-  recruiting: "amber",
-  document_processing: "amber",
+  idle_in_tw: "amber",
   negotiating: "amber",
   pending_renewal: "amber",
   expiring_soon: "amber",
@@ -184,12 +183,15 @@ const STATUS_COLOR_MAP: Record<string, StatusColor> = {
   pending_supplement: "red",
   cancelled: "red",
   rejected: "red",
+  absconded: "red",
   // 藍色
   pending: "blue",
+  preparing_abroad: "blue",
   // 灰色
   not_started: "gray",
   departed: "gray",
   ended: "gray",
+  returned: "gray",
   // 案件管理
   in_progress: "blue",
   paused: "gray",

@@ -7,10 +7,10 @@ import { Users, Building2, Briefcase, UserCheck, CalendarClock, AlertTriangle, C
 const BAR_COLOR: Record<string, string> = {
   // 移工生命週期
   employed: "bg-emerald-500",
-  document_processing: "bg-amber-500",
-  recruiting: "bg-blue-500",
-  pending_renewal: "bg-orange-500",
-  departed: "bg-gray-400",
+  idle_in_tw: "bg-amber-500",
+  preparing_abroad: "bg-blue-500",
+  returned: "bg-gray-400",
+  absconded: "bg-rose-500",
   // 案件狀態
   in_progress: "bg-blue-500",
   completed: "bg-emerald-500",

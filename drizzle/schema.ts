@@ -1,4 +1,5 @@
 import {
+  index,
   int,
   mysqlEnum,
   mysqlTable,
@@ -108,7 +109,11 @@ export const workers = mysqlTable("workers", {
 
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (t) => ({
+  managerIdx: index("workers_managerId_idx").on(t.managerId),
+  permitNoIdx: index("workers_residentPermitNo_idx").on(t.residentPermitNo),
+  passportNoIdx: index("workers_passportNo_idx").on(t.passportNo),
+}));
 
 export type Worker = typeof workers.$inferSelect;
 export type InsertWorker = typeof workers.$inferInsert;
@@ -209,7 +214,10 @@ export const customers = mysqlTable("customers", {
 
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (t) => ({
+  managerIdx: index("customers_managerId_idx").on(t.managerId),
+  taxIdIdx: index("customers_taxId_idx").on(t.taxId),
+}));
 
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = typeof customers.$inferInsert;
@@ -308,7 +316,10 @@ export const cases = mysqlTable("cases", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (t) => ({
+  customerIdx: index("cases_customerId_idx").on(t.customerId),
+  managerIdx: index("cases_managerId_idx").on(t.managerId),
+}));
 export type Case = typeof cases.$inferSelect;
 export type InsertCase = typeof cases.$inferInsert;
 
@@ -353,7 +364,9 @@ export const caseQualifications = mysqlTable("case_qualifications", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (t) => ({
+  caseIdx: index("case_qualifications_caseId_idx").on(t.caseId),
+}));
 export type CaseQualification = typeof caseQualifications.$inferSelect;
 export type InsertCaseQualification = typeof caseQualifications.$inferInsert;
 
@@ -377,7 +390,10 @@ export const caseDemands = mysqlTable("case_demands", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (t) => ({
+  caseIdx: index("case_demands_caseId_idx").on(t.caseId),
+  qualificationIdx: index("case_demands_qualificationId_idx").on(t.qualificationId),
+}));
 export type CaseDemand = typeof caseDemands.$inferSelect;
 export type InsertCaseDemand = typeof caseDemands.$inferInsert;
 
@@ -392,7 +408,11 @@ export const caseAssignments = mysqlTable("case_assignments", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (t) => ({
+  caseIdx: index("case_assignments_caseId_idx").on(t.caseId),
+  demandIdx: index("case_assignments_demandId_idx").on(t.demandId),
+  qualificationIdx: index("case_assignments_qualificationId_idx").on(t.qualificationId),
+}));
 export type CaseAssignment = typeof caseAssignments.$inferSelect;
 export type InsertCaseAssignment = typeof caseAssignments.$inferInsert;
 
@@ -418,7 +438,11 @@ export const caseAssignmentWorkers = mysqlTable("case_assignment_workers", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (t) => ({
+  assignmentIdx: index("caw_assignmentId_idx").on(t.assignmentId),
+  caseIdx: index("caw_caseId_idx").on(t.caseId),
+  workerIdx: index("caw_workerId_idx").on(t.workerId),
+}));
 export type CaseAssignmentWorker = typeof caseAssignmentWorkers.$inferSelect;
 export type InsertCaseAssignmentWorker = typeof caseAssignmentWorkers.$inferInsert;
 
@@ -441,7 +465,10 @@ export const caseEmployments = mysqlTable("case_employments", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (t) => ({
+  caseIdx: index("case_employments_caseId_idx").on(t.caseId),
+  workerIdx: index("case_employments_workerId_idx").on(t.workerId),
+}));
 export type CaseEmployment = typeof caseEmployments.$inferSelect;
 export type InsertCaseEmployment = typeof caseEmployments.$inferInsert;
 
@@ -461,7 +488,9 @@ export const customerCareReceivers = mysqlTable("customer_care_receivers", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (t) => ({
+  customerIdx: index("customer_care_receivers_customerId_idx").on(t.customerId),
+}));
 export type CustomerCareReceiver = typeof customerCareReceivers.$inferSelect;
 export type InsertCustomerCareReceiver = typeof customerCareReceivers.$inferInsert;
 
@@ -517,6 +546,10 @@ export const customerQualifications = mysqlTable("customer_qualifications", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (t) => ({
+  customerIdx: index("customer_qualifications_customerId_idx").on(t.customerId),
+  careReceiverIdx: index("customer_qualifications_careReceiverId_idx").on(t.careReceiverId),
+  caseIdx: index("customer_qualifications_caseId_idx").on(t.caseId),
+}));
 export type CustomerQualification = typeof customerQualifications.$inferSelect;
 export type InsertCustomerQualification = typeof customerQualifications.$inferInsert;

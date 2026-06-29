@@ -226,6 +226,71 @@ export const appRouter = router({
     }),
   }),
 
+  // ─── Dashboard（統計總覽）────────────────────────────────────────────────────
+  dashboard: router({
+    summary: publicProcedure.query(async () => {
+      const [workers, customers, cases] = await Promise.all([
+        getAllWorkers(),
+        getAllCustomers(),
+        getAllCases(),
+      ]);
+
+      // 依固定順序統計各狀態人數（沿用 schema enum 順序）
+      const countBy = <T extends string>(rows: { [k: string]: any }[], field: string, order: readonly T[]) =>
+        order.map(value => ({
+          value,
+          count: rows.filter(r => r[field] === value).length,
+        }));
+
+      const workersByLifecycle = countBy(workers, "lifecycleStatus",
+        ["recruiting", "document_processing", "employed", "pending_renewal", "departed"] as const);
+      const casesByStatus = countBy(cases, "status",
+        ["in_progress", "completed", "paused", "cancelled"] as const);
+      const customersByType = countBy(customers, "employerType",
+        ["individual", "company"] as const);
+
+      // 證件到期：計算距今天數，含已過期（負值）與 60 天內即將到期；排除已離境者
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const daysUntil = (dateStr: string) => {
+        const d = new Date(dateStr + "T00:00:00");
+        return Math.round((d.getTime() - today.getTime()) / 86400000);
+      };
+      const EXPIRY_WINDOW_DAYS = 60;
+      const expiringDocuments = workers
+        .filter(w => w.lifecycleStatus !== "departed")
+        .flatMap(w => {
+          const docs: { docType: "residentPermit" | "passport"; expiry: string }[] = [];
+          if (w.residentPermitExpiry) docs.push({ docType: "residentPermit", expiry: w.residentPermitExpiry });
+          if (w.passportExpiry) docs.push({ docType: "passport", expiry: w.passportExpiry });
+          return docs.map(doc => ({
+            workerId: w.id,
+            name: w.name,
+            docType: doc.docType,
+            expiry: doc.expiry,
+            daysLeft: daysUntil(doc.expiry),
+          }));
+        })
+        .filter(d => d.daysLeft <= EXPIRY_WINDOW_DAYS)
+        .sort((a, b) => a.daysLeft - b.daysLeft);
+
+      return {
+        totals: {
+          workers: workers.length,
+          customers: customers.length,
+          cases: cases.length,
+          employed: workers.filter(w => w.lifecycleStatus === "employed").length,
+          expiringSoon: expiringDocuments.filter(d => d.daysLeft >= 0).length,
+          expired: expiringDocuments.filter(d => d.daysLeft < 0).length,
+        },
+        workersByLifecycle,
+        casesByStatus,
+        customersByType,
+        expiringDocuments,
+      };
+    }),
+  }),
+
   // ─── Managers ──────────────────────────────────────────────────────────────
   managers: router({
     list: publicProcedure.query(async () => getAllManagers()),

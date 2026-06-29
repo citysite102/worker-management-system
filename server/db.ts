@@ -1,6 +1,6 @@
-import { and, eq, inArray, ne, or } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, managers, workers, customers, InsertManager, InsertWorker, InsertCustomer, cases, caseQualifications, caseDemands, caseAssignments, caseAssignmentWorkers, caseEmployments, InsertCase, InsertCaseQualification, InsertCaseDemand, InsertCaseAssignment, InsertCaseAssignmentWorker, InsertCaseEmployment, customerCareReceivers, customerQualifications, InsertCustomerCareReceiver, InsertCustomerQualification } from "../drizzle/schema";
+import { InsertUser, users, managers, workers, customers, InsertManager, InsertWorker, InsertCustomer, cases, caseQualifications, caseDemands, caseAssignments, caseAssignmentWorkers, caseEmployments, InsertCase, InsertCaseQualification, InsertCaseDemand, InsertCaseAssignment, InsertCaseAssignmentWorker, InsertCaseEmployment, customerCareReceivers, customerQualifications, InsertCustomerCareReceiver, InsertCustomerQualification, kpiSnapshots, InsertKpiSnapshot, KpiSnapshot } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -606,4 +606,123 @@ export async function deleteCustomerQualification(id: number) {
   const db = await getDb();
   if (!db) throw new Error('DB not available');
   await db.delete(customerQualifications).where(eq(customerQualifications.id, id));
+}
+
+// ─── Dashboard 聚合（將計數下推至 SQL，避免全表載入到記憶體）──────────────────
+
+type CountRow = { value: string | null; count: number };
+
+const toCountRows = (rows: { value: string | null; count: unknown }[]): CountRow[] =>
+  rows.map(r => ({ value: r.value, count: Number(r.count) }));
+
+/** 各維度的分組計數 + 總數，全部以 SQL GROUP BY / COUNT 完成。 */
+export async function getDashboardCounts() {
+  const db = await getDb();
+  if (!db) {
+    return {
+      totals: { workers: 0, customers: 0, cases: 0 },
+      workersByLifecycle: [] as CountRow[],
+      casesByStatus: [] as CountRow[],
+      customersByType: [] as CountRow[],
+    };
+  }
+
+  const [
+    workerTotalRow,
+    customerTotalRow,
+    caseTotalRow,
+    lifecycleRows,
+    caseStatusRows,
+    customerTypeRows,
+  ] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(workers),
+    db.select({ count: sql<number>`count(*)` }).from(customers),
+    db.select({ count: sql<number>`count(*)` }).from(cases),
+    db
+      .select({ value: workers.lifecycleStatus, count: sql<number>`count(*)` })
+      .from(workers)
+      .groupBy(workers.lifecycleStatus),
+    db
+      .select({ value: cases.status, count: sql<number>`count(*)` })
+      .from(cases)
+      .groupBy(cases.status),
+    db
+      .select({ value: customers.employerType, count: sql<number>`count(*)` })
+      .from(customers)
+      .groupBy(customers.employerType),
+  ]);
+
+  return {
+    totals: {
+      workers: Number(workerTotalRow[0]?.count ?? 0),
+      customers: Number(customerTotalRow[0]?.count ?? 0),
+      cases: Number(caseTotalRow[0]?.count ?? 0),
+    },
+    workersByLifecycle: toCountRows(lifecycleRows),
+    casesByStatus: toCountRows(caseStatusRows),
+    customersByType: toCountRows(customerTypeRows),
+  };
+}
+
+/**
+ * 取得「未結案且至少一張證件在 cutoffDate（含）之前到期」的移工，只取計算所需欄位。
+ * 證件日期以 YYYY-MM-DD 字串儲存，ISO 格式可直接做字典序比較。
+ */
+export async function getExpiryCandidateWorkers(cutoffDate: string, closedStatuses: string[]) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: workers.id,
+      name: workers.name,
+      lifecycleStatus: workers.lifecycleStatus,
+      residentPermitExpiry: workers.residentPermitExpiry,
+      passportExpiry: workers.passportExpiry,
+    })
+    .from(workers)
+    .where(
+      and(
+        notInArray(workers.lifecycleStatus, closedStatuses as any),
+        or(
+          lt(workers.residentPermitExpiry, cutoffDate),
+          eq(workers.residentPermitExpiry, cutoffDate),
+          lt(workers.passportExpiry, cutoffDate),
+          eq(workers.passportExpiry, cutoffDate),
+        ),
+      ),
+    );
+}
+
+// ─── KPI 每日快照（趨勢比較）──────────────────────────────────────────────────
+
+/** Upsert 當日快照（snapshotDate 為主鍵）。 */
+export async function upsertKpiSnapshot(snapshot: InsertKpiSnapshot) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .insert(kpiSnapshots)
+    .values(snapshot)
+    .onDuplicateKeyUpdate({
+      set: {
+        workers: snapshot.workers,
+        customers: snapshot.customers,
+        cases: snapshot.cases,
+        employed: snapshot.employed,
+        expiringSoon: snapshot.expiringSoon,
+        expired: snapshot.expired,
+      },
+    });
+}
+
+/** 取得 beforeDate 之前最近一筆快照，用於計算變化量。 */
+export async function getPreviousKpiSnapshot(beforeDate: string): Promise<KpiSnapshot | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(kpiSnapshots)
+    .where(lt(kpiSnapshots.snapshotDate, beforeDate))
+    .orderBy(desc(kpiSnapshots.snapshotDate))
+    .limit(1);
+  return rows[0];
 }

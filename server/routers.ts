@@ -17,6 +17,7 @@ import {
   getEmploymentsByCase, createEmployment, updateEmployment, deleteEmployment,
   getCareReceiversByCustomerId, createCareReceiver, updateCareReceiver, deleteCareReceiver,
   getQualificationsByCustomerId, createCustomerQualification, updateCustomerQualification, deleteCustomerQualification,
+  getDashboardCounts, getExpiryCandidateWorkers, upsertKpiSnapshot, getPreviousKpiSnapshot,
 } from "./db";
 import { storagePut } from "./storage";
 import {
@@ -230,37 +231,42 @@ export const appRouter = router({
   // ─── Dashboard（統計總覽）────────────────────────────────────────────────────
   dashboard: router({
     summary: publicProcedure.query(async () => {
-      const [workers, customers, cases] = await Promise.all([
-        getAllWorkers(),
-        getAllCustomers(),
-        getAllCases(),
-      ]);
-
-      // 依固定順序統計各狀態人數（沿用 schema enum 順序）
-      const countBy = <T extends string>(rows: { [k: string]: any }[], field: string, order: readonly T[]) =>
-        order.map(value => ({
-          value,
-          count: rows.filter(r => r[field] === value).length,
-        }));
-
-      const workersByLifecycle = countBy(workers, "lifecycleStatus",
-        ["employed", "idle_in_tw", "preparing_abroad", "returned", "absconded"] as const);
-      const casesByStatus = countBy(cases, "status",
-        ["in_progress", "completed", "paused", "cancelled"] as const);
-      const customersByType = countBy(customers, "employerType",
-        ["individual", "company"] as const);
-
-      // 證件到期：計算距今天數，含已過期（負值）與 60 天內即將到期；排除已結案者（已回國 / 逃跑）
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const daysUntil = (dateStr: string) => {
-        const d = new Date(dateStr + "T00:00:00");
-        return Math.round((d.getTime() - today.getTime()) / 86400000);
-      };
       const CLOSED_STATUSES = ["returned", "absconded"];
       const EXPIRY_WINDOW_DAYS = 60;
-      const expiringDocuments = workers
-        .filter(w => !CLOSED_STATUSES.includes(w.lifecycleStatus))
+
+      // ── 日期基準（採台北時區，避免伺服器時區造成 off-by-one）──────────────
+      const DAY_MS = 86400000;
+      const todayStr = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Taipei",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date()); // YYYY-MM-DD
+      const todayUtc = Date.parse(todayStr + "T00:00:00Z");
+      const cutoffStr = new Date(todayUtc + EXPIRY_WINDOW_DAYS * DAY_MS).toISOString().slice(0, 10);
+      const daysUntil = (dateStr: string) => Math.round((Date.parse(dateStr + "T00:00:00Z") - todayUtc) / DAY_MS);
+
+      // ── 計數下推 SQL + 只撈到期候選移工 ───────────────────────────────────
+      const [counts, expiryCandidates] = await Promise.all([
+        getDashboardCounts(),
+        getExpiryCandidateWorkers(cutoffStr, CLOSED_STATUSES),
+      ]);
+
+      // 依固定順序（schema enum 順序）整理各維度分布，缺漏狀態補 0
+      const orderCounts = <T extends string>(rows: { value: string | null; count: number }[], order: readonly T[]) => {
+        const map = new Map(rows.map(r => [r.value, r.count]));
+        return order.map(value => ({ value, count: map.get(value) ?? 0 }));
+      };
+      const workersByLifecycle = orderCounts(counts.workersByLifecycle,
+        ["employed", "idle_in_tw", "preparing_abroad", "returned", "absconded"] as const);
+      const casesByStatus = orderCounts(counts.casesByStatus,
+        ["in_progress", "completed", "paused", "cancelled"] as const);
+      const customersByType = orderCounts(counts.customersByType,
+        ["individual", "company"] as const);
+      const employed = workersByLifecycle.find(r => r.value === "employed")?.count ?? 0;
+
+      // ── 證件到期清單（逐證件，供下方列表顯示）─────────────────────────────
+      const expiringDocuments = expiryCandidates
         .flatMap(w => {
           const docs: { docType: "residentPermit" | "passport"; expiry: string }[] = [];
           if (w.residentPermitExpiry) docs.push({ docType: "residentPermit", expiry: w.residentPermitExpiry });
@@ -276,19 +282,50 @@ export const appRouter = router({
         .filter(d => d.daysLeft <= EXPIRY_WINDOW_DAYS)
         .sort((a, b) => a.daysLeft - b.daysLeft);
 
+      // ── 到期口徑：以「移工人數」計算，兩者互斥（已過期優先）──────────────
+      // 一人即使同時有居留證與護照到期，也只計一次；有任一張已過期即歸「已過期」。
+      const expiredWorkerIds = new Set<number>();
+      const expiringSoonWorkerIds = new Set<number>();
+      for (const d of expiringDocuments) {
+        if (d.daysLeft < 0) expiredWorkerIds.add(d.workerId);
+      }
+      for (const d of expiringDocuments) {
+        if (d.daysLeft >= 0 && !expiredWorkerIds.has(d.workerId)) expiringSoonWorkerIds.add(d.workerId);
+      }
+
+      const totals = {
+        workers: counts.totals.workers,
+        customers: counts.totals.customers,
+        cases: counts.totals.cases,
+        employed,
+        expiringSoon: expiringSoonWorkerIds.size,
+        expired: expiredWorkerIds.size,
+      };
+
+      // ── 趨勢：upsert 當日快照，與前一筆快照比較 ───────────────────────────
+      // 註：快照於「儀表板被載入時」寫入，因此趨勢比較的是「上次有人查看的那天」。
+      const prev = await getPreviousKpiSnapshot(todayStr);
+      await upsertKpiSnapshot({ snapshotDate: todayStr, ...totals });
+      const trends = prev
+        ? {
+            workers: totals.workers - prev.workers,
+            customers: totals.customers - prev.customers,
+            cases: totals.cases - prev.cases,
+            employed: totals.employed - prev.employed,
+            expiringSoon: totals.expiringSoon - prev.expiringSoon,
+            expired: totals.expired - prev.expired,
+            since: prev.snapshotDate,
+          }
+        : null;
+
       return {
-        totals: {
-          workers: workers.length,
-          customers: customers.length,
-          cases: cases.length,
-          employed: workers.filter(w => w.lifecycleStatus === "employed").length,
-          expiringSoon: expiringDocuments.filter(d => d.daysLeft >= 0).length,
-          expired: expiringDocuments.filter(d => d.daysLeft < 0).length,
-        },
+        totals,
+        trends,
         workersByLifecycle,
         casesByStatus,
         customersByType,
         expiringDocuments,
+        generatedAt: new Date().toISOString(),
       };
     }),
   }),

@@ -553,3 +553,20 @@ export const customerQualifications = mysqlTable("customer_qualifications", {
 }));
 export type CustomerQualification = typeof customerQualifications.$inferSelect;
 export type InsertCustomerQualification = typeof customerQualifications.$inferInsert;
+
+// ─── KPI Snapshot（儀表板每日快照，用於趨勢比較）──────────────────────────────
+// 每日一筆（snapshotDate 為主鍵，格式 YYYY-MM-DD，採台北時區）。
+// 儀表板載入時 upsert 當日快照，並與前一筆快照比較以計算 ▲/▼ 變化量。
+export const kpiSnapshots = mysqlTable("kpi_snapshots", {
+  snapshotDate: varchar("snapshotDate", { length: 10 }).primaryKey(), // YYYY-MM-DD
+  workers: int("workers").notNull().default(0),       // 移工總數
+  customers: int("customers").notNull().default(0),   // 雇主總數
+  cases: int("cases").notNull().default(0),           // 案件總數
+  employed: int("employed").notNull().default(0),     // 在職移工
+  expiringSoon: int("expiringSoon").notNull().default(0), // 即將到期（人數）
+  expired: int("expired").notNull().default(0),       // 已過期（人數）
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type KpiSnapshot = typeof kpiSnapshots.$inferSelect;
+export type InsertKpiSnapshot = typeof kpiSnapshots.$inferInsert;

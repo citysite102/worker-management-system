@@ -2,9 +2,9 @@
 export const LIFECYCLE_STATUS_OPTIONS = [
   { value: "employed", label: "在職中" },
   { value: "idle_in_tw", label: "待業中（在台灣）" },
-  { value: "preparing_abroad", label: "準備來台（在母國）" },
-  { value: "returned", label: "已回國" },
-  { value: "absconded", label: "逃跑" },
+  { value: "preparing_abroad", label: "待業中（在母國）" },
+  { value: "returned", label: "結案（未來可聯繫）" },
+  { value: "absconded", label: "已結案" },
 ] as const;
 
 export type LifecycleStatus = (typeof LIFECYCLE_STATUS_OPTIONS)[number]["value"];

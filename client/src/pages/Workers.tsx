@@ -296,9 +296,9 @@ export default function Workers() {
             type: "pendingSupplement" as const,
             active: documentFilter === "pending_supplement",
           },
-          // 準備來台 → 警示，琥珀色
+          // 待業中（在母國） → 警示，琥珀色
           {
-            label: "準備來台", value: stats.preparingAbroad, icon: UserSearch,
+            label: "待業中（在母國）", value: stats.preparingAbroad, icon: UserSearch,
             warn: true, danger: false,
             type: "preparingAbroad" as const,
             active: lifecycleFilter === "preparing_abroad",

@@ -34,6 +34,7 @@ const schema = z.object({
   caseCondition: z.string().max(100).optional(),
   primaryWorkerId: z.number().int().positive().optional().nullable(),
   careReceiverId: z.number().int().positive().optional().nullable(),
+  customerQualificationId: z.number().int().positive().optional().nullable(),
   needsReview: z.boolean().optional(),
   recruitmentPermitFileKey: z.string().max(300).optional().nullable(),
   // 聘僱時間
@@ -109,6 +110,7 @@ const EMPTY_DEFAULTS: FormValues = {
   caseCondition: "",
   primaryWorkerId: null,
   careReceiverId: null,
+  customerQualificationId: null,
   needsReview: false,
   recruitmentPermitFileKey: null,
   continuousEmploymentDate: null,
@@ -194,6 +196,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
         caseCondition: editingCase.caseCondition ?? "",
         primaryWorkerId: editingCase.primaryWorkerId ?? null,
         careReceiverId: editingCase.careReceiverId ?? null,
+        customerQualificationId: editingCase.customerQualificationId ?? null,
         needsReview: editingCase.needsReview === 1 || editingCase.needsReview === true,
         recruitmentPermitFileKey: editingCase.recruitmentPermitFileKey ?? null,
         continuousEmploymentDate: editingCase.continuousEmploymentDate ?? null,
@@ -274,6 +277,23 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
     { customerId: watchedCustomerId },
     { enabled: !!watchedCustomerId }
   );
+  const { data: customerQualifications = [] } = trpc.customers.qualifications.listByCustomer.useQuery(
+    { customerId: watchedCustomerId },
+    { enabled: !!watchedCustomerId }
+  );
+  const watchedQualificationId = watch("customerQualificationId");
+  // 選定資格後自動帶入被照顧者
+  useEffect(() => {
+    if (!watchedQualificationId) return;
+    const qual = (customerQualifications as any[]).find((q: any) => q.id === watchedQualificationId);
+    if (qual?.careReceiverId) {
+      setValue("careReceiverId", qual.careReceiverId);
+      setSelectedCareReceiverId(qual.careReceiverId);
+    } else {
+      setValue("careReceiverId", null);
+      setSelectedCareReceiverId(null);
+    }
+  }, [watchedQualificationId, customerQualifications, setValue]);
   const watchedManagerId = watch("managerId");
   const watchedStatus = watch("status");
   const watchedPrimaryWorkerId = watch("primaryWorkerId");
@@ -476,6 +496,51 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
                   </Select>
                 </FormField>
               </FormGrid>
+
+              {/* 選擇申請資格（以資格為主，被照顧者自動帶入）*/}
+              {selectedCustomer && (customerQualifications as any[]).length > 0 && (
+                <div className="border-t border-border/40 pt-3 mt-1">
+                  <FormField label="選擇申請資格（選填）">
+                    <Select
+                      value={watchedQualificationId ? String(watchedQualificationId) : "__none__"}
+                      onValueChange={v => {
+                        const id = v === "__none__" ? null : Number(v);
+                        setValue("customerQualificationId", id);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="選擇申請資格（選填）" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— 不連結資格 —</SelectItem>
+                        {(customerQualifications as any[]).map((q: any) => {
+                          const catLabel = q.qualifierCategory === "business" ? "事業類" : "家庭類";
+                          const title = q.label || (q.qualifierCategory === "business" ? "事業類申請" : "家庭類申請");
+                          return (
+                            <SelectItem key={q.id} value={String(q.id)}>
+                              [{catLabel}] {title}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                  {/* 選定資格後顯示被照顧者資訊（唯讀） */}
+                  {watchedQualificationId && (() => {
+                    const qual = (customerQualifications as any[]).find((q: any) => q.id === watchedQualificationId);
+                    const cr = qual?.careReceiverId ? (careReceivers as any[]).find((c: any) => c.id === qual.careReceiverId) : null;
+                    if (!cr) return null;
+                    return (
+                      <div className="mt-2 rounded bg-background/60 border border-border/40 p-2 text-xs space-y-1">
+                        <p className="text-muted-foreground font-medium">自動帶入被照顧者</p>
+                        <div className="flex gap-1"><span className="text-muted-foreground">姓名：</span><span className="font-medium">{cr.careReceiverName}</span></div>
+                        {cr.careReceiverIdNo && <div className="flex gap-1"><span className="text-muted-foreground">身分證：</span><span>{cr.careReceiverIdNo}</span></div>}
+                        {cr.careReceiverAddress && <div className="flex gap-1"><span className="text-muted-foreground">戶籍地：</span><span>{cr.careReceiverAddress}</span></div>}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
               {selectedCustomer && (
                 <div className="rounded-lg bg-muted/40 border border-border/50 p-3 space-y-3">

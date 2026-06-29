@@ -36,6 +36,13 @@
       "when": 1782031913635,
       "tag": "0004_empty_sersi",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1782706796781,
+      "tag": "0005_brief_luminals",
+      "breakpoints": true
     }
   ]
 }

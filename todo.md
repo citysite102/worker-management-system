@@ -343,13 +343,61 @@
 - [x] 建立 /brand-preview 預覽路由（展示 Logo、吉祥物、色票、套用範例）
 - [x] 產出元件 API 提案（Logo variant/size、Mascot pose/size、EmptyState props）
 - [x] 產出缺漏姿態清單（四姿態以外需要的新姿態）
-- [ ] 交用戶確認 Phase 1 交付物（等待 Samuel 確認後進入 Phase 2）
+- [x] 交用戶確認 Phase 1 交付物（等待 Samuel 確認後進入 Phase 2）
 
 ## 案件邏輯更新（配合多資格架構）
 
-- [ ] cases 表新增 careReceiverId 欄位（FK → customer_care_receivers.id）
-- [ ] cases.create / cases.update API 支援 careReceiverId
-- [ ] CaseModal：選擇個人雇主後，從新子表載入被照顧者清單，支援下拉選擇；只有一位時自動預選
-- [ ] CaseModal：移除舊的 careReceiverName / careReceiverQualification 靜態顯示，改為動態子表資料
-- [ ] CaseDetail：被照顧者資訊改從 customer_care_receivers 子表讀取（透過 careReceiverId）
-- [ ] Customers.tsx 搜尋邏輯：移除舊 careReceiverName 等欄位的搜尋（改為搜尋子表）
+- [x] cases 表新增 careReceiverId 欄位（FK → customer_care_receivers.id）
+- [x] cases.create / cases.update API 支援 careReceiverId
+- [x] CaseModal：選擇個人雇主後，從新子表載入被照顧者清單，支援下拉選擇；只有一位時自動預選
+- [x] CaseModal：移除舊的 careReceiverName / careReceiverQualification 靜態顯示，改為動態子表資料
+- [x] CaseDetail：被照顧者資訊改從 customer_care_receivers 子表讀取（透過 careReceiverId）
+- [x] Customers.tsx 搜尋邏輯：移除舊 careReceiverName 等欄位的搜尋（改為搜尋子表）
+
+## CustomerModal 精簡化（v6.0）
+
+- [x] 移除 CustomerModal 的「被照顧者基本資料」section（個人雇主）
+- [x] 移除 CustomerModal 的「媒合案件」section
+- [x] 移除 CustomerModal 的「申請資格」section
+- [x] 移除 CustomerModal 的「聘僱函」section
+- [x] 清理 buildPayload 中的被照顧者/案件/資格/聘僱函舊欄位
+- [x] 移除未使用的 import（CASE_STATUS_OPTIONS 等）
+- [x] TypeScript 零錯誤，30 個 vitest 測試全部通過
+
+## 客戶資格架構重構 v7.0（家庭類 / 事業類）
+
+### Schema 與資料庫
+- [x] customer_qualifications 新增 qualifierCategory enum('family','business') 欄位
+- [x] cases 新增 customerQualificationId int nullable 欄位（FK → customer_qualifications.id）
+- [x] 執行資料庫遷移（ALTER TABLE 兩個）
+- [x] 舊資料遷移：customers 主表的資料根據 employerType 自動帶入 qualifierCategory
+
+### 後端 routers.ts
+- [x] customers.qualifications.create/update 加入 qualifierCategory
+- [x] customers.qualifications.listByCustomer 回傳 qualifierCategory
+- [x] cases.create/update 加入 customerQualificationId（選填）
+
+### 前端 CustomerQualifications.tsx 重構
+- [x] 依 qualifierCategory 分組顯示（家庭類雇主 / 事業類雇主）
+- [x] 新增資格 Modal：第一步選類別（家庭 / 事業）
+- [x] 家庭類：顯示被照顧者下拉（從 customer_care_receivers 載入）
+- [x] 連結案件：下拉選擇此客戶的現有案件（選填）
+- [x] 卡片顯示：類別 badge、被照顧者姓名、連結案件編號
+
+### 前端 CaseModal.tsx 調整
+- [x] 選雇主後改為「選擇資格」下拉（客戶有資格時顯示）
+- [x] 資格下拉顯示：類別 + 標籤
+- [x] 選定資格後自動帶入被照顧者資訊（唯讀顯示）
+- [x] 儲存 customerQualificationId 至 cases 表
+
+### 前端 CustomerDetail.tsx 清理
+- [x] 移除舊的 caseNo/caseStatus 顯示卡片（右側 rail）
+- [x] 確認 CustomerQualifications 元件正確顯示新架構
+
+### 前端 Customers.tsx 清理
+- [x] CSV 匙出移除舊 careReceiverName/careReceiverBirthDate/careReceiverQualification 欄位
+
+### 驗收
+- [x] TypeScript 零錯誤
+- [x] 30 個 vitest 測試全部通過
+- [x] 存 checkpoint

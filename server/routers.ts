@@ -625,6 +625,7 @@ export const appRouter = router({
       create: publicProcedure
         .input(z.object({
           customerId: z.number().int().positive(),
+          qualifierCategory: z.enum(['family','business']).default('family'),
           careReceiverId: z.number().int().positive().optional().nullable(),
           caseId: z.number().int().positive().optional().nullable(),
           label: z.string().max(100).optional().nullable(),
@@ -655,6 +656,7 @@ export const appRouter = router({
       update: publicProcedure
         .input(z.object({
           id: z.number().int().positive(),
+          qualifierCategory: z.enum(['family','business']).optional(),
           careReceiverId: z.number().int().positive().optional().nullable(),
           caseId: z.number().int().positive().optional().nullable(),
           label: z.string().max(100).optional().nullable(),
@@ -779,6 +781,7 @@ export const appRouter = router({
         caseCondition: z.string().max(100).optional().nullable().transform(s => s?.trim() || undefined),
         primaryWorkerId: z.number().int().positive().optional().nullable(),
         careReceiverId: z.number().int().positive().optional().nullable(),
+        customerQualificationId: z.number().int().positive().optional().nullable(),
         needsReview: z.boolean().optional().nullable().transform(v => v ? 1 : 0),
         recruitmentPermitFileKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
         // Phase 2: 脩僱時間
@@ -846,6 +849,7 @@ export const appRouter = router({
         caseCondition: z.string().max(100).optional().transform(s => s?.trim() || undefined),
         primaryWorkerId: z.number().int().positive().optional().nullable(),
         careReceiverId: z.number().int().positive().optional().nullable(),
+        customerQualificationId: z.number().int().positive().optional().nullable(),
         needsReview: z.boolean().optional().transform(v => v ? 1 : 0),
         recruitmentPermitFileKey: z.string().max(300).optional().nullable().transform(s => s?.trim() || undefined),
         // Phase 2: 聘僱時間

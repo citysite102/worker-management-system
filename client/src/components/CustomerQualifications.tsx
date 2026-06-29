@@ -6,12 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, FileText, Image as ImageIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, FileText, Image as ImageIcon, Home, Building2, Link2 } from "lucide-react";
 import { AttachmentPreviewModal } from "@/components/AttachmentPreviewModal";
-import { StatusBadge } from "@/components/StatusBadge";
-import { getStatusLabel } from "@/lib/constants";
 import { toast } from "sonner";
 
+// ─── 常數 ─────────────────────────────────────────────────────────────────────
+const QUALIFIER_CATEGORY_OPTIONS = [
+  { value: "family", label: "家庭類雇主", icon: Home },
+  { value: "business", label: "事業類雇主", icon: Building2 },
+];
 const JOB_SEEKER_TYPE_OPTIONS = [
   { value: "new_hire", label: "新聘" },
   { value: "renewal", label: "續聘" },
@@ -28,21 +32,16 @@ const EMPLOYMENT_LETTER_TYPE_OPTIONS = [
   { value: "renewal", label: "續聘" },
   { value: "transfer", label: "轉換" },
 ];
-const CASE_STATUS_OPTIONS = [
-  { value: "pending", label: "待處理" },
-  { value: "processing", label: "處理中" },
-  { value: "matched", label: "已媒合" },
-  { value: "completed", label: "已完成" },
-  { value: "cancelled", label: "已取消" },
-];
 
 const JOB_SEEKER_LABEL: Record<string, string> = Object.fromEntries(JOB_SEEKER_TYPE_OPTIONS.map(o => [o.value, o.label]));
 const RECRUITMENT_LABEL: Record<string, string> = Object.fromEntries(RECRUITMENT_LETTER_TYPE_OPTIONS.map(o => [o.value, o.label]));
 const EMPLOYMENT_LABEL: Record<string, string> = Object.fromEntries(EMPLOYMENT_LETTER_TYPE_OPTIONS.map(o => [o.value, o.label]));
 
+// ─── 型別 ─────────────────────────────────────────────────────────────────────
 type Qualification = {
   id: number;
   customerId: number;
+  qualifierCategory?: string | null;
   careReceiverId?: number | null;
   caseId?: number | null;
   label?: string | null;
@@ -67,9 +66,12 @@ type Qualification = {
   notes?: string | null;
 };
 
-type FormState = Omit<Qualification, "id" | "customerId">;
+type FormState = Omit<Qualification, "id" | "customerId"> & {
+  qualifierCategory: "family" | "business";
+};
 
 const EMPTY_FORM: FormState = {
+  qualifierCategory: "family",
   careReceiverId: null, caseId: null, label: "",
   caseNo: "", caseStatus: null, managerId: null,
   jobSeekerType: null, jobSeekerDate: "", jobSeekerFileKey: "",
@@ -79,6 +81,7 @@ const EMPTY_FORM: FormState = {
   approvedStartDate: "", approvedPeriod: "", approvedEndDate: "", notes: "",
 };
 
+// ─── 子元件 ───────────────────────────────────────────────────────────────────
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
   return (
@@ -107,6 +110,21 @@ function AttachmentBtn({ label, fileKey }: { label: string; fileKey?: string | n
   );
 }
 
+function CategoryBadge({ category }: { category?: string | null }) {
+  if (category === "family") return (
+    <Badge variant="secondary" className="text-xs gap-1 shrink-0">
+      <Home className="w-3 h-3" />家庭類
+    </Badge>
+  );
+  if (category === "business") return (
+    <Badge variant="outline" className="text-xs gap-1 shrink-0 border-blue-400/60 text-blue-600 dark:text-blue-400">
+      <Building2 className="w-3 h-3" />事業類
+    </Badge>
+  );
+  return null;
+}
+
+// ─── 主元件 ───────────────────────────────────────────────────────────────────
 interface Props {
   customerId: number;
   isPersonal: boolean;
@@ -116,6 +134,8 @@ export function CustomerQualifications({ customerId, isPersonal }: Props) {
   const utils = trpc.useUtils();
   const { data: items = [], isLoading } = trpc.customers.qualifications.listByCustomer.useQuery({ customerId });
   const { data: managers = [] } = trpc.managers.list.useQuery();
+  const { data: careReceivers = [] } = trpc.customers.careReceivers.listByCustomer.useQuery({ customerId });
+  const { data: cases = [] } = trpc.cases.list.useQuery({ customerId });
 
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Qualification | null>(null);
@@ -124,22 +144,39 @@ export function CustomerQualifications({ customerId, isPersonal }: Props) {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const createMutation = trpc.customers.qualifications.create.useMutation({
-    onSuccess: () => { utils.customers.qualifications.listByCustomer.invalidate({ customerId }); setShowModal(false); toast.success("申請資格已新增"); },
+    onSuccess: () => {
+      utils.customers.qualifications.listByCustomer.invalidate({ customerId });
+      setShowModal(false);
+      toast.success("申請資格已新增");
+    },
     onError: (e) => toast.error(e.message),
   });
   const updateMutation = trpc.customers.qualifications.update.useMutation({
-    onSuccess: () => { utils.customers.qualifications.listByCustomer.invalidate({ customerId }); setShowModal(false); toast.success("申請資格已更新"); },
+    onSuccess: () => {
+      utils.customers.qualifications.listByCustomer.invalidate({ customerId });
+      setShowModal(false);
+      toast.success("申請資格已更新");
+    },
     onError: (e) => toast.error(e.message),
   });
   const deleteMutation = trpc.customers.qualifications.delete.useMutation({
-    onSuccess: () => { utils.customers.qualifications.listByCustomer.invalidate({ customerId }); setDeleteConfirmId(null); toast.success("申請資格已刪除"); },
+    onSuccess: () => {
+      utils.customers.qualifications.listByCustomer.invalidate({ customerId });
+      setDeleteConfirmId(null);
+      toast.success("申請資格已刪除");
+    },
     onError: (e) => toast.error(e.message),
   });
 
-  function openCreate() { setEditItem(null); setForm(EMPTY_FORM); setShowModal(true); }
+  function openCreate() {
+    setEditItem(null);
+    setForm({ ...EMPTY_FORM, qualifierCategory: isPersonal ? "family" : "business" });
+    setShowModal(true);
+  }
   function openEdit(item: Qualification) {
     setEditItem(item);
     setForm({
+      qualifierCategory: (item.qualifierCategory as "family" | "business") ?? (isPersonal ? "family" : "business"),
       careReceiverId: item.careReceiverId ?? null,
       caseId: item.caseId ?? null,
       label: item.label ?? "",
@@ -168,7 +205,8 @@ export function CustomerQualifications({ customerId, isPersonal }: Props) {
 
   function handleSave() {
     const payload = {
-      careReceiverId: form.careReceiverId ?? null,
+      qualifierCategory: form.qualifierCategory,
+      careReceiverId: form.qualifierCategory === "family" ? (form.careReceiverId ?? null) : null,
       caseId: form.caseId ?? null,
       label: form.label || null,
       caseNo: form.caseNo || null,
@@ -200,6 +238,104 @@ export function CustomerQualifications({ customerId, isPersonal }: Props) {
 
   const isBusy = createMutation.isPending || updateMutation.isPending;
   const managerMap = Object.fromEntries((managers as any[]).map((m: any) => [m.id, m.name]));
+  const careReceiverMap = Object.fromEntries((careReceivers as any[]).map((cr: any) => [cr.id, cr.careReceiverName || `被照顧者 #${cr.id}`]));
+  const caseMap = Object.fromEntries((cases as any[]).map((c: any) => [c.id, `${c.caseNo || ""} ${c.name || ""}`.trim()]));
+
+  // 依類別分組
+  const familyItems = (items as Qualification[]).filter(i => !i.qualifierCategory || i.qualifierCategory === "family");
+  const businessItems = (items as Qualification[]).filter(i => i.qualifierCategory === "business");
+
+  function renderQualCard(item: Qualification) {
+    const isExpanded = expandedId === item.id;
+    const title = item.label || (item.qualifierCategory === "family" ? "家庭類申請" : "事業類申請");
+    const hasAttachments = item.jobSeekerFileKey || item.recruitmentLetterFileKey || item.employmentLetterFileKey;
+    const linkedCaseName = item.caseId ? caseMap[item.caseId] : null;
+    const linkedCareReceiver = item.careReceiverId ? careReceiverMap[item.careReceiverId] : null;
+
+    return (
+      <div key={item.id} className="rounded-lg border bg-card overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3">
+          <button type="button"
+            className="flex items-center gap-2 flex-1 text-left group min-w-0"
+            onClick={() => setExpandedId(isExpanded ? null : item.id)}>
+            <span className="text-sm font-medium group-hover:underline truncate">{title}</span>
+            {/* 被照顧者（家庭類） */}
+            {linkedCareReceiver && (
+              <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">· {linkedCareReceiver}</span>
+            )}
+            {/* 連結案件 */}
+            {linkedCaseName && (
+              <span className="flex items-center gap-1 text-xs text-blue-500 shrink-0 hidden sm:inline-flex">
+                <Link2 className="w-3 h-3" />{linkedCaseName}
+              </span>
+            )}
+            {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground ml-auto shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground ml-auto shrink-0" />}
+          </button>
+          <div className="flex items-center gap-1 ml-2 shrink-0">
+            <button type="button" onClick={() => openEdit(item)}
+              className="p-1.5 rounded-md hover:bg-muted transition-colors" title="編輯">
+              <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+            <button type="button" onClick={() => setDeleteConfirmId(item.id)}
+              className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors" title="刪除">
+              <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+            </button>
+          </div>
+        </div>
+
+        {/* 展開詳情 */}
+        {isExpanded && (
+          <div className="px-4 pb-4 border-t border-border/50">
+            {/* 家庭類：被照顧者 */}
+            {item.qualifierCategory === "family" && linkedCareReceiver && (
+              <div className="mt-4 rounded-md bg-muted/40 border border-border/50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">被照顧者</p>
+                <span className="text-sm font-medium">{linkedCareReceiver}</span>
+              </div>
+            )}
+            {/* 連結案件 */}
+            {linkedCaseName && (
+              <div className="mt-4 rounded-md bg-blue-500/5 border border-blue-400/30 p-3 flex items-center gap-2">
+                <Link2 className="w-4 h-4 text-blue-500 shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground">連結案件</p>
+                  <p className="text-sm font-medium text-blue-600 dark:text-blue-400">{linkedCaseName}</p>
+                </div>
+              </div>
+            )}
+            {/* 申請資格 */}
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-4 mb-3">申請資格</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
+              <InfoRow label="求才類別" value={item.jobSeekerType ? JOB_SEEKER_LABEL[item.jobSeekerType] : null} />
+              <InfoRow label="求才日期" value={item.jobSeekerDate} />
+              <InfoRow label="招募函類別" value={item.recruitmentLetterType ? RECRUITMENT_LABEL[item.recruitmentLetterType] : null} />
+              <InfoRow label="招募函申請日期" value={item.recruitmentLetterDate} />
+              <InfoRow label="招募許可情況說明" value={item.recruitmentPermitNote} />
+              <InfoRow label="許可天數" value={item.recruitmentPermitDays?.toString()} />
+              <InfoRow label="舊工離境日期" value={item.previousWorkerDepartureDate} />
+            </div>
+            {/* 聘僱函 */}
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-5 mb-3">聘僱函</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
+              <InfoRow label="聘僱函類別" value={item.employmentLetterType ? EMPLOYMENT_LABEL[item.employmentLetterType] : null} />
+              <InfoRow label="聘僱函申請日期" value={item.employmentLetterDate} />
+              <InfoRow label="核准聘僱起始日" value={item.approvedStartDate} />
+              <InfoRow label="核准聘僱期限" value={item.approvedPeriod} />
+              <InfoRow label="核准聘僱截止日" value={item.approvedEndDate} />
+            </div>
+            {item.notes && <div className="mt-4"><InfoRow label="備註" value={item.notes} /></div>}
+            {hasAttachments && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+                <AttachmentBtn label="求才資格檔案" fileKey={item.jobSeekerFileKey} />
+                <AttachmentBtn label="招募函許可檔案" fileKey={item.recruitmentLetterFileKey} />
+                <AttachmentBtn label="聘僱函檔案" fileKey={item.employmentLetterFileKey} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -207,83 +343,39 @@ export function CustomerQualifications({ customerId, isPersonal }: Props) {
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">申請資格</h3>
         <button onClick={openCreate}
           className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors px-2 py-1 rounded-md hover:bg-primary/10">
-          <Plus className="w-3.5 h-3.5" />新增申請資格
+          <Plus className="w-3.5 h-3.5" />新增資格
         </button>
       </div>
 
       {isLoading ? (
         <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">載入中…</div>
       ) : items.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">尚無申請資格</div>
+        <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+          <p>尚無申請資格</p>
+          <p className="text-xs mt-1">點擊「新增資格」建立家庭類或事業類雇主資格</p>
+        </div>
       ) : (
-        <div className="space-y-2">
-          {items.map((item) => {
-            const isExpanded = expandedId === item.id;
-            const title = item.label || item.caseNo || `資格 #${item.id}`;
-            const hasAttachments = item.jobSeekerFileKey || item.recruitmentLetterFileKey || item.employmentLetterFileKey;
-            return (
-              <div key={item.id} className="rounded-lg border bg-card overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3">
-                  <button type="button"
-                    className="flex items-center gap-2 flex-1 text-left group"
-                    onClick={() => setExpandedId(isExpanded ? null : item.id)}>
-                    <span className="text-sm font-medium group-hover:underline">{title}</span>
-                    {item.caseStatus && <StatusBadge status={item.caseStatus} />}
-                    {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground ml-auto" /> : <ChevronDown className="w-4 h-4 text-muted-foreground ml-auto" />}
-                  </button>
-                  <div className="flex items-center gap-1 ml-2 shrink-0">
-                    <button type="button" onClick={() => openEdit(item)}
-                      className="p-1.5 rounded-md hover:bg-muted transition-colors" title="編輯">
-                      <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                    </button>
-                    <button type="button" onClick={() => setDeleteConfirmId(item.id)}
-                      className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors" title="刪除">
-                      <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-                    </button>
-                  </div>
-                </div>
-                {isExpanded && (
-                  <div className="px-4 pb-4 border-t border-border/50">
-                    {/* 媒合案件 */}
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-4 mb-3">媒合案件</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
-                      <InfoRow label="案件編號" value={item.caseNo} />
-                      <InfoRow label="管理狀態" value={item.caseStatus ? getStatusLabel(item.caseStatus) : null} />
-                      <InfoRow label="管理負責人" value={item.managerId ? managerMap[item.managerId] : null} />
-                    </div>
-                    {/* 申請資格 */}
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-5 mb-3">申請資格</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
-                      <InfoRow label="求才類別" value={item.jobSeekerType ? JOB_SEEKER_LABEL[item.jobSeekerType] : null} />
-                      <InfoRow label="求才日期" value={item.jobSeekerDate} />
-                      <InfoRow label="招募函類別" value={item.recruitmentLetterType ? RECRUITMENT_LABEL[item.recruitmentLetterType] : null} />
-                      <InfoRow label="招募函申請日期" value={item.recruitmentLetterDate} />
-                      <InfoRow label="招募許可情況說明" value={item.recruitmentPermitNote} />
-                      <InfoRow label="許可天數" value={item.recruitmentPermitDays?.toString()} />
-                      <InfoRow label="舊工離境日期" value={item.previousWorkerDepartureDate} />
-                    </div>
-                    {/* 聘僱函 */}
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-5 mb-3">聘僱函</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
-                      <InfoRow label="聘僱函類別" value={item.employmentLetterType ? EMPLOYMENT_LABEL[item.employmentLetterType] : null} />
-                      <InfoRow label="聘僱函申請日期" value={item.employmentLetterDate} />
-                      <InfoRow label="核准聘僱起始日" value={item.approvedStartDate} />
-                      <InfoRow label="核准聘僱期限" value={item.approvedPeriod} />
-                      <InfoRow label="核准聘僱截止日" value={item.approvedEndDate} />
-                    </div>
-                    {item.notes && <InfoRow label="備註" value={item.notes} />}
-                    {hasAttachments && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-                        <AttachmentBtn label="求才資格檔案" fileKey={item.jobSeekerFileKey} />
-                        <AttachmentBtn label="招募函許可檔案" fileKey={item.recruitmentLetterFileKey} />
-                        <AttachmentBtn label="聘僱函檔案" fileKey={item.employmentLetterFileKey} />
-                      </div>
-                    )}
-                  </div>
-                )}
+        <div className="space-y-4">
+          {/* 家庭類雇主 */}
+          {familyItems.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <CategoryBadge category="family" />
+                <span className="text-xs text-muted-foreground">({familyItems.length})</span>
               </div>
-            );
-          })}
+              <div className="space-y-2">{familyItems.map(renderQualCard)}</div>
+            </div>
+          )}
+          {/* 事業類雇主 */}
+          {businessItems.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <CategoryBadge category="business" />
+                <span className="text-xs text-muted-foreground">({businessItems.length})</span>
+              </div>
+              <div className="space-y-2">{businessItems.map(renderQualCard)}</div>
+            </div>
+          )}
         </div>
       )}
 
@@ -294,44 +386,104 @@ export function CustomerQualifications({ customerId, isPersonal }: Props) {
             <DialogTitle>{editItem ? "編輯申請資格" : "新增申請資格"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-5 py-2">
-            {/* 標籤 */}
-            <div className="space-y-1.5">
-              <Label>資格標籤（選填，方便辨識）</Label>
-              <Input value={form.label ?? ""} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder="例：照顧母親 / 建築工人申請" />
+
+            {/* 資格類別選擇 */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">資格類別 <span className="text-destructive">*</span></Label>
+              <div className="grid grid-cols-2 gap-3">
+                {QUALIFIER_CATEGORY_OPTIONS.map(opt => {
+                  const Icon = opt.icon;
+                  const isSelected = form.qualifierCategory === opt.value;
+                  return (
+                    <button key={opt.value} type="button"
+                      onClick={() => setForm(f => ({
+                        ...f,
+                        qualifierCategory: opt.value as "family" | "business",
+                        careReceiverId: opt.value === "business" ? null : f.careReceiverId,
+                      }))}
+                      className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                        isSelected
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-border hover:border-border/80 hover:bg-muted/40"
+                      }`}>
+                      <Icon className="w-5 h-5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">{opt.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {opt.value === "family" ? "一對一，可連結被照顧者" : "可一對多移工"}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* 媒合案件 */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">媒合案件</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <Label>案件編號</Label>
-                  <Input value={form.caseNo ?? ""} onChange={e => setForm(f => ({ ...f, caseNo: e.target.value }))} placeholder="例：00033" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>管理狀態</Label>
-                  <Select value={form.caseStatus ?? ""} onValueChange={v => setForm(f => ({ ...f, caseStatus: v || null }))}>
-                    <SelectTrigger><SelectValue placeholder="請選擇" /></SelectTrigger>
+            {/* 家庭類：被照顧者選擇 */}
+            {form.qualifierCategory === "family" && (
+              <div className="space-y-1.5">
+                <Label>被照顧者（選填）</Label>
+                {(careReceivers as any[]).length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2 px-3 rounded-md bg-muted/40 border border-dashed">
+                    此客戶尚未建立被照顧者資料，請先在「被照顧者」區塊新增
+                  </p>
+                ) : (
+                  <Select
+                    value={form.careReceiverId?.toString() ?? "__none__"}
+                    onValueChange={v => setForm(f => ({ ...f, careReceiverId: v === "__none__" ? null : Number(v) }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="選擇被照顧者（選填）" />
+                    </SelectTrigger>
                     <SelectContent>
-                      {CASE_STATUS_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                      <SelectItem value="__none__">— 不指定 —</SelectItem>
+                      {(careReceivers as any[]).map((cr: any) => (
+                        <SelectItem key={cr.id} value={cr.id.toString()}>
+                          {cr.careReceiverName || `被照顧者 #${cr.id}`}
+                          {cr.careReceiverRelation ? ` · ${cr.careReceiverRelation}` : ""}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>管理負責人</Label>
-                  <Select value={form.managerId?.toString() ?? ""} onValueChange={v => setForm(f => ({ ...f, managerId: v ? Number(v) : null }))}>
-                    <SelectTrigger><SelectValue placeholder="請選擇負責人" /></SelectTrigger>
-                    <SelectContent>
-                      {(managers as any[]).map((m: any) => <SelectItem key={m.id} value={m.id.toString()}>{m.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                )}
               </div>
+            )}
+
+            {/* 連結案件（選填） */}
+            <div className="space-y-1.5">
+              <Label>連結案件（選填）</Label>
+              {(cases as any[]).length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2 px-3 rounded-md bg-muted/40 border border-dashed">
+                  此客戶尚未建立案件，資格建立後可再連結
+                </p>
+              ) : (
+                <Select
+                  value={form.caseId?.toString() ?? "__none__"}
+                  onValueChange={v => setForm(f => ({ ...f, caseId: v === "__none__" ? null : Number(v) }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="選擇連結案件（選填）" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— 不連結 —</SelectItem>
+                    {(cases as any[]).map((c: any) => (
+                      <SelectItem key={c.id} value={c.id.toString()}>
+                        {c.caseNo ? `${c.caseNo} ` : ""}{c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            {/* 資格標籤 */}
+            <div className="space-y-1.5">
+              <Label>資格標籤（選填，方便辨識）</Label>
+              <Input value={form.label ?? ""} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+                placeholder={form.qualifierCategory === "family" ? "例：照顧母親申請" : "例：建築工人申請"} />
             </div>
 
             {/* 申請資格 */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">申請資格</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">申請資格文件</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <Label>求才類別</Label>

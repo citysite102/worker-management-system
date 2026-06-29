@@ -230,6 +230,7 @@ export const cases = mysqlTable("cases", {
   // ── 主要移工 ──────────────────────────────────────────────────────────────
   primaryWorkerId: int("primaryWorkerId"),               // → workers.id（主要外國人）
   careReceiverId: int("careReceiverId"),                  // → customer_care_receivers.id（個人雇主時關聯被照顧者）
+  customerQualificationId: int("customerQualificationId"), // 可選 → customer_qualifications.id（關聯客戶資格）
   // ── 標記 ──────────────────────────────────────────────────────────────────
   needsReview: int("needsReview").default(0).notNull(),  // 需檢查標記（0/1）
   // ── 附件 ──────────────────────────────────────────────────────────────────
@@ -467,9 +468,11 @@ export type InsertCustomerCareReceiver = typeof customerCareReceivers.$inferInse
 export const customerQualifications = mysqlTable("customer_qualifications", {
   id: int("id").autoincrement().primaryKey(),
   customerId: int("customerId").notNull(),              // → customers.id
-  careReceiverId: int("careReceiverId"),                // 可選 → customer_care_receivers.id（個人雇主用）
-  caseId: int("caseId"),                               // 可選 → cases.id（關聯案件）
-  label: varchar("label", { length: 100 }),            // 顯示用標籤（如「建築工人申請」）
+  /** 資格類別：family=家庭類雇主, business=事業類雇主（可擴充） */
+  qualifierCategory: mysqlEnum("qualifierCategory", ["family", "business"]).notNull().default("family"),
+  careReceiverId: int("careReceiverId"),                // 可選 → customer_care_receivers.id（家庭類用）
+  caseId: int("caseId"),                               // 可選 → cases.id（關聯案件，1:1）
+  label: varchar("label", { length: 100 }),            // 顯示用標籤（如「王小明看護申請」）
   // ── 媒合案件 ──────────────────────────────────────────────────────────────
   caseNo: varchar("caseNo", { length: 20 }),           // 媒合案件編號（文字，可與 cases.caseNo 對應）
   caseStatus: mysqlEnum("caseStatus", [

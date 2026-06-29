@@ -189,27 +189,6 @@ export default function CustomerDetail() {
 
         {/* 右欄：媒合案件 + 關聯案件 */}
         <div className="space-y-6">
-          {/* 媒合案件狀態 */}
-          {(customer.caseNo || customer.caseStatus) && (
-            <div>
-              <SectionTitle>媒合案件</SectionTitle>
-              <div className="rounded-lg border bg-card p-4 space-y-2">
-                {customer.caseNo && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">案件編號</span>
-                    <span className="font-mono">{customer.caseNo}</span>
-                  </div>
-                )}
-                {customer.caseStatus && (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">管理狀態</span>
-                    <StatusBadge status={customer.caseStatus} />
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* 關聯案件 */}
           <div>
             <div className="flex items-center justify-between mb-2">

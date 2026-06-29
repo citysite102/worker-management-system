@@ -4,6 +4,11 @@ export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 export const getLoginUrl = () => {
   const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;
   const appId = import.meta.env.VITE_APP_ID;
+  // 本地開發未設定 Manus OAuth 時，避免 new URL 因 undefined 而拋出 Invalid URL。
+  // production 一定有設定值，不受影響。
+  if (!oauthPortalUrl || !appId) {
+    return "/";
+  }
   const redirectUri = `${window.location.origin}/api/oauth/callback`;
   const state = btoa(redirectUri);
 

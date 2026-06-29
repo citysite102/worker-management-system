@@ -20,6 +20,24 @@ export async function createContext(
     user = null;
   }
 
+  // ─── 本地開發繞過登入 ──────────────────────────────────────────────
+  // 僅在開發模式且明確開啟 DEV_AUTH_BYPASS 時注入假 admin，方便在本地
+  // 沒有 Manus OAuth 設定的情況下操作畫面。production 不會生效。
+  if (!user && process.env.NODE_ENV !== "production" && process.env.DEV_AUTH_BYPASS === "1") {
+    const now = new Date();
+    user = {
+      id: 0,
+      openId: "dev-local-admin",
+      name: "本地開發者",
+      email: "dev@localhost",
+      loginMethod: "dev",
+      role: "admin",
+      createdAt: now,
+      updatedAt: now,
+      lastSignedIn: now,
+    } satisfies User;
+  }
+
   return {
     req: opts.req,
     res: opts.res,

@@ -14,34 +14,15 @@ const PAGES = [
   { path: "/settings", heading: /設定/ },
 ] as const;
 
-/**
- * 已知且與功能無關的 console 雜訊。
- *
- * client/index.html 內嵌了 umami 分析標籤，src 是 `%VITE_ANALYTICS_ENDPOINT%/umami`。
- * 本地與 CI 都沒設這個環境變數，Vite 不會替換佔位符，瀏覽器就去請求字面上的
- * `/%VITE_ANALYTICS_ENDPOINT%/umami`，導致 400 + MIME 錯誤（express 那端還會噴
- * URIError）。這是設定問題不是程式缺陷，但值得修 —— 見 README.testing.md。
- */
-const IGNORED_CONSOLE_PATTERNS = [
-  /VITE_ANALYTICS_ENDPOINT/,
-  /umami/,
-  /Failed to load resource/,
-];
-
-function isBenign(text: string): boolean {
-  return IGNORED_CONSOLE_PATTERNS.some(re => re.test(text));
-}
-
+// 這裡刻意不設任何「已知雜訊」白名單 —— 一旦開始容忍例外，真正的錯誤就會
+// 混在裡面被忽略。console 有錯就該修掉源頭，而不是把它加進忽略清單。
 for (const { path, heading } of PAGES) {
   test(`${path} 可正常載入且無 console error`, async ({ page }) => {
     const errors: string[] = [];
     page.on("console", (msg: ConsoleMessage) => {
-      if (msg.type() === "error" && !isBenign(msg.text()))
-        errors.push(msg.text());
+      if (msg.type() === "error") errors.push(msg.text());
     });
-    page.on("pageerror", err => {
-      if (!isBenign(err.message)) errors.push(err.message);
-    });
+    page.on("pageerror", err => errors.push(err.message));
 
     await page.goto(path);
 

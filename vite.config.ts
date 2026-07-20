@@ -56,7 +56,7 @@ function writeToLogFile(source: LogSource, entries: unknown[]) {
   const logPath = path.join(LOG_DIR, `${source}.log`);
 
   // Format entries with timestamps
-  const lines = entries.map((entry) => {
+  const lines = entries.map(entry => {
     const ts = new Date().toISOString();
     return `[${ts}] ${JSON.stringify(entry)}`;
   });
@@ -132,7 +132,7 @@ function vitePluginManusDebugCollector(): Plugin {
         }
 
         let body = "";
-        req.on("data", (chunk) => {
+        req.on("data", chunk => {
           body += chunk.toString();
         });
 
@@ -150,7 +150,37 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+/**
+ * client/index.html 內嵌了 umami 分析標籤，src 寫成 `%VITE_ANALYTICS_ENDPOINT%/umami`。
+ * 沒設這個環境變數時 Vite 不會替換佔位符，瀏覽器就去請求字面上的
+ * `/%VITE_ANALYTICS_ENDPOINT%/umami`，造成每個頁面都有 400 + MIME console error，
+ * express 那端還會噴 `URIError: Failed to decode param`。
+ *
+ * 這個 plugin 在變數未設定時直接把整個 script 標籤移掉，讓 console 保持乾淨 ——
+ * 真正的錯誤才不會被雜訊蓋過去。變數有設定時行為完全不變。
+ */
+function vitePluginStripUnconfiguredAnalytics(): Plugin {
+  return {
+    name: "strip-unconfigured-analytics",
+    enforce: "post",
+    transformIndexHtml(html) {
+      if (process.env.VITE_ANALYTICS_ENDPOINT) return html;
+      return html.replace(
+        /\s*<script\b[^>]*%VITE_ANALYTICS_ENDPOINT%[^>]*><\/script>/g,
+        ""
+      );
+    },
+  };
+}
+
+const plugins = [
+  react(),
+  tailwindcss(),
+  jsxLocPlugin(),
+  vitePluginManusRuntime(),
+  vitePluginManusDebugCollector(),
+  vitePluginStripUnconfiguredAnalytics(),
+];
 
 export default defineConfig({
   plugins,

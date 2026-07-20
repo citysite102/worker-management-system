@@ -240,17 +240,24 @@ export async function deleteCase(id: number) {
 export async function getCaseChildCounts(caseId: number) {
   const db = await getDb();
   if (!db) return { qualCount: 0, demandCount: 0, assignmentCount: 0, memberCount: 0 };
-  const [quals, demands, assignments] = await Promise.all([
-    db.select().from(caseQualifications).where(eq(caseQualifications.caseId, caseId)),
-    db.select().from(caseDemands).where(eq(caseDemands.caseId, caseId)),
-    db.select().from(caseAssignments).where(eq(caseAssignments.caseId, caseId)),
+  // 全部下推成 count(*)：原本把整批資料撈回來再用 .length 計數，成員數還逐一
+  // assignment 查一次（N+1）。改成四個平行聚合查詢，成員數用 join 一次算完，
+  // 查詢次數不再隨 assignment 數量增加。
+  const [quals, demands, assignments, members] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(caseQualifications).where(eq(caseQualifications.caseId, caseId)),
+    db.select({ count: sql<number>`count(*)` }).from(caseDemands).where(eq(caseDemands.caseId, caseId)),
+    db.select({ count: sql<number>`count(*)` }).from(caseAssignments).where(eq(caseAssignments.caseId, caseId)),
+    db.select({ count: sql<number>`count(*)` })
+      .from(caseAssignmentWorkers)
+      .innerJoin(caseAssignments, eq(caseAssignmentWorkers.assignmentId, caseAssignments.id))
+      .where(eq(caseAssignments.caseId, caseId)),
   ]);
-  let memberCount = 0;
-  for (const a of assignments) {
-    const members = await db.select().from(caseAssignmentWorkers).where(eq(caseAssignmentWorkers.assignmentId, a.id));
-    memberCount += members.length;
-  }
-  return { qualCount: quals.length, demandCount: demands.length, assignmentCount: assignments.length, memberCount };
+  return {
+    qualCount: Number(quals[0]?.count ?? 0),
+    demandCount: Number(demands[0]?.count ?? 0),
+    assignmentCount: Number(assignments[0]?.count ?? 0),
+    memberCount: Number(members[0]?.count ?? 0),
+  };
 }
 
 // ─── Case Qualifications（資格）─────────────────────────────────────────────

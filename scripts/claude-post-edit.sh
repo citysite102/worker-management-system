@@ -22,8 +22,33 @@ esac
 
 [ -f "$FILE" ] || exit 0
 
-# 1) 格式化被改動的那個檔案（失敗不擋，格式不是正確性問題）
-pnpm exec prettier --write "$FILE" >/dev/null 2>&1 || true
+# 1) 格式化被改動的那個檔案（失敗不擋，格式不是正確性問題）。
+#
+#    但只格式化「本來就符合 prettier 的檔案」。本 repo 有上百個歷史遺留檔案
+#    從未被格式化過，對它們跑 prettier --write 會把整份重排 ——
+#    一個 15 行的邏輯修改會變成 573 行的 diff，根本沒辦法審閱。
+#
+#    判斷方式：看這個檔案在 HEAD 的版本是否已符合格式。
+#      - 新檔案（HEAD 沒有）→ 格式化，新程式碼從一開始就該是乾淨的
+#      - HEAD 版本已符合格式 → 格式化，維持乾淨
+#      - HEAD 版本本來就不符合 → 跳過，不製造格式雜訊
+#    想清掉歷史債務請單獨跑 pnpm format 並獨立成一個 commit。
+#    注意：Claude Code 傳進來的是絕對路徑，但 `git show HEAD:<path>` 只吃
+#    repo 相對路徑，所以要先用 --full-name 轉換。
+should_format() {
+  REL=$(git ls-files --full-name --error-unmatch "$FILE" 2>/dev/null) || return 0
+  [ -n "$REL" ] || return 0
+
+  HEAD_SRC=$(git show "HEAD:$REL" 2>/dev/null) || return 1
+  [ -n "$HEAD_SRC" ] || return 1
+
+  printf '%s\n' "$HEAD_SRC" \
+    | pnpm exec prettier --stdin-filepath "$FILE" --check >/dev/null 2>&1
+}
+
+if should_format; then
+  pnpm exec prettier --write "$FILE" >/dev/null 2>&1 || true
+fi
 
 # 2) 全專案型別檢查。有錯就把錯誤訊息送回給 Claude 修。
 if ! TSC_OUTPUT=$(pnpm exec tsc --noEmit 2>&1); then

@@ -15,19 +15,32 @@ echo "▶ pre-commit：型別檢查 ..."
 pnpm check
 pnpm check:test
 
-echo "▶ pre-commit：格式檢查（僅本次 staged 的檔案）..."
-# 全 repo 目前有上百個檔案不符合 prettier 格式（歷史遺留），因此這裡只擋
-# 「這次要 commit 的檔案」，避免每次 commit 都被既有債務卡住。
-# 想一次清乾淨的話，跑 pnpm format 另開一個 commit。
-STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|mjs|json|css|md)$' || true)
-if [ -n "$STAGED" ]; then
-  if ! echo "$STAGED" | xargs pnpm exec prettier --check >/dev/null 2>&1; then
-    echo "✖ 以下 staged 檔案格式不符："
-    echo "$STAGED" | xargs pnpm exec prettier --list-different
-    echo "  執行：echo \"\$(git diff --cached --name-only)\" | xargs pnpm exec prettier --write"
-    echo "  然後重新 git add 並 commit。"
-    exit 1
+echo "▶ pre-commit：格式檢查（僅新檔案與本來就乾淨的檔案）..."
+#
+# 這裡的規則必須與 scripts/claude-post-edit.sh 一致，否則兩層會互相打架：
+# 全 repo 有上百個從未格式化的歷史檔案，若要求「只要 staged 就必須符合格式」，
+# 等於每次動到舊檔都得順手重排整份 —— 一個 15 行的修改會變成 573 行的 diff。
+#
+# 因此只檢查：
+#   - 新檔案（HEAD 沒有）：新程式碼從一開始就該乾淨
+#   - HEAD 版本已符合格式的檔案：維持乾淨，不允許退步
+# HEAD 版本本來就不符合格式的舊檔一律放行。
+# 想清掉歷史債務請單獨跑 pnpm format 並獨立成一個 commit。
+NEEDS_FORMAT=""
+for f in $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|mjs|json|css|md)$' || true); do
+  if git cat-file -e "HEAD:$f" 2>/dev/null; then
+    # 已存在的檔案：HEAD 版本不乾淨就跳過（歷史遺留，不強制）
+    git show "HEAD:$f" | pnpm exec prettier --stdin-filepath "$f" --check >/dev/null 2>&1 || continue
   fi
+  pnpm exec prettier --check "$f" >/dev/null 2>&1 || NEEDS_FORMAT="$NEEDS_FORMAT $f"
+done
+
+if [ -n "$NEEDS_FORMAT" ]; then
+  echo "✖ 以下檔案格式不符（新檔案或原本就乾淨的檔案）："
+  for f in $NEEDS_FORMAT; do echo "    $f"; done
+  echo "  執行：pnpm exec prettier --write$NEEDS_FORMAT"
+  echo "  然後重新 git add 並 commit。"
+  exit 1
 fi
 
 echo "▶ pre-commit：專案規約檢查 ..."

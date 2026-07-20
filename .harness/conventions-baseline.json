@@ -61,7 +61,6 @@
   "untestedProcedures": [
     "auth.me",
     "caseAssignments.addWorker",
-    "caseAssignments.create",
     "caseAssignments.delete",
     "caseAssignments.getMembersByCaseId",
     "caseAssignments.listByCase",

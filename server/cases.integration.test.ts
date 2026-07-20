@@ -14,6 +14,7 @@ import {
   makeCaseWorld,
   makeCustomer,
   makeManager,
+  makeWorker,
 } from "./__tests__/helpers/fixtures";
 import { query } from "./__tests__/helpers/testDb";
 
@@ -170,6 +171,37 @@ describe("cases.getChildCounts", () => {
 
     expect(Number(actual[0].n)).toBe(2);
     expect(counts.demandCount).toBe(2);
+  });
+
+  it("跨多個配對批次正確加總成員數", async () => {
+    const caller = createCaller();
+    const { caseId, managerId } = await makeCaseWorld(caller);
+
+    // 兩個配對批次、共三位移工 —— 這正是原本 N+1 迴圈在處理的情境，
+    // 改成單次 join 查詢後結果必須完全一樣。
+    const w1 = await makeWorker(caller, managerId, { name: "移工一" });
+    const w2 = await makeWorker(caller, managerId, { name: "移工二" });
+    const w3 = await makeWorker(caller, managerId, { name: "移工三" });
+
+    await caller.caseAssignments.create({ caseId, workerIds: [w1, w2] });
+    await caller.caseAssignments.create({ caseId, workerIds: [w3] });
+
+    const counts = await caller.cases.getChildCounts({ id: caseId });
+
+    expect(counts.assignmentCount).toBe(2);
+    expect(counts.memberCount).toBe(3);
+  });
+
+  it("沒有任何子表資料時全部回 0", async () => {
+    const caller = createCaller();
+    const { caseId } = await makeCaseWorld(caller);
+
+    expect(await caller.cases.getChildCounts({ id: caseId })).toEqual({
+      qualCount: 0,
+      demandCount: 0,
+      assignmentCount: 0,
+      memberCount: 0,
+    });
   });
 
   it("不會把別的案件的子表算進來", async () => {

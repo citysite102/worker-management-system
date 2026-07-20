@@ -185,35 +185,40 @@ describe("CaseModal 的必填判斷", () => {
     expect(screen.getByTestId("case-modal-submit")).toBeDisabled();
   });
 
-  it("名稱只有 1 字時按鈕可按，但 zod 會擋下送出", async () => {
+  it("名稱只有 1 字時按鈕仍停用，門檻與 schema 的 min(2) 一致", async () => {
     const user = userEvent.setup();
     renderModal({ defaultCustomerId: 10 });
 
     await user.type(nameInput(), "王");
     await selectOption(user, "選擇負責人", "陳專員");
 
-    // missingFields 只判斷「是不是空的」，zod schema 要求至少 2 字 ——
-    // 兩者門檻不一致，使用者會遇到「按鈕看起來可按，按下去卻沒反應」。
-    // 這裡把現況釘住，見報告中的產品問題清單。
-    expect(screen.getByTestId("case-modal-submit")).toBeEnabled();
-
-    await user.click(screen.getByTestId("case-modal-submit"));
-
-    expect(await screen.findByText("案件名稱至少 2 字")).toBeInTheDocument();
-    expect(getMutation("cases.create").mutate).not.toHaveBeenCalled();
+    // 曾經的 bug：missingFields 只判斷「是不是空的」，但 schema 要求至少 2 字。
+    // 使用者打一個字時按鈕看起來可按，按下去卻只是靜靜地失敗 —— 錯誤訊息在
+    // 基本資料 Tab 的欄位下方，當時若在其他 Tab 就完全看不到回饋。
+    expect(screen.getByTestId("case-modal-submit")).toBeDisabled();
   });
 
-  it("zod 擋下後，基本資料 Tab 會顯示錯誤數量徽章", async () => {
+  it("名稱只有 1 字時，tooltip 會說明至少要 2 字", async () => {
     const user = userEvent.setup();
     renderModal({ defaultCustomerId: 10 });
 
     await user.type(nameInput(), "王");
     await selectOption(user, "選擇負責人", "陳專員");
-    await user.click(screen.getByTestId("case-modal-submit"));
+    await user.hover(screen.getByTestId("case-modal-submit-wrap"));
 
-    await screen.findByText("案件名稱至少 2 字");
-    const basicTab = screen.getByRole("tab", { name: /基本資料/ });
-    expect(basicTab).toHaveTextContent("1");
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "案件名稱（至少 2 字）"
+    );
+  });
+
+  it("只有空白字元不算填了名稱", async () => {
+    const user = userEvent.setup();
+    renderModal({ defaultCustomerId: 10 });
+
+    await user.type(nameInput(), "  ");
+    await selectOption(user, "選擇負責人", "陳專員");
+
+    expect(screen.getByTestId("case-modal-submit")).toBeDisabled();
   });
 
   it("停用狀態下點送出鈕不會發出請求", async () => {

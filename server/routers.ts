@@ -28,7 +28,7 @@ import {
 
 const workerInput = z.object({
   // 基本資料
-  name: z.string().min(1, "姓名為必填").max(100).transform(s => s.trim()),
+  name: z.string().trim().min(1, "姓名為必填").max(100),
   workerNo: z.string().max(50).optional().transform(s => s?.trim() || undefined),
   nameEn: z.string().max(100).optional().transform(s => s?.trim() || undefined),
   nameCn: z.string().max(50).optional().transform(s => s?.trim() || undefined),
@@ -70,7 +70,7 @@ const customerInput = z.object({
   // 雇主類型
   employerType: z.enum(["individual", "company"]).default("company"),
   // 基本資料
-  name: z.string().min(2, "名稱至少 2 字").max(100, "名稱最多 100 字").transform(s => s.trim()),
+  name: z.string().trim().min(2, "名稱至少 2 字").max(100, "名稱最多 100 字"),
   employerNo: z.string().max(20).optional().transform(s => s?.trim() || undefined),
   phone: z.string().optional().transform(s => s?.trim() || undefined),
   landline: z.string().optional().transform(s => s?.trim() || undefined),
@@ -343,7 +343,7 @@ export const appRouter = router({
   managers: router({
     list: publicProcedure.query(async () => getAllManagers()),
     create: publicProcedure
-      .input(z.object({ name: z.string().min(1, "名稱為必填").max(50).transform(s => s.trim()) }))
+      .input(z.object({ name: z.string().trim().min(1, "名稱為必填").max(50) }))
       .mutation(async ({ input }) => {
         const id = await createManager({ name: input.name });
         return { success: true, id };
@@ -913,7 +913,7 @@ export const appRouter = router({
     create: publicProcedure
       .input(z.object({
         customerId: z.number().int().positive("客戶為必填"),
-        name: z.string().min(2, "案件名稱至少 2 字").max(100).transform(s => s.trim()),
+        name: z.string().trim().min(2, "案件名稱至少 2 字").max(100),
         managerId: z.number().int().positive("負責人為必填"),
         status: z.enum(["in_progress", "completed", "paused", "cancelled"]).default("in_progress"),
         caseCondition: z.string().max(100).optional().nullable().transform(s => s?.trim() || undefined),
@@ -981,7 +981,7 @@ export const appRouter = router({
       .input(z.object({
         id: z.number().int().positive(),
         customerId: z.number().int().positive("客戶為必填"),
-        name: z.string().min(2, "案件名稱至少 2 字").max(100).transform(s => s.trim()),
+        name: z.string().trim().min(2, "案件名稱至少 2 字").max(100),
         managerId: z.number().int().positive("負責人為必填"),
         status: z.enum(["in_progress", "completed", "paused", "cancelled"]),
         caseCondition: z.string().max(100).optional().transform(s => s?.trim() || undefined),
@@ -1076,7 +1076,7 @@ export const appRouter = router({
     create: publicProcedure
       .input(z.object({
         caseId: z.number().int().positive(),
-        label: z.string().min(1).max(100).transform(s => s.trim()),
+        label: z.string().trim().min(1).max(100),
         category: z.enum(["labor_in", "labor_out", "professional"]),
         qualType: z.enum(["caregiver", "domestic_helper", "manufacturing", "agriculture", "construction", "white_collar", "intermediate", "overseas_student"]),
         employerName: z.string().max(100).optional().transform(s => s?.trim() || undefined),
@@ -1095,7 +1095,7 @@ export const appRouter = router({
     update: publicProcedure
       .input(z.object({
         id: z.number().int().positive(),
-        label: z.string().min(1).max(100).transform(s => s.trim()),
+        label: z.string().trim().min(1).max(100),
         category: z.enum(["labor_in", "labor_out", "professional"]),
         qualType: z.enum(["caregiver", "domestic_helper", "manufacturing", "agriculture", "construction", "white_collar", "intermediate", "overseas_student"]),
         employerName: z.string().max(100).optional().transform(s => s?.trim() || undefined),
@@ -1137,7 +1137,7 @@ export const appRouter = router({
     create: publicProcedure
       .input(z.object({
         caseId: z.number().int().positive(),
-        label: z.string().min(1).max(100).transform(s => s.trim()),
+        label: z.string().trim().min(1).max(100),
         qualificationId: z.number().int().positive().optional(),
         qualType: z.enum(["caregiver", "domestic_helper", "manufacturing", "agriculture", "construction", "white_collar", "intermediate", "overseas_student"]),
         neededCount: z.number().int().min(1),
@@ -1151,7 +1151,7 @@ export const appRouter = router({
     update: publicProcedure
       .input(z.object({
         id: z.number().int().positive(),
-        label: z.string().min(1).max(100).transform(s => s.trim()),
+        label: z.string().trim().min(1).max(100),
         qualificationId: z.number().int().positive().optional(),
         qualType: z.enum(["caregiver", "domestic_helper", "manufacturing", "agriculture", "construction", "white_collar", "intermediate", "overseas_student"]),
         neededCount: z.number().int().min(1),

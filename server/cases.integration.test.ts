@@ -73,6 +73,39 @@ describe("cases.create", () => {
     expect(fetched.caseNo).toBe(result.caseNo);
   });
 
+  it("拒絕只有空白字元的名稱（trim 後才判長度）", async () => {
+    const caller = createCaller();
+    const managerId = await makeManager(caller);
+    const customerId = await makeCustomer(caller, managerId);
+
+    // 曾經的 bug：schema 寫成 .min(2).transform(trim)，min 是在 trim 之前
+    // 執行的，所以兩個空白字元通過驗證後被 trim 成空字串存進資料庫，
+    // 案件列表就會出現一筆沒有名稱的案件。
+    for (const blank of ["  ", "　　", " 甲 "]) {
+      await expect(
+        makeCase(caller, customerId, managerId, { name: blank })
+      ).rejects.toThrow();
+    }
+
+    expect(await query("SELECT id FROM `cases`")).toHaveLength(0);
+  });
+
+  it("名稱前後的空白會被去掉才存入", async () => {
+    const caller = createCaller();
+    const managerId = await makeManager(caller);
+    const customerId = await makeCustomer(caller, managerId);
+
+    const caseId = await makeCase(caller, customerId, managerId, {
+      name: "  王小明看護案  ",
+    });
+
+    const rows = await query<{ name: string }>(
+      "SELECT name FROM `cases` WHERE id = ?",
+      [caseId]
+    );
+    expect(rows[0].name).toBe("王小明看護案");
+  });
+
   it("拒絕過短的案件名稱，且不留下半筆資料", async () => {
     const caller = createCaller();
     const managerId = await makeManager(caller);

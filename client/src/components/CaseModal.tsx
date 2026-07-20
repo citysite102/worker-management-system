@@ -322,14 +322,20 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
   // ── 必填欄位缺少清單（僅新增模式才 Disabled；編輯模式允許部分更新）──
   const watchedName = watch("name");
   const REQUIRED_FIELD_LABELS: { key: keyof FormValues; label: string }[] = [
-    { key: "name", label: "案件名稱" },
+    { key: "name", label: "案件名稱（至少 2 字）" },
     { key: "managerId", label: "負責人" },
     { key: "customerId", label: "選擇雇主" },
   ];
   const missingFields = !editingCase
     ? REQUIRED_FIELD_LABELS.filter(({ key }) => {
-        const v = key === "name" ? watchedName : key === "managerId" ? watchedManagerId : watchedCustomerId;
-        return !v || v === 0 || v === "";
+        // 案件名稱的門檻必須跟 schema 的 z.string().trim().min(2) 一致。
+        // 只判斷「有沒有填」的話，打一個字時送出鈕是可按的，按下去卻只是
+        // 靜靜地失敗 —— 錯誤訊息在基本資料 Tab 的欄位下方，使用者當時若在
+        // 其他 Tab 就完全看不到任何回饋。
+        if (key === "name") return (watchedName?.trim().length ?? 0) < 2;
+        // managerId / customerId 都是數字，未選時為 0 或 undefined
+        const v = key === "managerId" ? watchedManagerId : watchedCustomerId;
+        return !v;
       })
     : [];
   const isSubmitDisabled = isPending || anyUploading || missingFields.length > 0;

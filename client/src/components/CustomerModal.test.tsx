@@ -19,6 +19,7 @@ import { CustomerModal } from "./CustomerModal";
 import {
   getMutation,
   resetTrpcMock,
+  setMutationError,
   setQueryData,
 } from "../__tests__/trpcMock";
 
@@ -392,5 +393,81 @@ describe("CustomerModal 的編輯模式", () => {
       managerId: 2,
       employerType: "individual",
     });
+  });
+});
+
+describe("CustomerModal 的同名警告流程", () => {
+  // 後端在偵測到同名雇主時，會回一個訊息以 "DUPLICATE_NAME:" 開頭的錯誤，
+  // 前端據此跳出確認視窗。這是「重複建立雇主」的最後一道防線 ——
+  // 它把錯誤訊息當成控制流程用，所以只有能模擬 mutation 失敗才測得到。
+
+  it("後端回 DUPLICATE_NAME 時跳出同名確認視窗", async () => {
+    const user = userEvent.setup();
+    setMutationError("customers.create", "DUPLICATE_NAME:台灣精密");
+    renderModal();
+
+    await fillAllRequired(user);
+    await user.click(screen.getByTestId("customer-modal-submit"));
+
+    expect(
+      await screen.findByRole("heading", { name: "同名雇主警告" })
+    ).toBeInTheDocument();
+  });
+
+  it("其他錯誤不會跳同名視窗，而是走一般錯誤提示", async () => {
+    const user = userEvent.setup();
+    setMutationError("customers.create", "資料庫連線失敗");
+    renderModal();
+
+    await fillAllRequired(user);
+    await user.click(screen.getByTestId("customer-modal-submit"));
+
+    expect(
+      screen.queryByRole("heading", { name: "同名雇主警告" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("按「確定建立」會重送並帶上 forceCreate: true", async () => {
+    const user = userEvent.setup();
+    setMutationError("customers.create", "DUPLICATE_NAME:台灣精密");
+    renderModal();
+
+    await fillAllRequired(user);
+    await user.click(screen.getByTestId("customer-modal-submit"));
+    await screen.findByRole("heading", { name: "同名雇主警告" });
+
+    await user.click(screen.getByRole("button", { name: "確定建立" }));
+
+    const create = getMutation("customers.create");
+    // 第一次送出 forceCreate: false，確認後那次才是 true
+    expect(create.mutate).toHaveBeenCalledTimes(2);
+    expect(create.mutate.mock.calls[0][0]).toMatchObject({
+      forceCreate: false,
+    });
+    expect(create.mutate.mock.calls[1][0]).toMatchObject({
+      forceCreate: true,
+      name: "台灣精密",
+    });
+  });
+
+  it("按「取消」會關掉警告視窗且不重送", async () => {
+    const user = userEvent.setup();
+    setMutationError("customers.create", "DUPLICATE_NAME:台灣精密");
+    renderModal();
+
+    await fillAllRequired(user);
+    await user.click(screen.getByTestId("customer-modal-submit"));
+    const warning = await screen.findByRole("heading", {
+      name: "同名雇主警告",
+    });
+    expect(warning).toBeInTheDocument();
+
+    const cancelButtons = screen.getAllByRole("button", { name: "取消" });
+    await user.click(cancelButtons[cancelButtons.length - 1]);
+
+    expect(
+      screen.queryByRole("heading", { name: "同名雇主警告" })
+    ).not.toBeInTheDocument();
+    expect(getMutation("customers.create").mutate).toHaveBeenCalledTimes(1);
   });
 });

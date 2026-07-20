@@ -50,6 +50,8 @@ const queryResults = new Map<string, QueryResult>();
 const mutationResults = new Map<string, MutationResult>();
 /** path → 呼叫 mutate 時要觸發的 onSuccess 回傳值。 */
 const mutationSuccessData = new Map<string, unknown>();
+/** path → 設了就改走 onError（優先於 success）。 */
+const mutationErrors = new Map<string, unknown>();
 
 function makeQueryResult(data: unknown, isLoading: boolean): QueryResult {
   return {
@@ -77,6 +79,22 @@ export function setMutationSuccess(path: string, data: unknown) {
   mutationSuccessData.set(path, data);
 }
 
+/**
+ * 讓某個 mutation 改走失敗路徑。
+ *
+ * 有些元件把錯誤訊息當成控制流程用 —— 例如 CustomerModal 靠
+ * `err.message.startsWith("DUPLICATE_NAME:")` 決定要不要跳出同名確認視窗。
+ * 那是「重複建立雇主」的最後一道防線，沒有這個就完全測不到。
+ *
+ * 傳字串會自動包成 Error；要模擬 TRPCError 的形狀就自己傳物件。
+ */
+export function setMutationError(path: string, error: unknown) {
+  mutationErrors.set(
+    path,
+    typeof error === "string" ? new Error(error) : error
+  );
+}
+
 /** 取得某個 mutation 的 mutate 間諜，用來斷言送出的內容。 */
 export function getMutation(path: string): MutationResult {
   const hit = mutationResults.get(path);
@@ -94,6 +112,8 @@ export function resetTrpcMock() {
   queryResults.clear();
   mutationResults.clear();
   mutationSuccessData.clear();
+  mutationErrors.clear();
+  mutationCallbacks.clear();
 }
 
 /** 元件會把 onSuccess 傳進 useMutation，這裡存起來供 mutate 觸發。 */
@@ -131,13 +151,23 @@ function useMutationImpl(
 
   const trigger = (variables: unknown) => {
     const cb = mutationCallbacks.get(path);
+    if (mutationErrors.has(path)) {
+      cb?.onError?.(mutationErrors.get(path));
+      return variables;
+    }
     cb?.onSuccess?.(mutationSuccessData.get(path) ?? { success: true });
     return variables;
   };
 
   const result: MutationResult = {
+    // mutate 是 fire-and-forget，錯誤只走 onError，不會 throw
     mutate: vi.fn(trigger),
-    mutateAsync: vi.fn(async (variables: unknown) => trigger(variables)),
+    // mutateAsync 回傳 promise，失敗時要 reject —— 元件常用 try/catch 接
+    mutateAsync: vi.fn(async (variables: unknown) => {
+      trigger(variables);
+      if (mutationErrors.has(path)) throw mutationErrors.get(path);
+      return variables;
+    }),
     isPending: false,
     isError: false,
     error: null,

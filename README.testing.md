@@ -114,19 +114,40 @@ beforeEach(() => {
   `getByRole("tooltip")`。
 - **先確認元件用 `mutate` 還是 `mutateAsync`**。斷言錯了看到的現象是「表單
   好像沒送出」，很容易往 react-hook-form 驗證的方向找錯半天。
+- **要測「後端回錯誤時元件怎麼反應」用 `setMutationError(path, error)`**。
+  有些元件把錯誤訊息當控制流程用（`CustomerModal` 靠
+  `err.message.startsWith("DUPLICATE_NAME:")` 決定要不要跳同名確認視窗），
+  沒有這個就完全測不到。`mutate` 只走 `onError`；`mutateAsync` 會 reject。
 - **餵給 `setQueryData` 的資料不要每次 render 重新產生**。Modal 的 useEffect
   依賴陣列裡有查詢結果，參考一直變會造成無限迴圈、測試直接卡死。
   trpcMock 內部已經做了參考快取，但別在測試裡繞過它。
 
 ## 目前的覆蓋缺口（依優先序）
 
-1. **`CustomerQualifications`（589 行）與 `ImportWorkerModal`（523 行）零測試** ——
+1. **`CustomerModal` 編輯模式的 managerId 可能送出 NaN** ——
+   `missingFields` 在編輯模式一律是空陣列，所以送出鈕永遠可按；`onSubmit`
+   的 `if (!data.managerId)` 擋不住 `String(null)` 產生的 `"null"`，
+   接著 `parseInt("null")` = NaN 就送進後端。需要先決定「既有資料的
+   managerId 可不可以是 null」才好補測試。
+2. **`CaseModal` 的 `ADMIN_TAB_FIELDS` 是空陣列** —— Tab 2 的錯誤徽章永遠
+   不會亮。目前 Tab 2 全部選填所以無害，但 schema 裡 `employmentPeriodMonths`
+   有 `.min(1).max(36)`，輸入 40 會產生 zod 錯誤卻不計入任何 Tab 徽章，
+   使用者只會看到「按了沒反應」。是定時炸彈，不是現在就壞。
+3. **`CustomerModal` 的 `SelectField` 定義在元件函式體內** —— 每次 render 都是
+   新的元件型別，React 會整個 unmount/remount 三個下拉。目前功能沒壞，
+   但這是效能與焦點行為的隱患。
+4. **兩個 Modal 的 DialogContent 缺 `Description`／`aria-describedby`** ——
+   無障礙問題，跑測試時 Radix 也會對每個 test 噴警告。
+5. **`CaseModal` 的表單欄位幾乎沒有 `data-testid`**，`FormField` 的 `htmlFor`
+   一次都沒傳，所以 label 沒跟控制項綁定。測試只能靠 placeholder 文字認欄位，
+   改個文案就會壞。補 `htmlFor` 同時也修掉無障礙問題。
+6. **`CustomerQualifications`（589 行）與 `ImportWorkerModal`（523 行）零測試** ——
    兩者都有不少狀態機式的邏輯。ImportWorkerModal 還牽涉 CSV 解析與檔案上傳。
-2. **E2E 沒有真正的 CRUD 流程** —— 目前只驗到「送出鈕 disabled ↔ enabled 的
+7. **E2E 沒有真正的 CRUD 流程** —— 目前只驗到「送出鈕 disabled ↔ enabled 的
    轉換」與「刪除確認框有跳出來」，不按下去。因為 E2E 共用單一 `wms_e2e` 且
    測試間不重置，任何寫入都會讓後續測試的列數斷言變得不確定。
    要補真正的 CRUD，得先讓 E2E 有 per-test 或 per-file 的資料重置機制。
-3. **3 個 procedure 沒有測試** —— `auth.me`、`customers.uploadFile`、
+8. **3 個 procedure 沒有測試** —— `auth.me`、`customers.uploadFile`、
    `workers.uploadFile`，都需要先把 OAuth / S3 的外部依賴抽出來才好測。
 
 已完成的部分：`data-testid` 已覆蓋 Cases / Workers / Customers / Dashboard

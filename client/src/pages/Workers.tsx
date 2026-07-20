@@ -192,7 +192,7 @@ export default function Workers() {
       w.nationality || "",
       w.birthPlace || "",
       occupationMap[w.occupation ?? ""] || w.occupation || "",
-      getStatusLabel(w.lifecycleStatus),
+      getStatusLabel(w.lifecycleStatus, "lifecycle"),
       getStatusLabel(w.documentStatus),
       w.residentPermitNo || "",
       w.residentPermitExpiry || "",
@@ -244,6 +244,7 @@ export default function Workers() {
         </div>
         <div className="flex items-center gap-2">
           <Button
+            data-testid="workers-export-csv"
             variant="outline"
             size="sm"
             onClick={handleExportCsv}
@@ -254,6 +255,7 @@ export default function Workers() {
             匯出 CSV
           </Button>
           <Button
+            data-testid="workers-import-csv"
             variant="outline"
             size="sm"
             onClick={() => setImportModalOpen(true)}
@@ -262,7 +264,7 @@ export default function Workers() {
             <Upload className="w-4 h-4" />
             匯入 CSV
           </Button>
-          <Button onClick={openCreate} size="sm" className="gap-1.5">
+          <Button data-testid="workers-create" onClick={openCreate} size="sm" className="gap-1.5">
             <Plus className="w-4 h-4" />
             新增移工
           </Button>
@@ -272,12 +274,12 @@ export default function Workers() {
       {/* 統計卡 — 可點擊快速篩選（5 張） */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* 總數（不可點擊） */}
-        <div className="bg-card border border-border rounded-lg p-4">
+        <div data-testid="workers-stat-total" className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-muted-foreground font-medium">移工總數</span>
             <Users className="w-4 h-4 text-foreground" />
           </div>
-          <p className="text-2xl font-semibold text-foreground">{stats.total}</p>
+          <p data-testid="workers-stat-value" className="text-2xl font-semibold text-foreground">{stats.total}</p>
         </div>
 
         {/* 可點擊篩選卡 — 方向二：單一主色 + 語義灰階 */}
@@ -313,6 +315,9 @@ export default function Workers() {
         ].map(card => (
           <button
             key={card.label}
+            data-testid="workers-stat-card"
+            data-stat-type={card.type}
+            data-active={card.active}
             type="button"
             onClick={() => card.active ? clearAllFilters() : handleStatClick(card.type)}
             className={`bg-card border rounded-lg p-4 text-left transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
@@ -350,6 +355,7 @@ export default function Workers() {
           <div className="relative flex-1 min-w-48">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <Input
+              data-testid="workers-search"
               ref={searchRef}
               placeholder="搜尋姓名、證號、國籍、負責人..."
               value={search}
@@ -359,6 +365,7 @@ export default function Workers() {
             />
             {search && (
               <button
+                data-testid="workers-search-clear"
                 type="button"
                 onClick={() => { setSearch(""); searchRef.current?.focus(); }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
@@ -371,7 +378,7 @@ export default function Workers() {
 
           {/* 負責人篩選 */}
           <Select value={managerFilter} onValueChange={setManagerFilter}>
-            <SelectTrigger className="w-full sm:w-32">
+            <SelectTrigger data-testid="workers-filter-manager" className="w-full sm:w-32">
               <SelectValue placeholder="負責人" />
             </SelectTrigger>
             <SelectContent>
@@ -384,7 +391,7 @@ export default function Workers() {
 
           {/* 在職狀態篩選 */}
           <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
-            <SelectTrigger className="w-full sm:w-32">
+            <SelectTrigger data-testid="workers-filter-lifecycle" className="w-full sm:w-32">
               <SelectValue placeholder="全部狀態" />
             </SelectTrigger>
             <SelectContent>
@@ -397,7 +404,7 @@ export default function Workers() {
 
           {/* 文件狀態篩選 */}
           <Select value={documentFilter} onValueChange={setDocumentFilter}>
-            <SelectTrigger className="w-full sm:w-32">
+            <SelectTrigger data-testid="workers-filter-document" className="w-full sm:w-32">
               <SelectValue placeholder="文件狀態" />
             </SelectTrigger>
             <SelectContent>
@@ -410,7 +417,7 @@ export default function Workers() {
 
           {/* 證件到期篩選 */}
           <Select value={expiryFilter} onValueChange={v => setExpiryFilter(v as ExpiryFilter)}>
-            <SelectTrigger className={`w-full sm:w-36 ${expiryFilter !== "all" ? "border-amber-400 text-amber-600" : ""}`}>
+            <SelectTrigger data-testid="workers-filter-expiry" className={`w-full sm:w-36 ${expiryFilter !== "all" ? "border-amber-400 text-amber-600" : ""}`}>
               <SelectValue placeholder="證件到期" />
             </SelectTrigger>
             <SelectContent>
@@ -423,7 +430,7 @@ export default function Workers() {
 
           {/* 排序 */}
           <Select value={sortOrder} onValueChange={v => setSortOrder(v as typeof sortOrder)}>
-            <SelectTrigger className="w-full sm:w-36">
+            <SelectTrigger data-testid="workers-sort" className="w-full sm:w-36">
               <SelectValue placeholder="排序" />
             </SelectTrigger>
             <SelectContent>
@@ -436,12 +443,12 @@ export default function Workers() {
 
         {/* 篩選中提示列 */}
         {hasActiveFilter && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+          <div data-testid="workers-filter-summary" className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
             <span>
               顯示 <strong className="text-foreground">{filtered.length}</strong> / {workers.length} 筆
               {lifecycleFilter !== "all" && (
                 <span className="ml-1.5 inline-flex items-center gap-1 bg-muted px-1.5 py-0.5 rounded">
-                  {getStatusLabel(lifecycleFilter)}
+                  {getStatusLabel(lifecycleFilter, "lifecycle")}
                   <button onClick={() => setLifecycleFilter("all")} className="hover:text-destructive"><X className="w-3 h-3" /></button>
                 </span>
               )}
@@ -466,6 +473,7 @@ export default function Workers() {
               )}
             </span>
             <button
+              data-testid="workers-clear-filters"
               onClick={clearAllFilters}
               className="ml-auto text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
             >
@@ -501,7 +509,7 @@ export default function Workers() {
               {isLoading ? (
                 <TableRowSkeleton cols={9} rows={6} />
               ) : filtered.length === 0 ? (
-                <tr>
+                <tr data-testid="workers-empty">
                   <td colSpan={9} className="px-4 py-14 text-center">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <Users className="w-8 h-8 opacity-30" />
@@ -532,6 +540,8 @@ export default function Workers() {
                   return (
                     <tr
                       key={w.id}
+                      data-testid="worker-row"
+                      data-worker-id={w.id}
                       className={`transition-colors cursor-pointer hover:bg-muted/40 ${expiry.urgent ? "bg-red-50/40 hover:bg-red-50/70" : ""}`}
                       onClick={() => navigate(`/workers/${w.id}`)}
                       title="點擊查看詳情"
@@ -585,7 +595,7 @@ export default function Workers() {
                         </div>
                       </td>
                       <td className="px-4 py-3.5">
-                        <StatusBadge status={w.lifecycleStatus} />
+                        <StatusBadge status={w.lifecycleStatus} domain="lifecycle" />
                       </td>
                       <td className="px-4 py-3.5 hidden sm:table-cell">
                         <StatusBadge status={w.documentStatus} />
@@ -614,6 +624,7 @@ export default function Workers() {
                       <td className="px-4 py-3.5">
                         <div className="flex items-center justify-end gap-1">
                           <Button
+                            data-testid="worker-row-edit"
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
@@ -623,6 +634,7 @@ export default function Workers() {
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
                           <Button
+                            data-testid="worker-row-delete"
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
@@ -642,7 +654,7 @@ export default function Workers() {
         </div>
         {/* 底部計數列 */}
         <div className="px-4 py-2.5 bg-muted/30 border-t border-border flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
+          <p data-testid="workers-count" className="text-xs text-muted-foreground">
             {filtered.length > 0
               ? `顯示 ${filtered.length} 筆${workers.length !== filtered.length ? `，共 ${workers.length} 筆` : ""}`
               : "無資料"}

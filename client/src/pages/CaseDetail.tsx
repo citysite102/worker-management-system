@@ -86,7 +86,7 @@ export default function CaseDetail() {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-semibold tracking-tight">{caseData.name}</h1>
-              <StatusBadge status={caseData.status} />
+              <StatusBadge status={caseData.status} domain="caseMgmtStatus" />
               {(caseData as any).caseNo && (
                 <Badge variant="outline" className="font-mono text-xs">{(caseData as any).caseNo}</Badge>
               )}

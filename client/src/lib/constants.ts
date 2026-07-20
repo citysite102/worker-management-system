@@ -237,7 +237,44 @@ const ALL_LABELS: Record<string, string> = {
   ...Object.fromEntries(OCCUPATION_OPTIONS.map(o => [o.value, o.label])),
 };
 
-export function getStatusLabel(value: string): string {
+/**
+ * 有些代碼在不同領域代表不同意思，合併成 ALL_LABELS 時後者會覆蓋前者。
+ * 例如 `employed` 在「移工生命週期」是「在職中」，在「配對階段」是「聘僱中」；
+ * `rejected` 在「申請狀態」是「已退件」，在「配對階段」是「婉拒/未錄取」。
+ *
+ * 呼叫端知道自己在顯示哪個領域時，就該指定 domain，才不會拿到另一個領域的標籤。
+ */
+export const LABEL_DOMAINS = {
+  lifecycle: LIFECYCLE_STATUS_OPTIONS,
+  documentStatus: DOCUMENT_STATUS_OPTIONS,
+  occupation: OCCUPATION_OPTIONS,
+  employerType: EMPLOYER_TYPE_OPTIONS,
+  contractStatus: CONTRACT_STATUS_OPTIONS,
+  caseStatus: CASE_STATUS_OPTIONS,
+  caseMgmtStatus: CASE_MGMT_STATUS_OPTIONS,
+  jobSeekerType: JOB_SEEKER_TYPE_OPTIONS,
+  qualType: QUAL_TYPE_OPTIONS,
+  applicationStatus: APPLICATION_STATUS_OPTIONS,
+  demandStatus: DEMAND_STATUS_OPTIONS,
+  assignmentStage: ASSIGNMENT_STAGE_OPTIONS,
+} as const;
+
+export type LabelDomain = keyof typeof LABEL_DOMAINS;
+
+/**
+ * 取得代碼的中文標籤。
+ *
+ * 不指定 domain 時走合併後的 ALL_LABELS —— 對絕大多數不重複的代碼都正確，
+ * 但碰到跨領域重複的代碼會拿到「最後合併進來的那個領域」的標籤。
+ * 顯示的欄位領域明確時（例如移工的生命週期狀態），請指定 domain。
+ */
+export function getStatusLabel(value: string, domain?: LabelDomain): string {
+  if (domain) {
+    const hit = (LABEL_DOMAINS[domain] as readonly { value: string; label: string }[]).find(
+      o => o.value === value
+    );
+    if (hit) return hit.label;
+  }
   return ALL_LABELS[value] ?? value;
 }
 

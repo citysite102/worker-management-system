@@ -175,7 +175,7 @@ export default function CaseMatchingTab({ caseId }: Props) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm">{d.label}</span>
                       <StatusBadge status={d.status} />
-                      <span className="text-xs text-muted-foreground">{getStatusLabel(d.qualType)}</span>
+                      <span className="text-xs text-muted-foreground">{getStatusLabel(d.qualType, "qualType")}</span>
                     </div>
                     <div className="mt-2 space-y-1">
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -233,7 +233,7 @@ export default function CaseMatchingTab({ caseId }: Props) {
                         <span className="text-sm font-medium">{m.workerName}</span>
                         {m.workerNameEn && <span className="text-xs text-muted-foreground">{m.workerNameEn}</span>}
                         <span className="text-xs text-muted-foreground">{m.workerNationality}</span>
-                        <StatusBadge status={m.stage} />
+                        <StatusBadge status={m.stage} domain="assignmentStage" />
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Select value={m.stage} onValueChange={v => updateMemberStageMutation.mutate({ memberId: m.id, stage: v as any })}>
@@ -361,7 +361,7 @@ export default function CaseMatchingTab({ caseId }: Props) {
                           </div>
                         )}
                       </div>
-                      <StatusBadge status={w.lifecycleStatus} />
+                      <StatusBadge status={w.lifecycleStatus} domain="lifecycle" />
                     </div>
                   );
                 })}

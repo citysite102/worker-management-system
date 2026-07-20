@@ -153,6 +153,7 @@ export default function Customers() {
         </div>
         <div className="flex items-center gap-2">
           <Button
+            data-testid="customers-export-csv"
             variant="outline"
             size="sm"
             onClick={handleExportCsv}
@@ -162,7 +163,7 @@ export default function Customers() {
             <Download className="w-4 h-4" />
             匯出 CSV
           </Button>
-          <Button onClick={openCreate} size="sm" className="gap-1.5">
+          <Button data-testid="customers-create" onClick={openCreate} size="sm" className="gap-1.5">
             <Plus className="w-4 h-4" />
             新增雇主
           </Button>
@@ -172,12 +173,12 @@ export default function Customers() {
       {/* 統計卡 — 可點擊快速篩選 */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         {/* 總數卡（不可點擊篩選） */}
-        <div className="bg-card border border-border rounded-lg p-4">
+        <div data-testid="customers-stat-total" className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-muted-foreground font-medium">雇主總數</span>
             <Building2 className="w-4 h-4 text-foreground" />
           </div>
-          <p className="text-2xl font-semibold text-foreground">{stats.total}</p>
+          <p data-testid="customers-stat-value" className="text-2xl font-semibold text-foreground">{stats.total}</p>
         </div>
         {/* 個人 / 公司 類型卡 — 灰色系，不用強調色 */}
         {[
@@ -188,6 +189,9 @@ export default function Customers() {
           return (
             <button
               key={card.label}
+              data-testid="customers-stat-card"
+              data-stat-type={card.type}
+              data-active={active}
               type="button"
               onClick={() => active ? clearAllFilters() : handleTypeClick(card.type)}
               className={`bg-card border rounded-lg p-4 text-left transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
@@ -216,6 +220,9 @@ export default function Customers() {
           return (
             <button
               key={card.label}
+              data-testid="customers-stat-card"
+              data-stat-type={card.filterVal}
+              data-active={active}
               type="button"
               onClick={() => active ? clearAllFilters() : handleStatClick(card.filterVal)}
               className={`bg-card border rounded-lg p-4 text-left transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
@@ -246,6 +253,7 @@ export default function Customers() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <Input
+              data-testid="customers-search"
               ref={searchRef}
               placeholder="搜尋名稱、統編、產業、聯絡窗口、負責人..."
               value={search}
@@ -255,6 +263,7 @@ export default function Customers() {
             />
             {search && (
               <button
+                data-testid="customers-search-clear"
                 type="button"
                 onClick={() => { setSearch(""); searchRef.current?.focus(); }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
@@ -267,7 +276,7 @@ export default function Customers() {
 
           {/* 負責人篩選 */}
           <Select value={managerFilter} onValueChange={setManagerFilter}>
-            <SelectTrigger className="w-full sm:w-36">
+            <SelectTrigger data-testid="customers-filter-manager" className="w-full sm:w-36">
               <SelectValue placeholder="負責人" />
             </SelectTrigger>
             <SelectContent>
@@ -280,7 +289,7 @@ export default function Customers() {
 
           {/* 合約狀態篩選 */}
           <Select value={contractFilter} onValueChange={setContractFilter}>
-            <SelectTrigger className="w-full sm:w-36">
+            <SelectTrigger data-testid="customers-filter-contract" className="w-full sm:w-36">
               <SelectValue placeholder="合約狀態" />
             </SelectTrigger>
             <SelectContent>
@@ -293,7 +302,7 @@ export default function Customers() {
 
           {/* 雇主類型篩選 */}
           <Select value={employerTypeFilter} onValueChange={setEmployerTypeFilter}>
-            <SelectTrigger className="w-full sm:w-32">
+            <SelectTrigger data-testid="customers-filter-employer-type" className="w-full sm:w-32">
               <SelectValue placeholder="雇主類型" />
             </SelectTrigger>
             <SelectContent>
@@ -319,7 +328,7 @@ export default function Customers() {
 
           {/* 排序 */}
           <Select value={sortOrder} onValueChange={v => setSortOrder(v as typeof sortOrder)}>
-            <SelectTrigger className="w-full sm:w-36">
+            <SelectTrigger data-testid="customers-sort" className="w-full sm:w-36">
               <SelectValue placeholder="排序" />
             </SelectTrigger>
             <SelectContent>
@@ -332,7 +341,7 @@ export default function Customers() {
 
         {/* 篩選中提示列 */}
         {hasActiveFilter && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div data-testid="customers-filter-summary" className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>
               顯示 <strong className="text-foreground">{filtered.length}</strong> / {customers.length} 筆
               {contractFilter !== "all" && (
@@ -355,6 +364,7 @@ export default function Customers() {
               )}
             </span>
             <button
+              data-testid="customers-clear-filters"
               onClick={clearAllFilters}
               className="ml-auto text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
             >
@@ -384,7 +394,7 @@ export default function Customers() {
               {isLoading ? (
                 <TableRowSkeleton cols={8} rows={6} />
               ) : filtered.length === 0 ? (
-                <tr>
+                <tr data-testid="customers-empty">
                   <td colSpan={8} className="px-4 py-14 text-center">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <Building2 className="w-8 h-8 opacity-30" />
@@ -408,6 +418,8 @@ export default function Customers() {
                 filtered.map(c => (
                   <tr
                     key={c.id}
+                    data-testid="customer-row"
+                    data-customer-id={c.id}
                     className="transition-colors cursor-pointer hover:bg-muted/40"
                     onClick={() => navigate(`/customers/${c.id}`)}
                     title="點擊查看詳情"
@@ -442,6 +454,7 @@ export default function Customers() {
                     <td className="px-4 py-3.5">
                       <div className="flex items-center justify-end gap-1">
                         <Button
+                          data-testid="customer-row-edit"
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
@@ -451,6 +464,7 @@ export default function Customers() {
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
                         <Button
+                          data-testid="customer-row-delete"
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
@@ -469,7 +483,7 @@ export default function Customers() {
         </div>
         {/* 底部計數列 */}
         <div className="px-4 py-2.5 bg-muted/30 border-t border-border flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
+          <p data-testid="customers-count" className="text-xs text-muted-foreground">
             {filtered.length > 0
               ? `顯示 ${filtered.length} 筆${customers.length !== filtered.length ? `，共 ${customers.length} 筆` : ""}`
               : "無資料"}

@@ -93,8 +93,8 @@ export default function CaseQualificationsTab({ caseId }: Props) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium">{q.label}</span>
-                    <StatusBadge status={q.applicationStatus} />
-                    <span className="text-xs text-muted-foreground">{getStatusLabel(q.category)} · {getStatusLabel(q.qualType)}</span>
+                    <StatusBadge status={q.applicationStatus} domain="applicationStatus" />
+                    <span className="text-xs text-muted-foreground">{getStatusLabel(q.category)} · {getStatusLabel(q.qualType, "qualType")}</span>
                   </div>
                   {q.employerName && (
                     <p className="text-xs text-muted-foreground mt-1">

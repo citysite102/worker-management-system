@@ -162,7 +162,7 @@ export default function WorkerDetail() {
               {(worker.nameCn && worker.nameEn) && (
                 <span className="text-muted-foreground text-base">{worker.nameEn}</span>
               )}
-              <StatusBadge status={worker.lifecycleStatus} />
+              <StatusBadge status={worker.lifecycleStatus} domain="lifecycle" />
               <StatusBadge status={worker.documentStatus} />
             </div>
             <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">

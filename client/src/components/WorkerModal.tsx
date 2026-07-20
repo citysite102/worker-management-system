@@ -422,11 +422,11 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
               </div>
               <div className="space-y-2">
                 <Label>英文姓名</Label>
-                <Input placeholder="INTAN SUSELA" {...register("nameEn")} {...enterProps} autoComplete="off" />
+                <Input data-testid="worker-modal-name-en" placeholder="INTAN SUSELA" {...register("nameEn")} {...enterProps} autoComplete="off" />
               </div>
               <div className="space-y-2">
                 <Label>中文姓名</Label>
-                <Input placeholder="白茵瑤" {...register("nameCn")} {...enterProps} autoComplete="off" />
+                <Input data-testid="worker-modal-name-cn" placeholder="白茵瑤" {...register("nameCn")} {...enterProps} autoComplete="off" />
               </div>
               <div className="space-y-2">
                 <Label>出生日期</Label>
@@ -474,7 +474,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
               <div className="space-y-2">
                 <Label>負責人 <span className="text-destructive">*</span></Label>
                 <Select value={watch("managerId")} onValueChange={v => setValue("managerId", v)}>
-                  <SelectTrigger><SelectValue placeholder="請選擇負責人" /></SelectTrigger>
+                  <SelectTrigger data-testid="worker-modal-manager"><SelectValue placeholder="請選擇負責人" /></SelectTrigger>
                   <SelectContent>{managers.map(m => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
@@ -681,17 +681,17 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
 
           <DialogFooter className="pt-2 border-t">
             <p className="text-xs text-muted-foreground mr-auto hidden sm:block">Tab / Enter 切換欄位</p>
-            <Button type="button" variant="outline" onClick={onClose}>取消</Button>
+            <Button data-testid="worker-modal-cancel" type="button" variant="outline" onClick={onClose}>取消</Button>
             {missingFields.length > 0 ? (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span tabIndex={0} className="inline-flex">
-                    <Button type="submit" disabled className="pointer-events-none">
+                  <span data-testid="worker-modal-submit-wrap" tabIndex={0} className="inline-flex">
+                    <Button data-testid="worker-modal-submit" type="submit" disabled className="pointer-events-none">
                       {isEdit ? "儲存變更" : "新增移工"}
                     </Button>
                   </span>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-[220px]">
+                <TooltipContent data-testid="worker-modal-missing-fields" side="top" className="max-w-[220px]">
                   <p className="font-medium mb-1">請先完成必填欄位：</p>
                   <ul className="list-disc list-inside space-y-0.5 text-sm">
                     {missingFields.map(f => (
@@ -701,7 +701,7 @@ export function WorkerModal({ open, onClose, onSuccess, editId }: WorkerModalPro
                 </TooltipContent>
               </Tooltip>
             ) : (
-              <Button type="submit" disabled={isPending}>
+              <Button data-testid="worker-modal-submit" type="submit" disabled={isPending}>
                 {isPending
                   ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />儲存中...</>
                   : (isEdit ? "儲存變更" : "新增移工")}

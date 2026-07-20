@@ -408,7 +408,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
         value={watch(fieldName) || ""}
         onValueChange={(v) => { setValue(fieldName, v); clearErrors(fieldName as any); }}
       >
-        <SelectTrigger id={id} className="mt-2">
+        <SelectTrigger id={id} data-testid={`customer-modal-${fieldName}`} className="mt-2">
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
@@ -443,6 +443,8 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
                 {EMPLOYER_TYPE_OPTIONS.map(o => (
                   <button
                     key={o.value}
+                    data-testid="customer-modal-employer-type"
+                    data-employer-type={o.value}
                     type="button"
                     onClick={() => setValue("employerType", o.value)}
                     className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium transition-all ${
@@ -468,6 +470,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
                 </Label>
                 <Input
                   id="c-name"
+                  data-testid="customer-modal-name"
                   {...nameRegister}
                   ref={nameRefCallback}
                   {...enterProps}
@@ -605,17 +608,17 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
             </div>
 
             <DialogFooter className="pt-2 gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>取消</Button>
+              <Button data-testid="customer-modal-cancel" type="button" variant="outline" onClick={onClose} disabled={isPending}>取消</Button>
               {missingFields.length > 0 ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span tabIndex={0} className="inline-flex">
-                      <Button type="submit" disabled className="pointer-events-none">
+                    <span data-testid="customer-modal-submit-wrap" tabIndex={0} className="inline-flex">
+                      <Button data-testid="customer-modal-submit" type="submit" disabled className="pointer-events-none">
                         {isEdit ? "儲存變更" : "新增雇主"}
                       </Button>
                     </span>
                   </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-[220px]">
+                  <TooltipContent data-testid="customer-modal-missing-fields" side="top" className="max-w-[220px]">
                     <p className="font-medium mb-1">請先完成必填欄位：</p>
                     <ul className="list-disc list-inside space-y-0.5 text-sm">
                       {missingFields.map(f => (
@@ -625,7 +628,7 @@ export function CustomerModal({ open, onClose, onSuccess, editId }: CustomerModa
                   </TooltipContent>
                 </Tooltip>
               ) : (
-                <Button type="submit" disabled={isPending}>
+                <Button data-testid="customer-modal-submit" type="submit" disabled={isPending}>
                   {isPending ? "儲存中..." : isEdit ? "儲存變更" : "新增雇主"}
                 </Button>
               )}

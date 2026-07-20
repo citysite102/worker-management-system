@@ -51,13 +51,13 @@ function DistributionPanel({ title, data }: { title: string; data: Distribution 
   const total = data.reduce((sum, d) => sum + d.count, 0);
   const percents = largestRemainderPercents(data.map(d => d.count));
   return (
-    <div className="rounded-lg border bg-card p-5 space-y-4">
+    <div data-testid="dashboard-distribution" data-distribution-title={title} className="rounded-lg border bg-card p-5 space-y-4">
       <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       <div className="space-y-3">
         {data.map((d, idx) => {
           const pct = percents[idx];
           return (
-            <div key={d.value} className="space-y-1">
+            <div key={d.value} data-testid="dashboard-distribution-bar" data-distribution-value={d.value} className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">{getStatusLabel(d.value)}</span>
                 <span className="tabular-nums">
@@ -74,7 +74,7 @@ function DistributionPanel({ title, data }: { title: string; data: Distribution 
             </div>
           );
         })}
-        {total === 0 && <p className="text-xs text-muted-foreground">尚無資料</p>}
+        {total === 0 && <p data-testid="dashboard-distribution-empty" className="text-xs text-muted-foreground">尚無資料</p>}
       </div>
     </div>
   );
@@ -90,6 +90,8 @@ function TrendBadge({ delta, goodWhenUp, since }: { delta: number; goodWhenUp: b
   const Icon = up ? ArrowUp : ArrowDown;
   return (
     <span
+      data-testid="dashboard-trend"
+      data-trend-delta={delta}
       className={`inline-flex items-center gap-0.5 text-xs font-medium tabular-nums ${good ? "text-emerald-600" : "text-rose-500"}`}
       title={since ? `較 ${since}` : undefined}
     >
@@ -126,7 +128,7 @@ export default function Dashboard() {
           <p className="text-sm text-muted-foreground mt-0.5">營運總覽與證件到期提醒</p>
         </div>
         {updatedAt && (
-          <p className="text-xs text-muted-foreground tabular-nums">資料更新於 {updatedAt}</p>
+          <p data-testid="dashboard-updated-at" className="text-xs text-muted-foreground tabular-nums">資料更新於 {updatedAt}</p>
         )}
       </div>
 
@@ -135,7 +137,7 @@ export default function Dashboard() {
         {statCards.map(card => {
           const delta = trends ? trends[card.key] : undefined;
           return (
-            <div key={card.label} className="rounded-lg border bg-card p-4 space-y-2">
+            <div key={card.label} data-testid="dashboard-stat-card" data-stat-key={card.key} className="rounded-lg border bg-card p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">{card.label}</span>
                 <span className={card.accent ? "text-amber-500" : "text-muted-foreground"}>{card.icon}</span>
@@ -144,7 +146,7 @@ export default function Dashboard() {
                 <Skeleton className="h-8 w-12" />
               ) : (
                 <div className="flex items-baseline justify-between gap-1">
-                  <p className={`text-2xl font-bold tabular-nums ${card.accent ? "text-amber-500" : "text-foreground"}`}>
+                  <p data-testid="dashboard-stat-value" className={`text-2xl font-bold tabular-nums ${card.accent ? "text-amber-500" : "text-foreground"}`}>
                     {card.value}
                   </p>
                   {delta !== undefined && (
@@ -165,7 +167,7 @@ export default function Dashboard() {
       </div>
 
       {/* 證件到期提醒 */}
-      <div className="rounded-lg border bg-card">
+      <div data-testid="dashboard-expiring" className="rounded-lg border bg-card">
         <div className="flex items-center gap-2 px-5 py-4 border-b">
           <AlertTriangle className="w-4 h-4 text-amber-500" />
           <h2 className="text-sm font-semibold">證件到期提醒</h2>
@@ -174,14 +176,17 @@ export default function Dashboard() {
         {isLoading ? (
           <div className="px-5 py-8 text-center text-sm text-muted-foreground">載入中…</div>
         ) : (data?.expiringDocuments.length ?? 0) === 0 ? (
-          <div className="px-5 py-8 text-center text-sm text-muted-foreground">目前沒有即將到期或已過期的證件 🎉</div>
+          <div data-testid="dashboard-expiring-empty" className="px-5 py-8 text-center text-sm text-muted-foreground">目前沒有即將到期或已過期的證件 🎉</div>
         ) : (
-          <ul className="divide-y">
+          <ul data-testid="dashboard-expiring-list" className="divide-y">
             {data!.expiringDocuments.map((d, i) => {
               const expired = d.daysLeft < 0;
               return (
                 <li
                   key={`${d.workerId}-${d.docType}-${i}`}
+                  data-testid="dashboard-expiring-row"
+                  data-worker-id={d.workerId}
+                  data-doc-type={d.docType}
                   className="flex items-center gap-3 px-5 py-3 hover:bg-muted/50 cursor-pointer transition-colors"
                   onClick={() => navigate(`/workers/${d.workerId}`)}
                 >

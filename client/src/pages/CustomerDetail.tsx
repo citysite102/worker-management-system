@@ -221,7 +221,7 @@ export default function CustomerDetail() {
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-sm font-medium truncate group-hover:underline">{c.name}</span>
-                          <StatusBadge status={c.status} />
+                          <StatusBadge status={c.status} domain="caseMgmtStatus" />
                         </div>
                       </button>
                       {/* 移工名单 → 可點擊跳轉移工詳情 */}

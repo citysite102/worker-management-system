@@ -10,7 +10,11 @@ import { KeyboardEvent, RefObject } from "react";
  * - IME-safe: does nothing while composing (isComposing flag)
  */
 export function useFormEnterNav(containerRef: RefObject<HTMLElement | null>) {
-  return function handleEnterNav(e: KeyboardEvent<HTMLInputElement>) {
+  // 參數型別用 HTMLElement 而非 HTMLInputElement：實作只用到 key / nativeEvent /
+  // currentTarget / preventDefault，全都是 HTMLElement 就有的。寫死 input 會讓
+  // 這個 handler 沒辦法掛到 textarea 或 select 上（雖然它們本來就會被跳過，
+  // 但掛上去仍是合理用法）。放寬參數型別對呼叫端只會更寬鬆，不會破壞既有用法。
+  return function handleEnterNav(e: KeyboardEvent<HTMLElement>) {
     if (e.key !== "Enter") return;
     // IME safety: if the native event says we're composing, bail out
     if ((e.nativeEvent as any).isComposing) return;

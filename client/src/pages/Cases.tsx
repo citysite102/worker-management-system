@@ -91,8 +91,8 @@ export default function Cases() {
     const rows = cases.map((c: any) => [
       c.caseNo || "",
       c.name || "",
-      getStatusLabel(c.status),
-      getStatusLabel(c.managementStatus),
+      getStatusLabel(c.status, "caseMgmtStatus"),
+      getStatusLabel(c.managementStatus, "caseMgmtStatus"),
       c.customerName || "",
       c.managerName || "",
       getStatusLabel(c.jobSeekerType),
@@ -260,7 +260,7 @@ export default function Cases() {
                   <td className="px-4 py-4 font-medium">{c.name}</td>
                   <td className="px-4 py-4 text-muted-foreground">{c.customerName}</td>
                   <td className="px-4 py-4 text-muted-foreground">{c.managerName}</td>
-                  <td className="px-4 py-4"><StatusBadge status={c.status} /></td>
+                  <td className="px-4 py-4"><StatusBadge status={c.status} domain="caseMgmtStatus" /></td>
                   <td className="px-4 py-4">
                     <span className="tabular-nums text-muted-foreground">{(c as any).qualCount ?? 0}</span>
                   </td>

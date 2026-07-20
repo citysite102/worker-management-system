@@ -153,3 +153,16 @@ test("列上的刪除鈕開啟確認框，且不會誤觸導頁", async ({ page 
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await expect(page).toHaveURL(/\/workers$/);
 });
+
+test("在職移工的狀態標籤顯示「在職中」而非「聘僱中」", async ({ page }) => {
+  // 同上：employed 跨兩個領域有不同標籤，這裡確認列表用的是移工領域那個。
+  const employedBadges = page
+    .getByTestId("status-badge")
+    .filter({ has: page.locator("[data-status='employed']") });
+
+  await expect(page.getByTestId("worker-row").first()).toBeVisible();
+  await expect(page.locator("[data-status='employed']").first()).toHaveText(
+    "在職中"
+  );
+  expect(await employedBadges.count()).toBeGreaterThanOrEqual(0);
+});

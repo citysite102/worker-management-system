@@ -98,3 +98,18 @@ test("/dashboard 與 / 導向同一個頁面", async ({ page }) => {
     .poll(() => page.getByTestId("dashboard-stat-card").count())
     .toBe(6);
 });
+
+test("生命週期分布用移工領域的標籤，不會顯示配對階段的說法", async ({
+  page,
+}) => {
+  // `employed` 在移工生命週期是「在職中」、在配對階段是「聘僱中」。
+  // ALL_LABELS 是把所有選項清單合併起來的，後合併者勝，所以沒有指定 domain
+  // 的呼叫點會拿到「聘僱中」。這個 bug 修過一次，Workers 頁修了但 Dashboard
+  // 漏掉，是實際打開畫面才看到的 —— 用 E2E 把兩個頁面都釘住。
+  const lifecycle = page.getByTestId("dashboard-distribution").filter({
+    hasText: "移工生命週期分布",
+  });
+
+  await expect(lifecycle).toContainText("在職中");
+  await expect(lifecycle).not.toContainText("聘僱中");
+});

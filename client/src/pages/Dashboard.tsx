@@ -1,6 +1,6 @@
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { getStatusLabel } from "@/lib/constants";
+import { getStatusLabel, type LabelDomain } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, Building2, Briefcase, UserCheck, CalendarClock, AlertTriangle, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
 
@@ -47,7 +47,17 @@ function largestRemainderPercents(counts: number[]): number[] {
   return result;
 }
 
-function DistributionPanel({ title, data }: { title: string; data: Distribution }) {
+function DistributionPanel({
+  title,
+  data,
+  domain,
+}: {
+  title: string;
+  data: Distribution;
+  /** 代碼所屬領域。employed 在生命週期是「在職中」、在配對階段是「聘僱中」，
+   *  不指定的話會拿到後合併進 ALL_LABELS 的那個領域的標籤。 */
+  domain: LabelDomain;
+}) {
   const total = data.reduce((sum, d) => sum + d.count, 0);
   const percents = largestRemainderPercents(data.map(d => d.count));
   return (
@@ -59,7 +69,7 @@ function DistributionPanel({ title, data }: { title: string; data: Distribution 
           return (
             <div key={d.value} data-testid="dashboard-distribution-bar" data-distribution-value={d.value} className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{getStatusLabel(d.value)}</span>
+                <span className="text-muted-foreground">{getStatusLabel(d.value, domain)}</span>
                 <span className="tabular-nums">
                   <span className="font-medium">{d.count}</span>
                   <span className="text-muted-foreground ml-1.5">{pct}%</span>
@@ -161,9 +171,9 @@ export default function Dashboard() {
 
       {/* 狀態分布 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <DistributionPanel title="移工生命週期分布" data={data?.workersByLifecycle ?? []} />
-        <DistributionPanel title="案件狀態分布" data={data?.casesByStatus ?? []} />
-        <DistributionPanel title="雇主類型分布" data={data?.customersByType ?? []} />
+        <DistributionPanel title="移工生命週期分布" data={data?.workersByLifecycle ?? []} domain="lifecycle" />
+        <DistributionPanel title="案件狀態分布" data={data?.casesByStatus ?? []} domain="caseMgmtStatus" />
+        <DistributionPanel title="雇主類型分布" data={data?.customersByType ?? []} domain="employerType" />
       </div>
 
       {/* 證件到期提醒 */}

@@ -158,7 +158,7 @@ export default function Customers() {
             size="sm"
             onClick={handleExportCsv}
             className="gap-1.5"
-            title={`匯出目前笛選的 ${filtered.length} 筆客戶資料`}
+            title={`匯出目前篩選的 ${filtered.length} 筆客戶資料`}
           >
             <Download className="w-4 h-4" />
             匯出 CSV
@@ -401,7 +401,7 @@ export default function Customers() {
                       <p className="text-sm">
                         {hasActiveFilter
                           ? "沒有符合條件的客戶資料"
-                          : "尚無客戶資料，點擊「新增客戶」開始建立"}
+                          : "尚無雇主資料，點擊「新增雇主」開始建立"}
                       </p>
                       {hasActiveFilter && (
                         <button

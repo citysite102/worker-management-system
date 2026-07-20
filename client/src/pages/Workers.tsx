@@ -249,7 +249,7 @@ export default function Workers() {
             size="sm"
             onClick={handleExportCsv}
             className="gap-1.5"
-            title={`匯出目前笛選的 ${filtered.length} 筆移工資料`}
+            title={`匯出目前篩選的 ${filtered.length} 筆移工資料`}
           >
             <Download className="w-4 h-4" />
             匯出 CSV

@@ -231,10 +231,10 @@ export default function Cases() {
           </thead>
           <tbody>
             {isLoading ? (
-              <TableRowSkeleton cols={8} rows={5} />
+              <TableRowSkeleton cols={9} rows={5} />
             ) : cases.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
                   尚無案件資料
                 </td>
               </tr>

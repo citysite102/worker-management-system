@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./scripts/claude-post-edit.sh",
+            "asyncRewake": true,
+            "timeout": 120,
+            "statusMessage": "格式化 + 型別檢查",
+            "rewakeSummary": "型別檢查失敗"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(pnpm check)",
+      "Bash(pnpm test)",
+      "Bash(pnpm test:coverage)",
+      "Bash(pnpm test:integration)",
+      "Bash(pnpm lint:conventions)",
+      "Bash(pnpm verify)",
+      "Bash(pnpm format)",
+      "Bash(pnpm format:check)",
+      "Bash(node scripts/check-conventions.mjs *)",
+      "Bash(pnpm exec playwright *)"
+    ]
+  }
+}

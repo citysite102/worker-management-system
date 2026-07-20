@@ -1,0 +1,39 @@
+#!/bin/sh
+#
+# Commit 前的快速把關。刻意只跑「秒級」的檢查 —— 型別、格式、規約、單元測試。
+# 整合測試與 E2E 需要資料庫與瀏覽器，太慢，交給 CI（見 .github/workflows/ci.yml）。
+#
+# 這個 hook 由 package.json 的 prepare script 透過 core.hooksPath 啟用，
+# 不需要 husky 之類的額外依賴。手動啟用：
+#   git config core.hooksPath .githooks
+#
+# 緊急時可用 git commit --no-verify 跳過，但請確認 CI 會補跑。
+
+set -e
+
+echo "▶ pre-commit：型別檢查 ..."
+pnpm check
+pnpm check:test
+
+echo "▶ pre-commit：格式檢查（僅本次 staged 的檔案）..."
+# 全 repo 目前有上百個檔案不符合 prettier 格式（歷史遺留），因此這裡只擋
+# 「這次要 commit 的檔案」，避免每次 commit 都被既有債務卡住。
+# 想一次清乾淨的話，跑 pnpm format 另開一個 commit。
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|mjs|json|css|md)$' || true)
+if [ -n "$STAGED" ]; then
+  if ! echo "$STAGED" | xargs pnpm exec prettier --check >/dev/null 2>&1; then
+    echo "✖ 以下 staged 檔案格式不符："
+    echo "$STAGED" | xargs pnpm exec prettier --list-different
+    echo "  執行：echo \"\$(git diff --cached --name-only)\" | xargs pnpm exec prettier --write"
+    echo "  然後重新 git add 並 commit。"
+    exit 1
+  fi
+fi
+
+echo "▶ pre-commit：專案規約檢查 ..."
+pnpm lint:conventions
+
+echo "▶ pre-commit：單元測試 ..."
+pnpm test
+
+echo "✓ pre-commit 全部通過"

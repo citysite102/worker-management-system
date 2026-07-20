@@ -89,14 +89,43 @@ baseline 記下這 3 支，新增沒測試的 procedure 會被擋。
 node scripts/check-conventions.mjs --update
 ```
 
+## 元件測試怎麼寫
+
+`client/src/__tests__/trpcMock.ts` 是 tRPC 的測試替身。專案裡沒有元件直接用
+@tanstack/react-query，全部走 `@/lib/trpc`，所以整包換掉 trpc 物件就夠，
+不需要 QueryClientProvider 或 MSW。
+
+```ts
+vi.mock("@/lib/trpc", async () => {
+  const { trpcMock } = await import("../__tests__/trpcMock");
+  return { trpc: trpcMock };
+});
+
+beforeEach(() => {
+  resetTrpcMock();
+  setQueryData("managers.list", [{ id: 1, name: "陳專員" }]);
+});
+```
+
+範本看 `client/src/components/WorkerModal.test.tsx`。幾個會浪費時間的坑：
+
+- **Radix 會渲染兩份內容**（一份給螢幕閱讀器）。`getByText` 抓標題或 tooltip
+  會 "Found multiple elements"，改用 `getByRole("heading", { name })` /
+  `getByRole("tooltip")`。
+- **先確認元件用 `mutate` 還是 `mutateAsync`**。斷言錯了看到的現象是「表單
+  好像沒送出」，很容易往 react-hook-form 驗證的方向找錯半天。
+- **餵給 `setQueryData` 的資料不要每次 render 重新產生**。Modal 的 useEffect
+  依賴陣列裡有查詢結果，參考一直變會造成無限迴圈、測試直接卡死。
+  trpcMock 內部已經做了參考快取，但別在測試裡繞過它。
+
 ## 目前的覆蓋缺口（依優先序）
 
-1. **大型 Modal 沒有元件測試** —— `CaseModal`（988 行）、`WorkerModal`（715 行）、
-   `CustomerModal`（652 行）的表單邏輯目前只有 E2E 蓋到。這些元件依賴 tRPC hook，
-   要測得先建一套 tRPC + QueryClient 的測試 wrapper。優先目標是 `missingFields`
-   的計算（決定送出鈕停不停用）與各欄位的驗證分支。
-2. **`CustomerQualifications`（589 行）與 `ImportWorkerModal`（523 行）零測試** ——
-   兩者都有不少狀態機式的邏輯。
+1. **`CustomerQualifications`（589 行）與 `ImportWorkerModal`（523 行）零測試** ——
+   兩者都有不少狀態機式的邏輯。ImportWorkerModal 還牽涉 CSV 解析與檔案上傳。
+2. **E2E 沒有真正的 CRUD 流程** —— 目前只驗到「送出鈕 disabled ↔ enabled 的
+   轉換」與「刪除確認框有跳出來」，不按下去。因為 E2E 共用單一 `wms_e2e` 且
+   測試間不重置，任何寫入都會讓後續測試的列數斷言變得不確定。
+   要補真正的 CRUD，得先讓 E2E 有 per-test 或 per-file 的資料重置機制。
 3. **3 個 procedure 沒有測試** —— `auth.me`、`customers.uploadFile`、
    `workers.uploadFile`，都需要先把 OAuth / S3 的外部依賴抽出來才好測。
 

@@ -50,6 +50,20 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+/**
+ * 從 drizzle/mysql2 的 insert 結果取出自動遞增的主鍵。
+ *
+ * mysql2 回傳的形狀會依呼叫方式而異（有時是 [ResultSetHeader, fields]，
+ * 有時直接是 ResultSetHeader），因此兩種都試。集中在這裡處理，避免每個
+ * create 函式各自複製一份 `as any` 的取值邏輯。
+ */
+function insertedId(result: unknown): number {
+  const r = result as { insertId?: number } & Array<{ insertId?: number }>;
+  const id = r?.[0]?.insertId ?? r?.insertId;
+  if (id === undefined || id === null) throw new Error("插入後取不到 insertId");
+  return Number(id);
+}
+
 // ─── Managers ────────────────────────────────────────────────────────────────
 export async function getAllManagers() {
   const db = await getDb();
@@ -57,10 +71,10 @@ export async function getAllManagers() {
   return db.select().from(managers).orderBy(managers.id);
 }
 
-export async function createManager(data: InsertManager) {
+export async function createManager(data: InsertManager): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  return db.insert(managers).values(data);
+  return insertedId(await db.insert(managers).values(data));
 }
 
 export async function deleteManager(id: number) {
@@ -117,10 +131,7 @@ export async function getWorkerByIdNumber(idNumber: string, excludeId?: number) 
 export async function createWorker(data: InsertWorker): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.insert(workers).values(data);
-  // MySQL insertId
-  const insertId = (result as any)[0]?.insertId ?? (result as any).insertId;
-  return Number(insertId);
+  return insertedId(await db.insert(workers).values(data));
 }
 
 export async function updateWorker(id: number, data: Partial<InsertWorker>) {
@@ -169,10 +180,10 @@ export async function getCustomerByName(name: string, excludeId?: number) {
   return result[0];
 }
 
-export async function createCustomer(data: InsertCustomer) {
+export async function createCustomer(data: InsertCustomer): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  return db.insert(customers).values(data);
+  return insertedId(await db.insert(customers).values(data));
 }
 
 export async function updateCustomer(id: number, data: Partial<InsertCustomer>) {
@@ -210,10 +221,10 @@ export async function getCaseById(id: number) {
   return result[0];
 }
 
-export async function createCase(data: InsertCase) {
+export async function createCase(data: InsertCase): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  return db.insert(cases).values(data);
+  return insertedId(await db.insert(cases).values(data));
 }
 
 export async function updateCase(id: number, data: Partial<InsertCase>) {
@@ -274,10 +285,10 @@ export async function getQualificationById(id: number) {
   return result[0];
 }
 
-export async function createQualification(data: InsertCaseQualification) {
+export async function createQualification(data: InsertCaseQualification): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  return db.insert(caseQualifications).values(data);
+  return insertedId(await db.insert(caseQualifications).values(data));
 }
 
 export async function updateQualification(id: number, data: Partial<InsertCaseQualification>) {
@@ -370,10 +381,10 @@ export async function getDemandById(id: number) {
   return result[0];
 }
 
-export async function createDemand(data: InsertCaseDemand) {
+export async function createDemand(data: InsertCaseDemand): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  return db.insert(caseDemands).values(data);
+  return insertedId(await db.insert(caseDemands).values(data));
 }
 
 export async function updateDemand(id: number, data: Partial<InsertCaseDemand>) {
@@ -451,10 +462,7 @@ export async function getAssignmentById(id: number) {
 export async function createAssignment(data: InsertCaseAssignment): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.insert(caseAssignments).values(data);
-  // drizzle mysql2 回傳 [ResultSetHeader, FieldPacket[]]，insertId 在 result[0]
-  const insertId = (result as any)[0]?.insertId ?? (result as any).insertId;
-  return Number(insertId);
+  return insertedId(await db.insert(caseAssignments).values(data));
 }
 
 export async function updateAssignment(id: number, data: Partial<InsertCaseAssignment>) {
@@ -490,10 +498,10 @@ export async function getMemberById(id: number) {
   return result[0];
 }
 
-export async function createMember(data: InsertCaseAssignmentWorker) {
+export async function createMember(data: InsertCaseAssignmentWorker): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  return db.insert(caseAssignmentWorkers).values(data);
+  return insertedId(await db.insert(caseAssignmentWorkers).values(data));
 }
 
 export async function updateMember(id: number, data: Partial<InsertCaseAssignmentWorker>) {
@@ -552,11 +560,10 @@ export async function getEmploymentsByCase(caseId: number) {
   if (!db) return [];
   return db.select().from(caseEmployments).where(eq(caseEmployments.caseId, caseId));
 }
-export async function createEmployment(data: InsertCaseEmployment) {
+export async function createEmployment(data: InsertCaseEmployment): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error('DB not available');
-  const [result] = await db.insert(caseEmployments).values(data);
-  return result;
+  return insertedId(await db.insert(caseEmployments).values(data));
 }
 export async function updateEmployment(id: number, data: Partial<InsertCaseEmployment>) {
   const db = await getDb();
@@ -575,11 +582,10 @@ export async function getCareReceiversByCustomerId(customerId: number) {
   if (!db) return [];
   return db.select().from(customerCareReceivers).where(eq(customerCareReceivers.customerId, customerId));
 }
-export async function createCareReceiver(data: InsertCustomerCareReceiver) {
+export async function createCareReceiver(data: InsertCustomerCareReceiver): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error('DB not available');
-  const [result] = await db.insert(customerCareReceivers).values(data);
-  return (result as any)[0]?.insertId ?? (result as any).insertId as number;
+  return insertedId(await db.insert(customerCareReceivers).values(data));
 }
 export async function updateCareReceiver(id: number, data: Partial<InsertCustomerCareReceiver>) {
   const db = await getDb();
@@ -598,11 +604,10 @@ export async function getQualificationsByCustomerId(customerId: number) {
   if (!db) return [];
   return db.select().from(customerQualifications).where(eq(customerQualifications.customerId, customerId));
 }
-export async function createCustomerQualification(data: InsertCustomerQualification) {
+export async function createCustomerQualification(data: InsertCustomerQualification): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error('DB not available');
-  const [result] = await db.insert(customerQualifications).values(data);
-  return (result as any)[0]?.insertId ?? (result as any).insertId as number;
+  return insertedId(await db.insert(customerQualifications).values(data));
 }
 export async function updateCustomerQualification(id: number, data: Partial<InsertCustomerQualification>) {
   const db = await getDb();

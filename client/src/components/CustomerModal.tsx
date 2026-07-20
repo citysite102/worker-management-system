@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import {
   CONTRACT_STATUS_OPTIONS, PRICING_TIER_OPTIONS, EMPLOYER_TYPE_OPTIONS,
 } from "@/lib/constants";
-import { validateTwPhone, validateTaxId } from "@/lib/validation";
+import { validateTwPhone, validateTaxId } from "@shared/validation";
 import { useFormEnterNav } from "@/hooks/useFormEnterNav";
 import { Paperclip, X, Loader2, FileText, Image } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";

@@ -136,6 +136,7 @@ export default function Cases() {
         </div>
         <div className="flex items-center gap-2">
           <Button
+            data-testid="cases-export-csv"
             variant="outline"
             onClick={handleExportCsv}
             className="gap-2"
@@ -144,7 +145,7 @@ export default function Cases() {
             <Download className="w-4 h-4" />
             匯出 CSV
           </Button>
-          <Button onClick={() => { setEditingCase(null); setShowModal(true); }} className="gap-2">
+          <Button data-testid="cases-create" onClick={() => { setEditingCase(null); setShowModal(true); }} className="gap-2">
             <Plus className="w-4 h-4" />新增案件
           </Button>
         </div>
@@ -170,6 +171,7 @@ export default function Cases() {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
+            data-testid="cases-search"
             placeholder="搜尋案件名稱、客戶名稱..."
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -240,6 +242,8 @@ export default function Cases() {
               cases.map(c => (
                 <tr
                   key={c.id}
+                  data-testid="case-row"
+                  data-case-id={c.id}
                   className="border-b hover:bg-muted/20 cursor-pointer transition-colors"
                   onClick={() => navigate(`/cases/${c.id}`)}
                 >
@@ -276,12 +280,14 @@ export default function Cases() {
                   <td className="px-4 py-4">
                     <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
                       <Button
+                        data-testid="case-row-edit"
                         variant="ghost" size="icon" className="h-8 w-8"
                         onClick={() => { setEditingCase(c); setShowModal(true); }}
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </Button>
                       <Button
+                        data-testid="case-row-delete"
                         variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
                         onClick={() => setDeletingCase(c)}
                       >

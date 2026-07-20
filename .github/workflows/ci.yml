@@ -41,6 +41,9 @@ jobs:
       - name: 單元測試 + 覆蓋率
         run: pnpm test:coverage
 
+      - name: 前端測試（jsdom）
+        run: pnpm test:client
+
       - name: 上傳覆蓋率報告
         if: always()
         uses: actions/upload-artifact@v4

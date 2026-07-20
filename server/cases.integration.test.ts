@@ -52,6 +52,27 @@ describe("cases.create", () => {
     expect(result.caseNo).toMatch(/^GVC25-\d{8}-\d{3}$/);
   });
 
+  it("回傳的 id 指向剛建立的那一筆（前端可據此導向詳情頁）", async () => {
+    const caller = createCaller();
+    const managerId = await makeManager(caller);
+    const customerId = await makeCustomer(caller, managerId);
+
+    // 先建一筆干擾資料，確保回傳的不是「最後一筆」這種巧合
+    await makeCase(caller, customerId, managerId, { name: "先建立的案件" });
+
+    const result = await caller.cases.create({
+      customerId,
+      managerId,
+      name: "要導向的案件",
+      status: "in_progress",
+    } as Parameters<typeof caller.cases.create>[0]);
+
+    expect(result.id).toBeGreaterThan(0);
+    const fetched = await caller.cases.getById({ id: result.id });
+    expect(fetched.name).toBe("要導向的案件");
+    expect(fetched.caseNo).toBe(result.caseNo);
+  });
+
   it("拒絕過短的案件名稱，且不留下半筆資料", async () => {
     const caller = createCaller();
     const managerId = await makeManager(caller);
@@ -216,6 +237,109 @@ describe("cases.getChildCounts", () => {
     expect(
       (await caller.cases.getChildCounts({ id: otherCaseId })).demandCount
     ).toBe(0);
+  });
+});
+
+describe("cases.update", () => {
+  it("更新後的值真的寫回資料庫", async () => {
+    const caller = createCaller();
+    const { caseId, customerId, managerId } = await makeCaseWorld(caller);
+
+    await caller.cases.update({
+      id: caseId,
+      customerId,
+      managerId,
+      name: "改名後的案件",
+      status: "completed",
+    } as Parameters<typeof caller.cases.update>[0]);
+
+    const rows = await query<{ name: string; status: string }>(
+      "SELECT name, status FROM `cases` WHERE id = ?",
+      [caseId]
+    );
+    expect(rows[0].name).toBe("改名後的案件");
+    expect(rows[0].status).toBe("completed");
+  });
+
+  it("拒絕過短的名稱，且不會改動原本的資料", async () => {
+    const caller = createCaller();
+    const { caseId, customerId, managerId } = await makeCaseWorld(caller);
+
+    await expect(
+      caller.cases.update({
+        id: caseId,
+        customerId,
+        managerId,
+        name: "短",
+        status: "in_progress",
+      } as Parameters<typeof caller.cases.update>[0])
+    ).rejects.toThrow();
+
+    const rows = await query<{ name: string }>(
+      "SELECT name FROM `cases` WHERE id = ?",
+      [caseId]
+    );
+    expect(rows[0].name).toBe("測試案件");
+  });
+
+  it("不會誤改到其他案件", async () => {
+    const caller = createCaller();
+    const { caseId, customerId, managerId } = await makeCaseWorld(caller);
+    const otherId = await makeCase(caller, customerId, managerId, {
+      name: "不該被動到的案件",
+    });
+
+    await caller.cases.update({
+      id: caseId,
+      customerId,
+      managerId,
+      name: "只改這一筆",
+      status: "paused",
+    } as Parameters<typeof caller.cases.update>[0]);
+
+    const other = await caller.cases.getById({ id: otherId });
+    expect(other.name).toBe("不該被動到的案件");
+    expect(other.status).toBe("in_progress");
+  });
+});
+
+describe("caseAssignments.update", () => {
+  it("更新配對批次的備註與標籤", async () => {
+    const caller = createCaller();
+    const { caseId, workerId } = await makeCaseWorld(caller);
+    const created = await caller.caseAssignments.create({
+      caseId,
+      workerIds: [workerId],
+    });
+
+    await caller.caseAssignments.update({
+      id: created.assignmentId,
+      label: "第二批",
+      notes: "改過的備註",
+    });
+
+    const list = await caller.caseAssignments.listByCase({ caseId });
+    const target = list.find(a => a.id === created.assignmentId);
+    expect(target?.label).toBe("第二批");
+    expect(target?.notes).toBe("改過的備註");
+  });
+
+  it("更新不影響該批次既有的成員", async () => {
+    const caller = createCaller();
+    const { caseId, workerId } = await makeCaseWorld(caller);
+    const created = await caller.caseAssignments.create({
+      caseId,
+      workerIds: [workerId],
+    });
+
+    await caller.caseAssignments.update({
+      id: created.assignmentId,
+      label: "換個標籤",
+    });
+
+    expect(
+      (await caller.cases.getChildCounts({ id: caseId })).memberCount
+    ).toBe(1);
   });
 });
 

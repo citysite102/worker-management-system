@@ -7,20 +7,22 @@ vi.mock("./db", () => ({
   getAllManagers: vi.fn().mockResolvedValue([
     { id: 1, name: "Jacob", createdAt: new Date() },
   ]),
-  createManager: vi.fn().mockResolvedValue({}),
+  // create* 一律回傳新資料的 id（number）。mock 若給錯型別，測試就會放過
+  // 「procedure 把整包物件當成 id 回傳」這種錯誤。
+  createManager: vi.fn().mockResolvedValue(101),
   deleteManager: vi.fn().mockResolvedValue({}),
   getAllWorkers: vi.fn().mockResolvedValue([]),
   getWorkerById: vi.fn().mockResolvedValue(undefined),
   getWorkerByPermitNo: vi.fn().mockResolvedValue(undefined),
   getWorkerByPassportNo: vi.fn().mockResolvedValue(undefined),
-  createWorker: vi.fn().mockResolvedValue({ id: 1 }),
+  createWorker: vi.fn().mockResolvedValue(201),
   updateWorker: vi.fn().mockResolvedValue({}),
   deleteWorker: vi.fn().mockResolvedValue({}),
   getAllCustomers: vi.fn().mockResolvedValue([]),
   getCustomerById: vi.fn().mockResolvedValue(undefined),
   getCustomerByTaxId: vi.fn().mockResolvedValue(undefined),
   getCustomerByName: vi.fn().mockResolvedValue(undefined),
-  createCustomer: vi.fn().mockResolvedValue({ id: 1 }),
+  createCustomer: vi.fn().mockResolvedValue(301),
   updateCustomer: vi.fn().mockResolvedValue({}),
   deleteCustomer: vi.fn().mockResolvedValue({}),
 }));
@@ -49,6 +51,8 @@ describe("managers.create", () => {
     const caller = appRouter.createCaller(createCtx());
     const result = await caller.managers.create({ name: "TestManager" });
     expect(result.success).toBe(true);
+    // 前端要靠這個 id 導向新建立的資料
+    expect(result.id).toBe(101);
   });
 
   it("rejects empty name", async () => {
@@ -151,6 +155,7 @@ describe("workers.create externalLink validation", () => {
       externalLink: "https://drive.google.com/file/d/abc123",
     });
     expect(result.success).toBe(true);
+    expect(result.id).toBe(201);
   });
 
   it("rejects non-http protocol", async () => {
@@ -175,7 +180,7 @@ describe("workers.import batch import", () => {
     const db = await import("./db");
     vi.mocked(db.getWorkerByPermitNo).mockResolvedValue(undefined);
     vi.mocked(db.getWorkerByPassportNo).mockResolvedValue(undefined);
-    vi.mocked(db.createWorker).mockResolvedValue({ id: 1 } as any);
+    vi.mocked(db.createWorker).mockResolvedValue(201);
   });
 
   it("imports valid rows and returns successCount", async () => {

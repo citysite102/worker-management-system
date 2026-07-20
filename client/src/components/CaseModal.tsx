@@ -359,13 +359,14 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
 
       footer={
         <>
-          <Button type="button" variant="outline" onClick={onClose}>取消</Button>
+          <Button data-testid="case-modal-cancel" type="button" variant="outline" onClick={onClose}>取消</Button>
           {missingFields.length > 0 ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 {/* span 包裙是因為 disabled button 不會觸發 mouse events */}
-                <span tabIndex={0} className="inline-flex">
+                <span data-testid="case-modal-submit-wrap" tabIndex={0} className="inline-flex">
                   <Button
+                    data-testid="case-modal-submit"
                     type="submit"
                     form="case-modal-form"
                     disabled
@@ -375,7 +376,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
                   </Button>
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-[220px]">
+              <TooltipContent data-testid="case-modal-missing-fields" side="top" className="max-w-[220px]">
                 <p className="font-medium mb-1">請先完成必填欄位：</p>
                 <ul className="list-disc list-inside space-y-0.5 text-sm">
                   {missingFields.map(f => (
@@ -386,6 +387,7 @@ export default function CaseModal({ open, onClose, onSuccess, editingCase, defau
             </Tooltip>
           ) : (
             <Button
+              data-testid="case-modal-submit"
               type="submit"
               form="case-modal-form"
               disabled={isPending || anyUploading}

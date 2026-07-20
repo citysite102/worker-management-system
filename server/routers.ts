@@ -336,8 +336,8 @@ export const appRouter = router({
     create: publicProcedure
       .input(z.object({ name: z.string().min(1, "名稱為必填").max(50).transform(s => s.trim()) }))
       .mutation(async ({ input }) => {
-        await createManager({ name: input.name });
-        return { success: true };
+        const id = await createManager({ name: input.name });
+        return { success: true, id };
       }),
     delete: publicProcedure
       .input(z.object({ id: z.number().int().positive() }))
@@ -545,7 +545,7 @@ export const appRouter = router({
         const contactPhone = input.contactPhone ? normalizePhone(input.contactPhone) : undefined;
         const phone = input.phone ? normalizePhone(input.phone) : undefined;
         const landline = input.landline ? normalizePhone(input.landline) : undefined;
-        await createCustomer({
+        const id = await createCustomer({
           employerType: input.employerType,
           name: input.name,
           employerNo: input.employerNo || null,
@@ -593,7 +593,7 @@ export const appRouter = router({
           managerId: input.managerId,
           notes: input.notes || null,
         });
-        return { success: true };
+        return { success: true, id };
       }),
     update: publicProcedure
       .input(z.object({ id: z.number().int().positive() }).merge(customerInput))
@@ -942,8 +942,8 @@ export const appRouter = router({
         const todayCases = allCases.filter(c => c.caseNo?.includes(dateStr));
         const seq = String(todayCases.length + 1).padStart(3, "0");
         const caseNo = `GVC25-${dateStr}-${seq}`;
-        await createCase({ ...input, caseNo });
-        return { success: true, caseNo };
+        const id = await createCase({ ...input, caseNo });
+        return { success: true, id, caseNo };
       }),
     update: publicProcedure
       .input(z.object({
@@ -1057,8 +1057,8 @@ export const appRouter = router({
         notes: z.string().optional().transform(s => s?.trim() || undefined),
       }))
       .mutation(async ({ input }) => {
-        await createQualification(input);
-        return { success: true };
+        const id = await createQualification(input);
+        return { success: true, id };
       }),
     update: publicProcedure
       .input(z.object({
@@ -1113,8 +1113,8 @@ export const appRouter = router({
         notes: z.string().optional().transform(s => s?.trim() || undefined),
       }))
       .mutation(async ({ input }) => {
-        await createDemand(input);
-        return { success: true };
+        const id = await createDemand(input);
+        return { success: true, id };
       }),
     update: publicProcedure
       .input(z.object({
@@ -1334,7 +1334,7 @@ export const appRouter = router({
         notes: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
-        await createEmployment({
+        const id = await createEmployment({
           caseId: input.caseId,
           workerId: input.workerId,
           qualificationId: input.qualificationId ?? null,
@@ -1345,7 +1345,7 @@ export const appRouter = router({
           terminationReason: input.terminationReason ?? null,
           notes: input.notes ?? null,
         });
-        return { success: true };
+        return { success: true, id };
       }),
     update: publicProcedure
       .input(z.object({

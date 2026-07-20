@@ -1,11 +1,13 @@
 import { createConnection } from "mysql2/promise";
-import { readFileSync } from "fs";
+import "dotenv/config";
 
-const envContent = readFileSync(".env", "utf-8");
-const dbUrl = envContent.match(/DATABASE_URL=(.+)/)?.[1]?.trim().replace(/^["']|["']$/g, "");
-
+// 從環境變數取連線字串（本地由 dotenv 從 .env 載入；Manus 是平台直接注入，
+// 那裡沒有 .env 檔案）。原本這支直接 readFileSync(".env")，導致它在
+// Manus 上物理上跑不起來 —— kpi_snapshots 因此從未在線上被建立，
+// 儀表板每次載入都在查一張不存在的表。
+const dbUrl = process.env.DATABASE_URL;
 if (!dbUrl) {
-  console.error("DATABASE_URL not found in .env");
+  console.error("DATABASE_URL 未設定");
   process.exit(1);
 }
 

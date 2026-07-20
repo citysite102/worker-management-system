@@ -1,11 +1,11 @@
 import { createConnection } from "mysql2/promise";
-import { readFileSync } from "fs";
+import "dotenv/config";
 
-const envContent = readFileSync(".env", "utf-8");
-const dbUrl = envContent.match(/DATABASE_URL=(.+)/)?.[1]?.trim();
-
+// 從環境變數取連線字串（本地由 dotenv 從 .env 載入；Manus 是平台直接注入，
+// 那裡沒有 .env 檔案，直接 readFileSync 會讓這支腳本在線上跑不起來）。
+const dbUrl = process.env.DATABASE_URL;
 if (!dbUrl) {
-  console.error("DATABASE_URL not found in .env");
+  console.error("DATABASE_URL 未設定");
   process.exit(1);
 }
 

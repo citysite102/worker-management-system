@@ -167,6 +167,25 @@ beforeEach(() => {
 `ALL_LABELS` 是把所有清單合併起來的，後合併者會覆蓋前者。顯示的欄位領域明確時，
 請用 `getStatusLabel(value, domain)` 或 `<StatusBadge domain="..." />` 指定領域。
 
+## 部署到 Manus 時的 schema 落差
+
+**這個專案的 schema 變更是手動的。** `build` 與 `start` 都不會跑 migration，
+`drizzle/*.sql` 也只到 0006 —— 之後的變更全靠根目錄那幾支 `migrate-*.mjs`
+手動執行。所以：
+
+- **本地的資料庫結構不等於 Manus 上的**。改完 `drizzle/schema.ts` 之後，
+  記得確認對應的變更有沒有真的套用到線上。
+- 已知案例：`kpi_snapshots` 在 `4735e99` 進了 schema.ts，但只有
+  `migrate-kpi-snapshots.mjs` 會建立它，而那支腳本當時是直接
+  `readFileSync(".env")` 取連線字串 —— Manus 上沒有 `.env`（平台注入環境變數），
+  所以它在線上根本跑不起來，表也就從未建立，儀表板每次載入都在查一張
+  不存在的表。該腳本已改為讀 `process.env.DATABASE_URL`。
+- **本次新增的 14 個 FK 約束同樣只存在於本地**，Manus 上沒有。應用層的刪除
+  守門（`customers.delete` / `managers.delete`）是程式碼，會隨部署生效；
+  但資料庫層那道防線在線上還沒有。要套用前記得先跑
+  `DATABASE_URL=<manus 的連線字串> node scripts/check-orphans.mjs` 確認沒有
+  孤兒列，否則 `ALTER TABLE` 會失敗。
+
 ## 資料完整性
 
 schema 原本**完全沒有 FK 約束**，資料完整性全靠應用層自律，結果就是刪除雇主

@@ -217,6 +217,15 @@ function calcNextMedicalExamDate(lastDate: string | null | undefined): string | 
 }
 
 // ─── Routers ──────────────────────────────────────────────────────────────────
+/**
+ * 「有效」的配對成員階段 —— 尚未離開此案件的狀態。
+ *
+ * 不變量：同一案件同一移工只能有一筆有效成員。這條規則在三個地方都要守：
+ * create、addWorker、以及 updateMemberStage（把終態改回有效階段時）。
+ * 少守任何一處都會讓同案件出現重複的移工紀錄。
+ */
+const ACTIVE_MEMBER_STAGES = ["candidate", "confirmed", "upcoming", "employed"] as const;
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -1209,8 +1218,7 @@ export const appRouter = router({
         const { workerIds, ...assignmentData } = input;
         // 唯一性檢查：同案件同移工只能一筆非終態成員
         const existingMembers = await getMembersByCaseId(input.caseId);
-        const activeStages = ['candidate', 'confirmed', 'upcoming', 'employed'];
-        const activeWorkerIds = new Set(existingMembers.filter(m => activeStages.includes(m.stage)).map(m => m.workerId));
+        const activeWorkerIds = new Set(existingMembers.filter(m => (ACTIVE_MEMBER_STAGES as readonly string[]).includes(m.stage)).map(m => m.workerId));
         const conflicts = workerIds.filter(wid => activeWorkerIds.has(wid));
         if (conflicts.length > 0) {
           throw new TRPCError({ code: "CONFLICT", message: `此移工已在本案件配對中（workerId: ${conflicts.join(", ")}）` });
@@ -1252,8 +1260,7 @@ export const appRouter = router({
         const assignment = await getAssignmentById(input.assignmentId);
         if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "找不到此配對" });
         const existingMembers = await getMembersByCaseId(assignment.caseId);
-        const activeStages = ['candidate', 'confirmed', 'upcoming', 'employed'];
-        const conflict = existingMembers.find(m => m.workerId === input.workerId && activeStages.includes(m.stage));
+        const conflict = existingMembers.find(m => m.workerId === input.workerId && (ACTIVE_MEMBER_STAGES as readonly string[]).includes(m.stage));
         if (conflict) throw new TRPCError({ code: "CONFLICT", message: "此移工已在本案件配對中" });
         await createMember({ assignmentId: input.assignmentId, caseId: assignment.caseId, workerId: input.workerId, stage: "candidate" });
         return { success: true };
@@ -1278,6 +1285,27 @@ export const appRouter = router({
         stage: z.enum(["candidate", "confirmed", "upcoming", "employed", "departed", "rejected"]),
       }))
       .mutation(async ({ input }) => {
+        // 改回「有效」階段時要重新檢查不變量。否則會有這個漏洞：
+        // 誤標成離退 → 系統允許重新配對同一位移工 → 發現標錯又改回在職
+        // → 同案件出現兩筆該移工的有效紀錄。UI 的階段下拉是開放選單，
+        // 任何階段都能互選，所以這是正常操作就會踩到的情境。
+        const isActive = (ACTIVE_MEMBER_STAGES as readonly string[]).includes(input.stage);
+        if (isActive) {
+          const member = await getMemberById(input.memberId);
+          if (!member) throw new TRPCError({ code: "NOT_FOUND", message: "找不到此成員" });
+          const siblings = await getMembersByCaseId(member.caseId);
+          const conflict = siblings.find(
+            m => m.id !== input.memberId
+              && m.workerId === member.workerId
+              && (ACTIVE_MEMBER_STAGES as readonly string[]).includes(m.stage)
+          );
+          if (conflict) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "此移工在本案件已有另一筆有效配對，無法改回此階段",
+            });
+          }
+        }
         await updateMember(input.memberId, { stage: input.stage });
         return { success: true };
       }),

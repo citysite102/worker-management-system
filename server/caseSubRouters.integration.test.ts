@@ -843,6 +843,78 @@ describe("caseAssignments.updateMember / updateMemberStage", () => {
   });
 });
 
+describe("caseAssignments.updateMemberStage 的不變量", () => {
+  // 同一案件同一移工只能有一筆有效成員。這條規則原本只在 create / addWorker
+  // 檢查，updateMemberStage 完全沒驗證，導致以下這串正常操作就能繞過：
+  //   誤標成離退 → 系統允許重新配對同一位移工 → 發現標錯又改回在職
+  //   → 同案件出現兩筆該移工的有效紀錄
+  // UI 的階段下拉是開放選單（任何階段都能互選），所以不需要打 API 就會踩到。
+  it("終態改回有效階段時，若已有另一筆有效配對則拋出 CONFLICT", async () => {
+    const caller = createCaller();
+    const { caseId, workerId } = await makeCaseWorld(caller);
+
+    await caller.caseAssignments.create({ caseId, workerIds: [workerId] });
+    const memberId = (
+      await caller.caseAssignments.getMembersByCaseId({ caseId })
+    )[0].id;
+
+    // 標成離退後，系統允許重新配對同一位移工（這是刻意的行為）
+    await caller.caseAssignments.updateMemberStage({
+      memberId,
+      stage: "departed",
+    });
+    await caller.caseAssignments.create({ caseId, workerIds: [workerId] });
+
+    // 但舊那筆不能再改回有效階段，否則就會有兩筆
+    await expect(
+      caller.caseAssignments.updateMemberStage({ memberId, stage: "employed" })
+    ).rejects.toThrow(/已有另一筆有效配對/);
+
+    const rows = await query<{ n: number }>(
+      "SELECT COUNT(*) AS n FROM case_assignment_workers WHERE caseId = ? AND workerId = ? AND stage IN ('candidate','confirmed','upcoming','employed')",
+      [caseId, workerId]
+    );
+    expect(Number(rows[0].n)).toBe(1);
+  });
+
+  it("沒有衝突時仍可自由改回有效階段", async () => {
+    const caller = createCaller();
+    const { caseId, workerId } = await makeCaseWorld(caller);
+
+    await caller.caseAssignments.create({ caseId, workerIds: [workerId] });
+    const memberId = (
+      await caller.caseAssignments.getMembersByCaseId({ caseId })
+    )[0].id;
+
+    // 單純標錯階段的更正不該被擋
+    await caller.caseAssignments.updateMemberStage({
+      memberId,
+      stage: "departed",
+    });
+    await caller.caseAssignments.updateMemberStage({
+      memberId,
+      stage: "employed",
+    });
+
+    const members = await caller.caseAssignments.getMembersByCaseId({ caseId });
+    expect(members.find(m => m.id === memberId)?.stage).toBe("employed");
+  });
+
+  it("改成終態不受影響", async () => {
+    const caller = createCaller();
+    const { caseId, workerId } = await makeCaseWorld(caller);
+
+    await caller.caseAssignments.create({ caseId, workerIds: [workerId] });
+    const memberId = (
+      await caller.caseAssignments.getMembersByCaseId({ caseId })
+    )[0].id;
+
+    await expect(
+      caller.caseAssignments.updateMemberStage({ memberId, stage: "rejected" })
+    ).resolves.toMatchObject({ success: true });
+  });
+});
+
 describe("caseAssignments.removeWorker", () => {
   it("只刪掉指定成員，配對與其他成員保留", async () => {
     const caller = createCaller();

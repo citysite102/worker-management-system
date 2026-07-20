@@ -860,3 +860,26 @@ describe("dashboard.summary 趨勢與 KPI 快照", () => {
     expect(rows[0].expiringSoon).toBe(1);
   });
 });
+
+describe("dashboard.summary 的韌性", () => {
+  it("KPI 快照表壞掉時，核心數字仍然出得來（只是沒有趨勢）", async () => {
+    const caller = createCaller();
+    const managerId = await makeManager(caller);
+    await makeWorker(caller, managerId, { ...EMPLOYED, nameCn: "在職甲" });
+
+    // 直接把快照表改名，模擬「查詢會失敗」的情境。這比 mock 更貼近真實 ——
+    // 實際踩到的是 schema 變更後連線池裡的 prepared statement 失效。
+    await query("RENAME TABLE kpi_snapshots TO kpi_snapshots_hidden");
+    try {
+      const summary = await caller.dashboard.summary();
+
+      // 趨勢降級成 null，但每天要看的數字一個都不能少
+      expect(summary.trends).toBeNull();
+      expect(summary.totals.workers).toBe(1);
+      expect(summary.totals.employed).toBe(1);
+      expect(summary.workersByLifecycle.length).toBeGreaterThan(0);
+    } finally {
+      await query("RENAME TABLE kpi_snapshots_hidden TO kpi_snapshots");
+    }
+  });
+});

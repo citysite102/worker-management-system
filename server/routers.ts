@@ -313,8 +313,19 @@ export const appRouter = router({
 
       // ── 趨勢：upsert 當日快照，與前一筆快照比較 ───────────────────────────
       // 註：快照於「儀表板被載入時」寫入，因此趨勢比較的是「上次有人查看的那天」。
-      const prev = await getPreviousKpiSnapshot(todayStr);
-      await upsertKpiSnapshot({ snapshotDate: todayStr, ...totals });
+      //
+      // 快照相關的失敗一律降級成「沒有趨勢」，不讓整個儀表板掛掉。
+      // 趨勢只是加分資訊，但移工/雇主/案件總數與證件到期提醒是每天要看的東西 ——
+      // 曾經發生過 kpi_snapshots 查詢失敗導致整頁空白（schema 變更後連線池裡的
+      // prepared statement 失效），那時核心數字明明查得到卻一個都顯示不出來。
+      let prev: Awaited<ReturnType<typeof getPreviousKpiSnapshot>> = undefined;
+      try {
+        prev = await getPreviousKpiSnapshot(todayStr);
+        await upsertKpiSnapshot({ snapshotDate: todayStr, ...totals });
+      } catch (error) {
+        console.error("[dashboard] KPI 快照讀寫失敗，本次不顯示趨勢：", error);
+        prev = undefined;
+      }
       const trends = prev
         ? {
             workers: totals.workers - prev.workers,

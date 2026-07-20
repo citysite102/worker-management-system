@@ -5,11 +5,15 @@
  *   - 真實 SQL 是否寫得進去、讀得回來（欄位對映、電話正規化）
  *   - 驗證失敗（統編檢查碼、同名查重）時是否真的沒有留下半筆資料
  *   - 子表（被照顧者、申請資格）是否確實依 customerId 隔離
- *   - 刪除雇主後子表的實際殘留狀況
+ *   - 刪除雇主時的連動清理，以及底下有案件時是否確實擋下
  */
 import { describe, expect, it } from "vitest";
 import { createCaller } from "./__tests__/helpers/caller";
-import { makeCustomer, makeManager } from "./__tests__/helpers/fixtures";
+import {
+  makeCase,
+  makeCustomer,
+  makeManager,
+} from "./__tests__/helpers/fixtures";
 import { query } from "./__tests__/helpers/testDb";
 
 /** 通過檢查碼驗證的合法統一編號。隨便編的號碼會被 validateTaxId 擋掉。 */
@@ -311,7 +315,7 @@ describe("customers.delete", () => {
     );
   });
 
-  it("刪除雇主後子表資料會變成孤兒（記錄現況，非期望行為）", async () => {
+  it("刪除雇主會連動清掉被照顧者與客戶資格，不留孤兒", async () => {
     const caller = createCaller();
     const managerId = await makeManager(caller);
     const customerId = await makeCustomer(caller, managerId, {
@@ -328,20 +332,80 @@ describe("customers.delete", () => {
 
     await caller.customers.delete({ id: customerId });
 
-    // customer_care_receivers / customer_qualifications 都沒有 FK 也沒有
-    // 應用層的連動刪除，因此子表會殘留孤兒列。詳見最終報告的問題清單。
+    // 這兩張表沒有獨立意義，雇主沒了就該一起清掉，否則會變成查不到來源的孤兒列。
+    expect(
+      await query(
+        "SELECT id FROM customer_care_receivers WHERE customerId = ?",
+        [customerId]
+      )
+    ).toHaveLength(0);
+    expect(
+      await query(
+        "SELECT id FROM customer_qualifications WHERE customerId = ?",
+        [customerId]
+      )
+    ).toHaveLength(0);
+  });
+
+  it("底下還有案件時拒絕刪除，且完全不動任何資料", async () => {
+    const caller = createCaller();
+    const managerId = await makeManager(caller);
+    const customerId = await makeCustomer(caller, managerId, {
+      name: "有案件的公司",
+    });
+    await caller.customers.careReceivers.create({
+      customerId,
+      careReceiverName: "林阿公",
+    });
+    await makeCase(caller, customerId, managerId, { name: "進行中的案件" });
+
+    // 案件牽涉勞動部許可函與聘僱契約，誤刪難以回復，所以是擋下而非連坐刪除。
+    await expect(caller.customers.delete({ id: customerId })).rejects.toThrow(
+      /還有 1 個案件/
+    );
+
+    // 擋下時必須是「完全沒動」—— 不能刪到一半才發現有案件
+    expect(
+      await query("SELECT id FROM customers WHERE id = ?", [customerId])
+    ).toHaveLength(1);
     expect(
       await query(
         "SELECT id FROM customer_care_receivers WHERE customerId = ?",
         [customerId]
       )
     ).toHaveLength(1);
+  });
+
+  it("把案件刪掉之後就能刪雇主了", async () => {
+    const caller = createCaller();
+    const managerId = await makeManager(caller);
+    const customerId = await makeCustomer(caller, managerId);
+    const caseId = await makeCase(caller, customerId, managerId);
+
+    await expect(caller.customers.delete({ id: customerId })).rejects.toThrow();
+
+    await caller.cases.delete({ id: caseId });
+    await expect(
+      caller.customers.delete({ id: customerId })
+    ).resolves.toMatchObject({ success: true });
+
     expect(
-      await query(
-        "SELECT id FROM customer_qualifications WHERE customerId = ?",
-        [customerId]
-      )
-    ).toHaveLength(1);
+      await query("SELECT id FROM customers WHERE id = ?", [customerId])
+    ).toHaveLength(0);
+  });
+
+  it("不會有雇主被刪掉、案件卻還留在列表上的情況", async () => {
+    const caller = createCaller();
+    const managerId = await makeManager(caller);
+    const customerId = await makeCustomer(caller, managerId);
+    await makeCase(caller, customerId, managerId, { name: "不該變孤兒的案件" });
+
+    await expect(caller.customers.delete({ id: customerId })).rejects.toThrow();
+
+    // 舊行為下這個案件會留在列表上、雇主欄顯示空字串
+    const listed = await caller.cases.list({});
+    expect(listed).toHaveLength(1);
+    expect(listed[0].customerName).not.toBe("");
   });
 });
 

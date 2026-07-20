@@ -240,6 +240,42 @@ describe("cases.getChildCounts", () => {
   });
 });
 
+describe("資料庫層的外鍵約束", () => {
+  // 應用層的檢查可能被繞過（直接下 SQL、之後新增的 procedure 忘了檢查），
+  // 所以資料庫層也要有一道。這幾個測試確認 FK 真的存在且會擋，
+  // 而不是只寫在 schema 裡卻沒套用到資料庫。
+  it("不能插入指向不存在案件的需求", async () => {
+    await expect(
+      query(
+        "INSERT INTO case_demands (caseId, label, qualType, neededCount) VALUES (?, ?, ?, ?)",
+        [999999, "幽靈需求", "caregiver", 1]
+      )
+    ).rejects.toThrow(/foreign key|FOREIGN KEY/i);
+  });
+
+  it("不能插入指向不存在雇主的案件", async () => {
+    const caller = createCaller();
+    const managerId = await makeManager(caller);
+
+    await expect(
+      query(
+        "INSERT INTO `cases` (customerId, name, managerId, status) VALUES (?, ?, ?, ?)",
+        [999999, "幽靈案件", managerId, "in_progress"]
+      )
+    ).rejects.toThrow(/foreign key|FOREIGN KEY/i);
+  });
+
+  it("直接用 SQL 刪除仍有案件的雇主也會被擋", async () => {
+    const caller = createCaller();
+    const { customerId } = await makeCaseWorld(caller);
+
+    // 就算繞過 routers 的檢查，資料庫層仍不允許留下孤兒案件
+    await expect(
+      query("DELETE FROM customers WHERE id = ?", [customerId])
+    ).rejects.toThrow(/foreign key|FOREIGN KEY/i);
+  });
+});
+
 describe("cases.update", () => {
   it("更新後的值真的寫回資料庫", async () => {
     const caller = createCaller();

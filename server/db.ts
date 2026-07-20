@@ -77,6 +77,30 @@ export async function createManager(data: InsertManager): Promise<number> {
   return insertedId(await db.insert(managers).values(data));
 }
 
+/** 指派給此負責人的移工／雇主／案件筆數 —— 用來判斷可不可以刪。 */
+export async function countDependentsByManager(managerId: number) {
+  const db = await getDb();
+  if (!db) return { workers: 0, customers: 0, cases: 0 };
+  const count = sql<number>`count(*)`;
+  const [w, c, k] = await Promise.all([
+    db.select({ count }).from(workers).where(eq(workers.managerId, managerId)),
+    db.select({ count }).from(customers).where(eq(customers.managerId, managerId)),
+    db.select({ count }).from(cases).where(eq(cases.managerId, managerId)),
+  ]);
+  return {
+    workers: Number(w[0]?.count ?? 0),
+    customers: Number(c[0]?.count ?? 0),
+    cases: Number(k[0]?.count ?? 0),
+  };
+}
+
+/**
+ * 刪除負責人。
+ *
+ * 還有移工／雇主／案件指派給他時不會刪 —— 呼叫端負責先擋掉並回報。
+ * 資料庫層現在也有 FK 約束擋著，但那會噴出原始 SQL 錯誤，
+ * 使用者看不懂，所以應用層要先給出可讀的訊息。
+ */
 export async function deleteManager(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -192,9 +216,28 @@ export async function updateCustomer(id: number, data: Partial<InsertCustomer>) 
   return db.update(customers).set(data).where(eq(customers.id, id));
 }
 
+/** 該雇主底下的案件數 —— 用來判斷可不可以刪。 */
+export async function countCasesByCustomer(customerId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.select({ count: sql<number>`count(*)` }).from(cases).where(eq(cases.customerId, customerId));
+  return Number(rows[0]?.count ?? 0);
+}
+
+/**
+ * 刪除雇主。
+ *
+ * 底下還有案件時不會刪 —— 呼叫端（routers.ts）負責先擋掉並回報錯誤。
+ * 案件牽涉勞動部許可函與聘僱契約，誤刪難以回復，因此採「擋下」而非「連坐刪除」。
+ *
+ * 沒有案件時才刪，並連動清掉被照顧者與客戶資格 —— 這兩張表沒有獨立意義，
+ * 留著只會變成查不到來源的孤兒列。
+ */
 export async function deleteCustomer(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  await db.delete(customerCareReceivers).where(eq(customerCareReceivers.customerId, id));
+  await db.delete(customerQualifications).where(eq(customerQualifications.customerId, id));
   return db.delete(customers).where(eq(customers.id, id));
 }
 

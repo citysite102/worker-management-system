@@ -5,9 +5,9 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import {
-  getAllManagers, createManager, deleteManager,
+  getAllManagers, createManager, deleteManager, countDependentsByManager,
   getAllWorkers, getWorkerById, getWorkerByPermitNo, getWorkerByPassportNo, createWorker, updateWorker, deleteWorker,
-  getAllCustomers, getCustomerById, getCustomerByTaxId, getCustomerByName, createCustomer, updateCustomer, deleteCustomer,
+  getAllCustomers, getCustomerById, getCustomerByTaxId, getCustomerByName, createCustomer, updateCustomer, deleteCustomer, countCasesByCustomer,
   getAllCases, getCaseById, createCase, updateCase, deleteCase, getCaseChildCounts,
   getQualificationsByCaseId, getQualificationById, createQualification, updateQualification, deleteQualification, getQuotaUsed,
   getDemandsByCaseId, getDemandById, createDemand, updateDemand, deleteDemand, getDemandProgressBatch,
@@ -342,6 +342,20 @@ export const appRouter = router({
     delete: publicProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input }) => {
+        // 還有東西指派給這位負責人就不許刪。資料庫層的 FK 也會擋，但那會噴出
+        // 使用者看不懂的原始 SQL 錯誤，所以這裡先給可讀的訊息。
+        const deps = await countDependentsByManager(input.id);
+        const parts = [
+          deps.workers > 0 ? `${deps.workers} 位移工` : null,
+          deps.customers > 0 ? `${deps.customers} 個雇主` : null,
+          deps.cases > 0 ? `${deps.cases} 個案件` : null,
+        ].filter(Boolean);
+        if (parts.length > 0) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `此負責人名下還有 ${parts.join("、")}，請先改派後再刪除`,
+          });
+        }
         await deleteManager(input.id);
         return { success: true };
       }),
@@ -656,6 +670,15 @@ export const appRouter = router({
     delete: publicProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input }) => {
+        // 底下還有案件就不許刪 —— 案件牽涉勞動部許可函與聘僱契約，
+        // 誤刪難以回復，因此要求先處理完案件，而非連坐刪除。
+        const caseCount = await countCasesByCustomer(input.id);
+        if (caseCount > 0) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `此雇主底下還有 ${caseCount} 個案件，請先刪除或轉移案件後再刪除雇主`,
+          });
+        }
         await deleteCustomer(input.id);
         return { success: true };
       }),

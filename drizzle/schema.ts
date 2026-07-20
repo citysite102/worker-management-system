@@ -72,7 +72,7 @@ export const workers = mysqlTable("workers", {
     "expiring_soon",        // 即將到期
     "complete",             // 完備
   ]).notNull(),
-  managerId: int("managerId").notNull(),
+  managerId: int("managerId").notNull().references(() => managers.id),
 
   // ── 證件資料 ──────────────────────────────────────────────────────────────
   residentPermitNo: varchar("residentPermitNo", { length: 30 }), // 統一證碼（居留證號）
@@ -209,7 +209,7 @@ export const customers = mysqlTable("customers", {
     "ended",          // 已結束
   ]).notNull(),
   pricingTier: mysqlEnum("pricingTier", ["standard", "custom"]).notNull(),
-  managerId: int("managerId").notNull(),
+  managerId: int("managerId").notNull().references(() => managers.id),
   notes: text("notes"),
 
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -225,10 +225,10 @@ export type InsertCustomer = typeof customers.$inferInsert;
 // ─── Cases（案件）────────────────────────────────────────────────────────────
 export const cases = mysqlTable("cases", {
   id: int("id").autoincrement().primaryKey(),
-  customerId: int("customerId").notNull(),               // → customers.id
+  customerId: int("customerId").notNull().references(() => customers.id),               // → customers.id
   name: varchar("name", { length: 100 }).notNull(),      // 案件名稱
   caseNo: varchar("caseNo", { length: 30 }),             // 案件編號（GVC25-YYYYMMDD-NNN）
-  managerId: int("managerId").notNull(),                 // → managers.id
+  managerId: int("managerId").notNull().references(() => managers.id),                 // → managers.id
   status: mysqlEnum("status", [
     "in_progress",   // 進行中
     "completed",     // 已完成
@@ -326,7 +326,7 @@ export type InsertCase = typeof cases.$inferInsert;
 // ─── Case Qualifications（案件資格）─────────────────────────────────────────
 export const caseQualifications = mysqlTable("case_qualifications", {
   id: int("id").autoincrement().primaryKey(),
-  caseId: int("caseId").notNull(),                       // → cases.id
+  caseId: int("caseId").notNull().references(() => cases.id),                       // → cases.id
   label: varchar("label", { length: 100 }).notNull(),   // 例：案件資格一(幫傭)
   category: mysqlEnum("category", [
     "labor_in",      // 勞基法內
@@ -373,7 +373,7 @@ export type InsertCaseQualification = typeof caseQualifications.$inferInsert;
 // ─── Case Demands（媒合需求）────────────────────────────────────────────────
 export const caseDemands = mysqlTable("case_demands", {
   id: int("id").autoincrement().primaryKey(),
-  caseId: int("caseId").notNull(),                       // → cases.id
+  caseId: int("caseId").notNull().references(() => cases.id),                       // → cases.id
   label: varchar("label", { length: 100 }).notNull(),
   qualificationId: int("qualificationId"),              // 可選 → case_qualifications.id
   qualType: mysqlEnum("qualType", [
@@ -400,7 +400,7 @@ export type InsertCaseDemand = typeof caseDemands.$inferInsert;
 // ─── Case Assignments（配對／批次）──────────────────────────────────────────
 export const caseAssignments = mysqlTable("case_assignments", {
   id: int("id").autoincrement().primaryKey(),
-  caseId: int("caseId").notNull(),                       // → cases.id
+  caseId: int("caseId").notNull().references(() => cases.id),                       // → cases.id
   label: varchar("label", { length: 100 }),
   demandId: int("demandId"),                             // 可選 → case_demands.id
   qualificationId: int("qualificationId"),               // 可選 → case_qualifications.id
@@ -419,9 +419,9 @@ export type InsertCaseAssignment = typeof caseAssignments.$inferInsert;
 // ─── Case Assignment Workers（配對成員）─────────────────────────────────────
 export const caseAssignmentWorkers = mysqlTable("case_assignment_workers", {
   id: int("id").autoincrement().primaryKey(),
-  assignmentId: int("assignmentId").notNull(),           // → case_assignments.id
-  caseId: int("caseId").notNull(),                       // 冗餘 → cases.id（便於唯一性檢查）
-  workerId: int("workerId").notNull(),                   // → workers.id
+  assignmentId: int("assignmentId").notNull().references(() => caseAssignments.id),           // → case_assignments.id
+  caseId: int("caseId").notNull().references(() => cases.id),                       // 冗餘 → cases.id（便於唯一性檢查）
+  workerId: int("workerId").notNull().references(() => workers.id),                   // → workers.id
   stage: mysqlEnum("stage", [
     "candidate",   // 人選評估
     "confirmed",   // 已確認
@@ -449,8 +449,8 @@ export type InsertCaseAssignmentWorker = typeof caseAssignmentWorkers.$inferInse
 // ─── Case Employments（正式聘僱合約）────────────────────────────────────────
 export const caseEmployments = mysqlTable("case_employments", {
   id: int("id").autoincrement().primaryKey(),
-  caseId: int("caseId").notNull(),                       // → cases.id
-  workerId: int("workerId").notNull(),                   // → workers.id
+  caseId: int("caseId").notNull().references(() => cases.id),                       // → cases.id
+  workerId: int("workerId").notNull().references(() => workers.id),                   // → workers.id
   qualificationId: int("qualificationId"),               // 可選 → case_qualifications.id
   position: varchar("position", { length: 100 }),
   contractStart: varchar("contractStart", { length: 10 }),
@@ -475,7 +475,7 @@ export type InsertCaseEmployment = typeof caseEmployments.$inferInsert;
 // ─── Customer Care Receivers（被照顧者，個人雇主用）─────────────────────────
 export const customerCareReceivers = mysqlTable("customer_care_receivers", {
   id: int("id").autoincrement().primaryKey(),
-  customerId: int("customerId").notNull(),              // → customers.id
+  customerId: int("customerId").notNull().references(() => customers.id),              // → customers.id
   careReceiverNo: varchar("careReceiverNo", { length: 20 }),   // 被看護者編號
   careReceiverName: varchar("careReceiverName", { length: 50 }), // 被照顧者姓名
   careReceiverBirthDate: varchar("careReceiverBirthDate", { length: 10 }), // 出生年月日 YYYY-MM-DD
@@ -497,7 +497,7 @@ export type InsertCustomerCareReceiver = typeof customerCareReceivers.$inferInse
 // ─── Customer Qualifications（申請資格，個人雇主 + 公司行號共用）────────────
 export const customerQualifications = mysqlTable("customer_qualifications", {
   id: int("id").autoincrement().primaryKey(),
-  customerId: int("customerId").notNull(),              // → customers.id
+  customerId: int("customerId").notNull().references(() => customers.id),              // → customers.id
   /** 資格類別：family=家庭類雇主, business=事業類雇主（可擴充） */
   qualifierCategory: mysqlEnum("qualifierCategory", ["family", "business"]).notNull().default("family"),
   careReceiverId: int("careReceiverId"),                // 可選 → customer_care_receivers.id（家庭類用）

@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "vite/client", "vitest/globals"]
+  },
+  "include": [
+    "client/src/**/*",
+    "shared/**/*",
+    "server/**/*",
+    "e2e/**/*",
+    "*.config.ts",
+    "scripts/**/*"
+  ],
+  "exclude": ["node_modules", "build", "dist"]
+}

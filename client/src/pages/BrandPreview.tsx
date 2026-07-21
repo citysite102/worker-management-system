@@ -17,38 +17,55 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 // ── 品牌色票 ────────────────────────────────────────────
+// Warm Editorial（見 docs/design-system.md）
 const TOKENS = [
   {
-    name: "品牌主色",
-    token: "--brand-primary",
-    hex: "#1FA59B",
-    usage: "Logo、互動主色、按鈕、連結",
-    bg: "#1FA59B",
+    name: "品牌主色 · moss",
+    token: "--color-brand",
+    hex: "#5F6B45",
+    usage: "連結、選中、品牌識別、成功",
+    bg: "#5F6B45",
     text: "#FFFFFF",
   },
   {
-    name: "吉祥物身體",
-    token: "--brand-mascot",
-    hex: "#5FBFA3",
-    usage: "吉祥物大面積身體色",
-    bg: "#5FBFA3",
+    name: "墨色 · ink",
+    token: "--color-foreground",
+    hex: "#1E1B16",
+    usage: "主文字、主按鈕（暖黑藥丸）",
+    bg: "#1E1B16",
+    text: "#FBF8F1",
+  },
+  {
+    name: "ochre",
+    token: "--color-ochre",
+    hex: "#B98A2E",
+    usage: "警示/提醒、加值標記（點綴）",
+    bg: "#B98A2E",
+    text: "#2A1F08",
+  },
+  {
+    name: "clay",
+    token: "--color-clay",
+    hex: "#A85436",
+    usage: "錯誤/需行動、強調（點綴）",
+    bg: "#A85436",
     text: "#FFFFFF",
   },
   {
-    name: "角色細節線",
-    token: "--brand-dark",
-    hex: "#103D38",
-    usage: "表情線、深色文字、Logo 深色版",
-    bg: "#103D38",
-    text: "#FFFFFF",
+    name: "taupe",
+    token: "--color-taupe",
+    hex: "#C4B49A",
+    usage: "中性標籤、次要區塊",
+    bg: "#C4B49A",
+    text: "#2A2418",
   },
   {
-    name: "點綴色",
-    token: "--brand-accent",
-    hex: "#F2A33C",
-    usage: "道具、重點標示、慶祝元素（不大面積使用）",
-    bg: "#F2A33C",
-    text: "#FFFFFF",
+    name: "紙張 · paper",
+    token: "--color-background",
+    hex: "#F5F0E6",
+    usage: "頁面底（暖奶油）",
+    bg: "#F5F0E6",
+    text: "#1E1B16",
   },
 ];
 
@@ -117,7 +134,7 @@ function SectionTitle({
       <div className="flex items-center gap-3 mb-1">
         <span
           className="text-xs font-mono px-2 py-0.5 rounded"
-          style={{ background: "#1FA59B", color: "#FFFFFF" }}
+          style={{ background: "#5F6B45", color: "#FFFFFF" }}
         >
           {number}
         </span>
@@ -137,7 +154,7 @@ export default function BrandPreview() {
       {/* Header */}
       <div
         className="border-b px-8 py-5 flex items-center justify-between"
-        style={{ borderColor: "#1FA59B22" }}
+        style={{ borderColor: "#5F6B4522" }}
       >
         <div className="flex items-center gap-4">
           <Logo variant="color" size="md" showText />
@@ -150,7 +167,7 @@ export default function BrandPreview() {
         <Badge
           variant="outline"
           className="text-xs"
-          style={{ borderColor: "#1FA59B", color: "#1FA59B" }}
+          style={{ borderColor: "#5F6B45", color: "#5F6B45" }}
         >
           僅供確認，不影響功能
         </Badge>
@@ -161,11 +178,11 @@ export default function BrandPreview() {
         <section>
           <SectionTitle
             number="01"
-            title="Design Token — 品牌色票"
-            subtitle="全站只能使用以下四個品牌色，中性色沿用既有 shadcn token"
+            title="Design Token — 色票（Warm Editorial）"
+            subtitle="全站一律取用 token，禁止硬編色碼；大地色只做點綴，詳見 docs/design-system.md"
           />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {TOKENS.map((t) => (
+            {TOKENS.map(t => (
               <div
                 key={t.hex}
                 className="rounded-xl overflow-hidden border border-border"
@@ -188,7 +205,7 @@ export default function BrandPreview() {
                   </p>
                   <p
                     className="text-xs font-mono mt-1"
-                    style={{ color: "#1FA59B" }}
+                    style={{ color: "#5F6B45" }}
                   >
                     {t.token}
                   </p>
@@ -214,10 +231,16 @@ export default function BrandPreview() {
                 </p>
                 <div className="flex items-end gap-8 flex-wrap">
                   {LOGO_SIZES.map(({ size, label, note }) => (
-                    <div key={size} className="flex flex-col items-center gap-2">
+                    <div
+                      key={size}
+                      className="flex flex-col items-center gap-2"
+                    >
                       <Logo variant="color" size={size} />
                       <p className="text-xs text-muted-foreground">{label}</p>
-                      <p className="text-xs font-medium" style={{ color: "#1FA59B" }}>
+                      <p
+                        className="text-xs font-medium"
+                        style={{ color: "#5F6B45" }}
+                      >
                         {note}
                       </p>
                     </div>
@@ -241,7 +264,7 @@ export default function BrandPreview() {
                   </div>
                   <div
                     className="rounded-lg p-5 flex flex-col items-center gap-3"
-                    style={{ background: "#103D38" }}
+                    style={{ background: "#1E1B16" }}
                   >
                     <Logo variant="white" size="lg" showText />
                     <p className="text-xs" style={{ color: "#FFFFFF88" }}>
@@ -295,12 +318,12 @@ export default function BrandPreview() {
           />
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {POSES.map(({ pose, label, usage, isNew }) => (
-              <Card key={pose} className={isNew ? "ring-2 ring-[#F2A33C]" : ""}>
+              <Card key={pose} className={isNew ? "ring-2 ring-[#B98A2E]" : ""}>
                 <CardContent className="pt-6 flex flex-col items-center text-center">
                   {isNew && (
                     <Badge
                       className="mb-2 text-xs"
-                      style={{ background: "#F2A33C", color: "#FFFFFF" }}
+                      style={{ background: "#B98A2E", color: "#FFFFFF" }}
                     >
                       新增姿態
                     </Badge>
@@ -312,7 +335,7 @@ export default function BrandPreview() {
                   </p>
                   <p
                     className="text-xs font-mono mt-2"
-                    style={{ color: "#1FA59B" }}
+                    style={{ color: "#5F6B45" }}
                   >
                     pose="{pose}"
                   </p>
@@ -345,7 +368,7 @@ export default function BrandPreview() {
                   action={
                     <Button
                       size="sm"
-                      style={{ background: "#1FA59B", color: "#FFFFFF" }}
+                      style={{ background: "#5F6B45", color: "#FFFFFF" }}
                     >
                       + 新增移工
                     </Button>
@@ -409,7 +432,10 @@ export default function BrandPreview() {
             {/* Logo API */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-mono" style={{ color: "#1FA59B" }}>
+                <CardTitle
+                  className="text-sm font-mono"
+                  style={{ color: "#5F6B45" }}
+                >
                   &lt;Logo /&gt;
                 </CardTitle>
               </CardHeader>
@@ -418,30 +444,50 @@ export default function BrandPreview() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Prop</th>
-                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Type</th>
-                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">預設</th>
-                        <th className="text-left py-2 font-medium text-muted-foreground">說明</th>
+                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">
+                          Prop
+                        </th>
+                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">
+                          Type
+                        </th>
+                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">
+                          預設
+                        </th>
+                        <th className="text-left py-2 font-medium text-muted-foreground">
+                          說明
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="font-mono text-xs">
                       <tr className="border-b">
                         <td className="py-2 pr-4">variant</td>
-                        <td className="py-2 pr-4 text-muted-foreground">"color" | "white" | "dark"</td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          "color" | "white" | "dark"
+                        </td>
                         <td className="py-2 pr-4">"color"</td>
-                        <td className="py-2 font-sans text-muted-foreground">配色版本</td>
+                        <td className="py-2 font-sans text-muted-foreground">
+                          配色版本
+                        </td>
                       </tr>
                       <tr className="border-b">
                         <td className="py-2 pr-4">size</td>
-                        <td className="py-2 pr-4 text-muted-foreground">"xs" | "sm" | "md" | "lg" | "xl"</td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          "xs" | "sm" | "md" | "lg" | "xl"
+                        </td>
                         <td className="py-2 pr-4">"md"</td>
-                        <td className="py-2 font-sans text-muted-foreground">20 / 28 / 36 / 48 / 64 px</td>
+                        <td className="py-2 font-sans text-muted-foreground">
+                          20 / 28 / 36 / 48 / 64 px
+                        </td>
                       </tr>
                       <tr>
                         <td className="py-2 pr-4">showText</td>
-                        <td className="py-2 pr-4 text-muted-foreground">boolean</td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          boolean
+                        </td>
                         <td className="py-2 pr-4">false</td>
-                        <td className="py-2 font-sans text-muted-foreground">是否顯示文字「移工管理後台」</td>
+                        <td className="py-2 font-sans text-muted-foreground">
+                          是否顯示文字「移工管理後台」
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -452,7 +498,10 @@ export default function BrandPreview() {
             {/* Mascot API */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-mono" style={{ color: "#1FA59B" }}>
+                <CardTitle
+                  className="text-sm font-mono"
+                  style={{ color: "#5F6B45" }}
+                >
                   &lt;Mascot /&gt;
                 </CardTitle>
               </CardHeader>
@@ -461,24 +510,41 @@ export default function BrandPreview() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Prop</th>
-                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Type</th>
-                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">預設</th>
-                        <th className="text-left py-2 font-medium text-muted-foreground">說明</th>
+                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">
+                          Prop
+                        </th>
+                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">
+                          Type
+                        </th>
+                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">
+                          預設
+                        </th>
+                        <th className="text-left py-2 font-medium text-muted-foreground">
+                          說明
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="font-mono text-xs">
                       <tr className="border-b">
                         <td className="py-2 pr-4">pose</td>
-                        <td className="py-2 pr-4 text-muted-foreground">"thumbsup" | "wave" | "review" | "celebrate" | "confused" | "search"</td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          "thumbsup" | "wave" | "review" | "celebrate" |
+                          "confused" | "search"
+                        </td>
                         <td className="py-2 pr-4">"wave"</td>
-                        <td className="py-2 font-sans text-muted-foreground">姿態</td>
+                        <td className="py-2 font-sans text-muted-foreground">
+                          姿態
+                        </td>
                       </tr>
                       <tr>
                         <td className="py-2 pr-4">size</td>
-                        <td className="py-2 pr-4 text-muted-foreground">"xs" | "sm" | "md" | "lg" | "xl"</td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          "xs" | "sm" | "md" | "lg" | "xl"
+                        </td>
                         <td className="py-2 pr-4">"md"</td>
-                        <td className="py-2 font-sans text-muted-foreground">40 / 64 / 96 / 128 / 192 px</td>
+                        <td className="py-2 font-sans text-muted-foreground">
+                          40 / 64 / 96 / 128 / 192 px
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -489,7 +555,10 @@ export default function BrandPreview() {
             {/* EmptyState API */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-mono" style={{ color: "#1FA59B" }}>
+                <CardTitle
+                  className="text-sm font-mono"
+                  style={{ color: "#5F6B45" }}
+                >
                   &lt;EmptyState /&gt;
                 </CardTitle>
               </CardHeader>
@@ -498,42 +567,70 @@ export default function BrandPreview() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Prop</th>
-                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Type</th>
-                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">必填</th>
-                        <th className="text-left py-2 font-medium text-muted-foreground">說明</th>
+                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">
+                          Prop
+                        </th>
+                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">
+                          Type
+                        </th>
+                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground">
+                          必填
+                        </th>
+                        <th className="text-left py-2 font-medium text-muted-foreground">
+                          說明
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="font-mono text-xs">
                       <tr className="border-b">
                         <td className="py-2 pr-4">illustration</td>
-                        <td className="py-2 pr-4 text-muted-foreground">MascotPose</td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          MascotPose
+                        </td>
                         <td className="py-2 pr-4">—</td>
-                        <td className="py-2 font-sans text-muted-foreground">吉祥物姿態，預設 "thumbsup"</td>
+                        <td className="py-2 font-sans text-muted-foreground">
+                          吉祥物姿態，預設 "thumbsup"
+                        </td>
                       </tr>
                       <tr className="border-b">
                         <td className="py-2 pr-4">title</td>
-                        <td className="py-2 pr-4 text-muted-foreground">string</td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          string
+                        </td>
                         <td className="py-2 pr-4 text-red-500">必填</td>
-                        <td className="py-2 font-sans text-muted-foreground">主標題</td>
+                        <td className="py-2 font-sans text-muted-foreground">
+                          主標題
+                        </td>
                       </tr>
                       <tr className="border-b">
                         <td className="py-2 pr-4">description</td>
-                        <td className="py-2 pr-4 text-muted-foreground">string</td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          string
+                        </td>
                         <td className="py-2 pr-4">—</td>
-                        <td className="py-2 font-sans text-muted-foreground">說明文字（選填）</td>
+                        <td className="py-2 font-sans text-muted-foreground">
+                          說明文字（選填）
+                        </td>
                       </tr>
                       <tr className="border-b">
                         <td className="py-2 pr-4">action</td>
-                        <td className="py-2 pr-4 text-muted-foreground">ReactNode</td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          ReactNode
+                        </td>
                         <td className="py-2 pr-4">—</td>
-                        <td className="py-2 font-sans text-muted-foreground">行動按鈕（選填）</td>
+                        <td className="py-2 font-sans text-muted-foreground">
+                          行動按鈕（選填）
+                        </td>
                       </tr>
                       <tr>
                         <td className="py-2 pr-4">size</td>
-                        <td className="py-2 pr-4 text-muted-foreground">"sm" | "md" | "lg"</td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          "sm" | "md" | "lg"
+                        </td>
                         <td className="py-2 pr-4">—</td>
-                        <td className="py-2 font-sans text-muted-foreground">整體尺寸，預設 "md"</td>
+                        <td className="py-2 font-sans text-muted-foreground">
+                          整體尺寸，預設 "md"
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -556,43 +653,135 @@ export default function BrandPreview() {
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-2 pr-4 font-medium">位置</th>
-                    <th className="text-left py-2 pr-4 font-medium">頁面/元件</th>
+                    <th className="text-left py-2 pr-4 font-medium">
+                      頁面/元件
+                    </th>
                     <th className="text-left py-2 pr-4 font-medium">資產</th>
-                    <th className="text-left py-2 pr-4 font-medium">姿態/變體</th>
+                    <th className="text-left py-2 pr-4 font-medium">
+                      姿態/變體
+                    </th>
                     <th className="text-left py-2 font-medium">優先級</th>
                   </tr>
                 </thead>
                 <tbody className="text-xs">
                   {[
-                    ["側欄抬頭", "DashboardLayout.tsx", "Logo", "white / color（依主題）", "P0"],
-                    ["Favicon / App Icon", "client/index.html", "Logo SVG → ICO", "color", "P0"],
-                    ["登入頁 Hero", "OAuth 登入頁", "Mascot", "wave（揮手）", "P1"],
-                    ["移工列表空狀態", "Workers.tsx", "EmptyState", "thumbsup（比讚）", "P1"],
-                    ["客戶列表空狀態", "Customers.tsx", "EmptyState", "thumbsup（比讚）", "P1"],
-                    ["案件列表空狀態", "Cases.tsx", "EmptyState", "review（文件審閱）", "P1"],
-                    ["搜尋無結果", "Workers / Customers / Cases", "EmptyState", "search（搜尋）", "P1"],
-                    ["Loading 狀態", "LoadingStates.tsx", "Mascot", "review（文件審閱）", "P2"],
-                    ["操作成功 Toast", "全站 toast", "Mascot（小尺寸）", "celebrate（慶祝）", "P2"],
-                    ["案件完成狀態", "CaseDetail.tsx", "EmptyState / Banner", "celebrate（慶祝）", "P2"],
-                    ["404 頁面", "NotFound.tsx", "EmptyState", "confused（疑惑）", "P1"],
-                    ["無存取權限", "App.tsx 守衛", "EmptyState", "confused（疑惑）", "P2"],
-                    ["通知空狀態", "NotificationBell.tsx", "Mascot（小）", "thumbsup（比讚）", "P2"],
-                    ["Dashboard 歡迎區", "Home.tsx", "Logo + Mascot", "wave（揮手）", "P2"],
+                    [
+                      "側欄抬頭",
+                      "DashboardLayout.tsx",
+                      "Logo",
+                      "white / color（依主題）",
+                      "P0",
+                    ],
+                    [
+                      "Favicon / App Icon",
+                      "client/index.html",
+                      "Logo SVG → ICO",
+                      "color",
+                      "P0",
+                    ],
+                    [
+                      "登入頁 Hero",
+                      "OAuth 登入頁",
+                      "Mascot",
+                      "wave（揮手）",
+                      "P1",
+                    ],
+                    [
+                      "移工列表空狀態",
+                      "Workers.tsx",
+                      "EmptyState",
+                      "thumbsup（比讚）",
+                      "P1",
+                    ],
+                    [
+                      "客戶列表空狀態",
+                      "Customers.tsx",
+                      "EmptyState",
+                      "thumbsup（比讚）",
+                      "P1",
+                    ],
+                    [
+                      "案件列表空狀態",
+                      "Cases.tsx",
+                      "EmptyState",
+                      "review（文件審閱）",
+                      "P1",
+                    ],
+                    [
+                      "搜尋無結果",
+                      "Workers / Customers / Cases",
+                      "EmptyState",
+                      "search（搜尋）",
+                      "P1",
+                    ],
+                    [
+                      "Loading 狀態",
+                      "LoadingStates.tsx",
+                      "Mascot",
+                      "review（文件審閱）",
+                      "P2",
+                    ],
+                    [
+                      "操作成功 Toast",
+                      "全站 toast",
+                      "Mascot（小尺寸）",
+                      "celebrate（慶祝）",
+                      "P2",
+                    ],
+                    [
+                      "案件完成狀態",
+                      "CaseDetail.tsx",
+                      "EmptyState / Banner",
+                      "celebrate（慶祝）",
+                      "P2",
+                    ],
+                    [
+                      "404 頁面",
+                      "NotFound.tsx",
+                      "EmptyState",
+                      "confused（疑惑）",
+                      "P1",
+                    ],
+                    [
+                      "無存取權限",
+                      "App.tsx 守衛",
+                      "EmptyState",
+                      "confused（疑惑）",
+                      "P2",
+                    ],
+                    [
+                      "通知空狀態",
+                      "NotificationBell.tsx",
+                      "Mascot（小）",
+                      "thumbsup（比讚）",
+                      "P2",
+                    ],
+                    [
+                      "Dashboard 歡迎區",
+                      "Home.tsx",
+                      "Logo + Mascot",
+                      "wave（揮手）",
+                      "P2",
+                    ],
                   ].map(([location, page, asset, pose, priority]) => (
                     <tr key={location} className="border-b last:border-0">
                       <td className="py-2 pr-4 font-medium">{location}</td>
-                      <td className="py-2 pr-4 text-muted-foreground font-mono">{page}</td>
+                      <td className="py-2 pr-4 text-muted-foreground font-mono">
+                        {page}
+                      </td>
                       <td className="py-2 pr-4">{asset}</td>
-                      <td className="py-2 pr-4 text-muted-foreground">{pose}</td>
+                      <td className="py-2 pr-4 text-muted-foreground">
+                        {pose}
+                      </td>
                       <td className="py-2">
                         <Badge
                           variant={priority === "P0" ? "default" : "outline"}
                           className="text-xs"
                           style={
                             priority === "P0"
-                              ? { background: "#1FA59B", color: "#FFF" }
+                              ? { background: "#5F6B45", color: "#FFF" }
                               : priority === "P1"
-                                ? { borderColor: "#F2A33C", color: "#F2A33C" }
+                                ? { borderColor: "#B98A2E", color: "#B98A2E" }
                                 : {}
                           }
                         >
@@ -618,7 +807,7 @@ export default function BrandPreview() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Badge style={{ background: "#1FA59B", color: "#FFF" }}>
+                  <Badge style={{ background: "#5F6B45", color: "#FFF" }}>
                     已繪製
                   </Badge>
                   Phase 1 新增姿態
@@ -630,7 +819,8 @@ export default function BrandPreview() {
                   <div>
                     <p className="text-sm font-medium">疑惑（confused）</p>
                     <p className="text-xs text-muted-foreground">
-                      用於 404、錯誤頁、無存取權限。角色摸頭、問號浮現、汗水點綴。
+                      用於
+                      404、錯誤頁、無存取權限。角色摸頭、問號浮現、汗水點綴。
                     </p>
                   </div>
                 </div>
@@ -652,7 +842,7 @@ export default function BrandPreview() {
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Badge
                     variant="outline"
-                    style={{ borderColor: "#F2A33C", color: "#F2A33C" }}
+                    style={{ borderColor: "#B98A2E", color: "#B98A2E" }}
                   >
                     待確認
                   </Badge>
@@ -665,7 +855,8 @@ export default function BrandPreview() {
                   <div>
                     <p className="font-medium">提行李 / 出發</p>
                     <p className="text-xs text-muted-foreground">
-                      移工出境、案件開始、新旅程。如需要請提供 SVG 或由我依風格繪製。
+                      移工出境、案件開始、新旅程。如需要請提供 SVG
+                      或由我依風格繪製。
                     </p>
                   </div>
                 </div>

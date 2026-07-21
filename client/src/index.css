@@ -3,60 +3,74 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─── 設計系統：Warm Editorial（詳見 docs/design-system.md）──────────────────
+   暖奶油紙張 × 暖黑墨 × 大地色點綴（moss / ochre / clay）。所有頁面一律取用
+   這些 token，禁止硬編色碼。 */
 @theme inline {
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
+  --radius-sm: 0.375rem; /* 6px  */
+  --radius-md: 0.625rem; /* 10px */
+  --radius-lg: 1rem; /* 16px 卡片 */
+  --radius-xl: 1.25rem; /* 20px */
 
-  --color-background: oklch(0.99 0 0);
-  --color-foreground: oklch(0.145 0 0);
-  --color-card: oklch(1 0 0);
-  --color-card-foreground: oklch(0.145 0 0);
-  --color-popover: oklch(1 0 0);
-  --color-popover-foreground: oklch(0.145 0 0);
-  --color-primary: oklch(0.205 0 0);
-  --color-primary-foreground: oklch(0.985 0 0);
-  --color-secondary: oklch(0.97 0 0);
-  --color-secondary-foreground: oklch(0.205 0 0);
-  --color-muted: oklch(0.97 0 0);
-  --color-muted-foreground: oklch(0.556 0 0);
-  --color-accent: oklch(0.97 0 0);
-  --color-accent-foreground: oklch(0.205 0 0);
-  --color-destructive: oklch(0.577 0.245 27.325);
-  --color-border: oklch(0.922 0 0);
-  --color-input: oklch(0.922 0 0);
-  --color-ring: oklch(0.708 0 0);
+  /* 中性 · 紙與墨 */
+  --color-background: #f5f0e6; /* paper */
+  --color-foreground: #1e1b16; /* ink（暖黑，非純黑）*/
+  --color-card: #fbf8f1; /* surface */
+  --color-card-foreground: #1e1b16;
+  --color-popover: #fbf8f1;
+  --color-popover-foreground: #1e1b16;
+  --color-primary: #1e1b16; /* 主按鈕＝暖黑藥丸 */
+  --color-primary-foreground: #fbf8f1;
+  --color-secondary: #ede4d3; /* surface-raised / tan */
+  --color-secondary-foreground: #1e1b16;
+  --color-muted: #efe7d8; /* paper-dim */
+  --color-muted-foreground: #6e6656; /* ink-muted */
+  --color-accent: #ecede0; /* moss dim */
+  --color-accent-foreground: #3e472c;
+  --color-destructive: #a6472b; /* clay */
+  --color-border: #e5ddcd; /* line */
+  --color-input: #e5ddcd;
+  --color-ring: #5f6b45; /* moss focus ring */
 
-  /* Status colors — 方向二：單一主色 + 語義灰階 */
-  /* 預設（正常）：灰底深字 */
-  --color-status-neutral: oklch(0.32 0 0);
-  --color-status-neutral-bg: oklch(0.94 0 0);
-  /* 警示（需注意）：琥珀色 — 唯一強調色 */
-  --color-status-amber: oklch(0.55 0.14 58.318);
-  --color-status-amber-bg: oklch(0.97 0.045 90);
-  /* 需行動（錯誤/缺件）：紅色 */
-  --color-status-red: oklch(0.52 0.2 27.325);
-  --color-status-red-bg: oklch(0.97 0.04 25.329);
-  /* 退場（已結束/離境）：極淡灰 */
-  --color-status-faded: oklch(0.72 0 0);
-  --color-status-faded-bg: oklch(0.975 0 0);
+  /* 大地色點綴 */
+  --color-brand: #5f6b45; /* moss — 品牌主色（連結/選中/識別）*/
+  --color-ochre: #b98a2e;
+  --color-clay: #a85436;
+  --color-taupe: #c4b49a;
+
+  /* Status colors — 暖化語義（對齊既有 .status-* class）*/
+  /* 正常/成功：moss */
+  --color-status-neutral: #3e472c;
+  --color-status-neutral-bg: #ecede0;
+  /* 警示：ochre */
+  --color-status-amber: #8a6a22;
+  --color-status-amber-bg: #f5ead2;
+  /* 需行動/錯誤：clay */
+  --color-status-red: #8f3f24;
+  --color-status-red-bg: #f3e0d6;
+  /* 退場/中性：暖灰 */
+  --color-status-faded: #8a8270;
+  --color-status-faded-bg: #efeadf;
   /* 保留相容舊版 */
-  --color-status-green: oklch(0.32 0 0);
-  --color-status-green-bg: oklch(0.94 0 0);
-  --color-status-gray: oklch(0.72 0 0);
-  --color-status-gray-bg: oklch(0.975 0 0);
+  --color-status-green: #3e472c;
+  --color-status-green-bg: #ecede0;
+  --color-status-gray: #8a8270;
+  --color-status-gray-bg: #efeadf;
 
-  --font-sans: "Inter", "Noto Sans TC", system-ui, sans-serif;
-  /* Sidebar 顏色變數 */
-  --color-sidebar: oklch(0.145 0 0);
-  --color-sidebar-foreground: oklch(0.92 0 0);
-  --color-sidebar-primary: oklch(0.985 0 0);
-  --color-sidebar-primary-foreground: oklch(0.145 0 0);
-  --color-sidebar-accent: oklch(0.25 0 0);
-  --color-sidebar-accent-foreground: oklch(0.985 0 0);
-  --color-sidebar-border: oklch(0.25 0 0);
-  --color-sidebar-ring: oklch(0.556 0 0);
+  /* 字體：Fraunces（襯線 display）+ Hanken Grotesk（無襯線 UI/內文）+ Noto TC */
+  --font-sans:
+    "Hanken Grotesk", "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Fraunces", "Noto Serif TC", Georgia, serif;
+
+  /* Sidebar：暖深色 */
+  --color-sidebar: #1e1b16;
+  --color-sidebar-foreground: #d8cfbe;
+  --color-sidebar-primary: #fbf8f1;
+  --color-sidebar-primary-foreground: #1e1b16;
+  --color-sidebar-accent: #2c2820;
+  --color-sidebar-accent-foreground: #fbf8f1;
+  --color-sidebar-border: #33302a;
+  --color-sidebar-ring: #5f6b45;
 }
 
 @layer base {
@@ -149,11 +163,18 @@ kbd.kbd {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.85 0 0);
+  background: #d8ceba;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.75 0 0);
+  background: #c4b49a;
+}
+
+/* Display 襯線工具（行銷大標用；內文仍走 --font-sans） */
+.font-display {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 /* ─── 通知下拉動畫 ─────────────────────────────────────────────────────────── */

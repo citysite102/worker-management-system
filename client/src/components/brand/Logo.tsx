@@ -1,9 +1,9 @@
 /**
  * Logo 元件 — 燕子剪影（極簡幾何）
  *
- * 品牌色票：
- *   主色  #1FA59B（teal）
- *   深墨綠 #103D38
+ * 品牌色票（Warm Editorial，見 docs/design-system.md）：
+ *   主色  #5F6B45（moss）
+ *   墨色  #1E1B16（ink）
  *
  * Props:
  *   variant  "color" | "white" | "dark"   預設 "color"
@@ -13,8 +13,8 @@
 
 import React from "react";
 
-const BRAND_TEAL = "#1FA59B";
-const BRAND_DARK = "#103D38";
+const BRAND_MOSS = "#5F6B45";
+const BRAND_DARK = "#1E1B16";
 
 type LogoVariant = "color" | "white" | "dark";
 type LogoSize = "xs" | "sm" | "md" | "lg" | "xl";
@@ -41,13 +41,7 @@ interface LogoProps {
  *   - 翅膀展開，尾部分叉，呼應候鳥遷徙意象
  *   - 可縮至 20px 仍清晰可辨
  */
-function SwallowIcon({
-  color,
-  size,
-}: {
-  color: string;
-  size: number;
-}) {
+function SwallowIcon({ color, size }: { color: string; size: number }) {
   return (
     <svg
       width={size}
@@ -60,37 +54,15 @@ function SwallowIcon({
     >
       <title>移工管理後台 Logo — 燕子</title>
       {/* 左翅膀：從身體中心向左延伸的三角形 */}
-      <path
-        d="M24 22 L2 10 L14 24 Z"
-        fill={color}
-        opacity="0.95"
-      />
+      <path d="M24 22 L2 10 L14 24 Z" fill={color} opacity="0.95" />
       {/* 右翅膀：從身體中心向右延伸的三角形 */}
-      <path
-        d="M24 22 L46 10 L34 24 Z"
-        fill={color}
-        opacity="0.95"
-      />
+      <path d="M24 22 L46 10 L34 24 Z" fill={color} opacity="0.95" />
       {/* 身體：橢圓形核心 */}
-      <ellipse
-        cx="24"
-        cy="23"
-        rx="6"
-        ry="4"
-        fill={color}
-      />
+      <ellipse cx="24" cy="23" rx="6" ry="4" fill={color} />
       {/* 尾叉左：向左下延伸 */}
-      <path
-        d="M20 26 L10 40 L22 30 Z"
-        fill={color}
-        opacity="0.85"
-      />
+      <path d="M20 26 L10 40 L22 30 Z" fill={color} opacity="0.85" />
       {/* 尾叉右：向右下延伸 */}
-      <path
-        d="M28 26 L38 40 L26 30 Z"
-        fill={color}
-        opacity="0.85"
-      />
+      <path d="M28 26 L38 40 L26 30 Z" fill={color} opacity="0.85" />
     </svg>
   );
 }
@@ -105,7 +77,7 @@ export function Logo({
 
   const iconColor =
     variant === "color"
-      ? BRAND_TEAL
+      ? BRAND_MOSS
       : variant === "white"
         ? "#FFFFFF"
         : BRAND_DARK;
@@ -129,10 +101,7 @@ export function Logo({
             : "text-xl";
 
   return (
-    <div
-      className={`flex items-center gap-2 ${className}`}
-      role="banner"
-    >
+    <div className={`flex items-center gap-2 ${className}`} role="banner">
       <SwallowIcon color={iconColor} size={px} />
       {showText && (
         <span

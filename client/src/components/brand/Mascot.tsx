@@ -2,9 +2,9 @@
  * Mascot 元件 — 吉祥物（扁平向量角色）
  *
  * 品牌色票：
- *   身體   #5FBFA3（sage teal）
- *   表情線 #103D38（深墨綠）
- *   點綴   #F2A33C（暖橘，道具用）
+ *   身體   #8C9A6A（warm sage）
+ *   表情線 #1E1B16（暖墨）
+ *   點綴   #B98A2E（ochre，道具用）
  *
  * Pose 清單：
  *   "thumbsup"   比讚  — 空狀態（無資料、初始化）
@@ -17,17 +17,17 @@
  * 設計規範：
  *   - 扁平向量、實心單色身體、無外框
  *   - 麵條手腳（細長圓角矩形）
- *   - 深墨綠點眼 + 簡單笑臉
+ *   - 暖墨點眼 + 簡單笑臉
  *   - 不帶任何國籍/膚色/服裝刻板特徵
  */
 
 import React from "react";
 
 // ── 品牌色常數 ──────────────────────────────────────────
-const BODY = "#5FBFA3";       // 吉祥物身體（sage teal）
-const LINE = "#103D38";       // 表情線（深墨綠）
-const ACCENT = "#F2A33C";     // 點綴色（暖橘）
-const TEAL = "#1FA59B";       // 品牌主色（道具用）
+const BODY = "#8C9A6A"; // 吉祥物身體（warm sage）
+const LINE = "#1E1B16"; // 表情線（暖墨）
+const ACCENT = "#B98A2E"; // 點綴色（暖橘）
+const TEAL = "#5F6B45"; // moss 主色（道具用）
 
 // ── 尺寸對照 ────────────────────────────────────────────
 type MascotPose =
@@ -126,16 +126,7 @@ function Body({
   width?: number;
   height?: number;
 }) {
-  return (
-    <rect
-      x={x}
-      y={y}
-      width={width}
-      height={height}
-      rx={12}
-      fill={BODY}
-    />
-  );
+  return <rect x={x} y={y} width={width} height={height} rx={12} fill={BODY} />;
 }
 
 // ── 共用：麵條腳 ─────────────────────────────────────────
@@ -221,7 +212,7 @@ function Wave() {
         transform="rotate(-20 96 22)"
       />
       {/* 手指線條 */}
-      {[0, 1, 2, 3, 4].map((i) => (
+      {[0, 1, 2, 3, 4].map(i => (
         <line
           key={i}
           x1={88 + i * 4}
@@ -265,9 +256,33 @@ function Review() {
       {/* 文件標題線 */}
       <rect x={34} y={53} width={32} height={3} rx={1.5} fill={TEAL} />
       {/* 文件內容線 */}
-      <rect x={34} y={60} width={24} height={2} rx={1} fill={LINE} opacity="0.3" />
-      <rect x={34} y={65} width={28} height={2} rx={1} fill={LINE} opacity="0.3" />
-      <rect x={34} y={70} width={20} height={2} rx={1} fill={LINE} opacity="0.3" />
+      <rect
+        x={34}
+        y={60}
+        width={24}
+        height={2}
+        rx={1}
+        fill={LINE}
+        opacity="0.3"
+      />
+      <rect
+        x={34}
+        y={65}
+        width={28}
+        height={2}
+        rx={1}
+        fill={LINE}
+        opacity="0.3"
+      />
+      <rect
+        x={34}
+        y={70}
+        width={20}
+        height={2}
+        rx={1}
+        fill={LINE}
+        opacity="0.3"
+      />
     </g>
   );
 }

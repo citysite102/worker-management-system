@@ -1,9 +1,9 @@
 /**
  * Logo 元件 — 燕子剪影（極簡幾何）
  *
- * 品牌色票（Warm Editorial，見 docs/design-system.md）：
- *   主色  #5F6B45（moss）
- *   墨色  #1E1B16（ink）
+ * 品牌色票（Clean SaaS，見 docs/design-system.md）：
+ *   主色  #16A34A（brand green）
+ *   墨色  #1F2937（slate）
  *
  * Props:
  *   variant  "color" | "white" | "dark"   預設 "color"
@@ -13,8 +13,8 @@
 
 import React from "react";
 
-const BRAND_MOSS = "#5F6B45";
-const BRAND_DARK = "#1E1B16";
+const BRAND_GREEN = "#16A34A";
+const BRAND_DARK = "#1F2937";
 
 type LogoVariant = "color" | "white" | "dark";
 type LogoSize = "xs" | "sm" | "md" | "lg" | "xl";
@@ -77,7 +77,7 @@ export function Logo({
 
   const iconColor =
     variant === "color"
-      ? BRAND_MOSS
+      ? BRAND_GREEN
       : variant === "white"
         ? "#FFFFFF"
         : BRAND_DARK;

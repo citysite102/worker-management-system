@@ -2,9 +2,9 @@
  * Mascot 元件 — 吉祥物（扁平向量角色）
  *
  * 品牌色票：
- *   身體   #8C9A6A（warm sage）
- *   表情線 #1E1B16（暖墨）
- *   點綴   #B98A2E（ochre，道具用）
+ *   身體   #86C79E（soft green）
+ *   表情線 #1F2937（slate）
+ *   點綴   #16A34A（brand green，道具用）
  *
  * Pose 清單：
  *   "thumbsup"   比讚  — 空狀態（無資料、初始化）
@@ -17,17 +17,17 @@
  * 設計規範：
  *   - 扁平向量、實心單色身體、無外框
  *   - 麵條手腳（細長圓角矩形）
- *   - 暖墨點眼 + 簡單笑臉
+ *   - 深灰點眼 + 簡單笑臉
  *   - 不帶任何國籍/膚色/服裝刻板特徵
  */
 
 import React from "react";
 
 // ── 品牌色常數 ──────────────────────────────────────────
-const BODY = "#8C9A6A"; // 吉祥物身體（warm sage）
-const LINE = "#1E1B16"; // 表情線（暖墨）
-const ACCENT = "#B98A2E"; // 點綴色（暖橘）
-const TEAL = "#5F6B45"; // moss 主色（道具用）
+const BODY = "#86C79E"; // 吉祥物身體（soft green）
+const LINE = "#1F2937"; // 表情線（slate）
+const ACCENT = "#16A34A"; // 點綴色（暖橘）
+const TEAL = "#16A34A"; // brand green（道具用）
 
 // ── 尺寸對照 ────────────────────────────────────────────
 type MascotPose =

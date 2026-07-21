@@ -14,7 +14,14 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Users, PanelLeft, Building2, Settings, Briefcase, LayoutDashboard } from "lucide-react";
+import {
+  Users,
+  PanelLeft,
+  Building2,
+  Settings,
+  Briefcase,
+  LayoutDashboard,
+} from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -158,7 +165,7 @@ function DashboardLayoutContent({
                       }`}
                     >
                       {isActive && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-white rounded-full" />
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary rounded-full" />
                       )}
                       <item.icon
                         className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/50"}`}

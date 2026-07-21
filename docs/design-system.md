@@ -1,88 +1,84 @@
-# 設計系統 — Warm Editorial v0.1
+# 設計系統 — Clean SaaS v1.0
 
-| 項目 | 內容                                                                                      |
-| ---- | ----------------------------------------------------------------------------------------- |
-| 版本 | v0.1（草稿，待你確認方向後轉 v1.0）                                                       |
-| 日期 | 2026-07-21                                                                                |
-| 定位 | 白領為主、但要**有質感、克制、編輯感**的媒合平台                                          |
-| 參考 | 使用者提供之兩張視覺（Flowblox、FYLLA）：奶油紙張底、暖黑墨、大地色點綴、襯線×強壯無襯線  |
-| 落地 | Tailwind v4 `@theme`（`client/src/index.css`）＋ shadcn/radix 元件；本檔 token 可直接置換 |
+| 項目 | 內容                                                                  |
+| ---- | --------------------------------------------------------------------- |
+| 版本 | v1.0（已落地 `client/src/index.css`）                                 |
+| 日期 | 2026-07-21                                                            |
+| 定位 | **乾淨、簡單的 SaaS 求職平台**：白 / 淺灰為主，單一品牌綠只出現在重點 |
+| 參考 | Cake 求職平台：白底、淺灰面、綠色主色，重點才上色                     |
+| 落地 | Tailwind v4 `@theme`（`client/src/index.css`）＋ shadcn/radix 元件    |
 
-> ⚠️ **與現有品牌的衝突需你拍板**（見 §9 決策）：現行 `BrandPreview` 是**藍綠 teal `#1FA59B` + 吉祥物**方向，與參考視覺的暖色系相衝。本文件以參考視覺為準，建議將 teal 退役、改採暖色編輯風。
+> 沿革：一度採用「Warm Editorial」暖奶油/大地色方向，實測後認為**不適合後台/SaaS 產品**，已改為本 Clean SaaS。舊 teal `#1FA59B`＋吉祥物、以及 Warm Editorial 暖色皆**退役**。
 
 ---
 
 ## 1. 設計原則
 
-1. **紙張感優先**：以溫暖奶油底（非純白）為畫布，黑不用純黑而用暖炭黑——整體像高質感印刷品。
-2. **克制的顏色**：畫面 90% 是紙、墨、線；大地色只做**點綴與分區**，不整片鋪。
-3. **編輯型排版**：大標可用襯線製造氣質，內文用清晰無襯線；留白慷慨、節奏分明、細分隔線。
-4. **層次靠對比與線，不靠陰影**：優先用底色深淺與 1px 髮絲線分層，陰影只做極輕的浮起。
-5. **一致優先於花俏**：所有頁面共用同一組 token 與元件；新頁面**必須**取用 token（見 §8 落地守則）。
+1. **白為底、綠為點**：畫布白/淺灰，卡片純白；品牌綠**只**用在按鈕、連結、選中、focus，其餘一律中性——綠不整片鋪。
+2. **克制**：靠留白、1px 淺灰分隔線與底色深淺分層；陰影淺而少。
+3. **清晰易掃**：資訊密集的後台以掃描為主——摘要在前、狀態用 pill/顏色一眼可辨。
+4. **語義色獨立於品牌色**：成功/警示/錯誤（綠/琥珀/紅）是狀態色，與品牌綠分開判讀。
+5. **一致優先**：所有頁面共用同一組 token 與元件；新頁面**必須**取用 token（見 §8 落地守則）。
 
 ---
 
-## 2. 色彩（Warm Editorial 調色盤）
+## 2. 色彩（Clean SaaS 調色盤）
 
-### 2.1 中性（紙與墨）
+### 2.1 中性（白 + 冷調淺灰）
 
-| Token            | Hex       | 用途                      |
-| ---------------- | --------- | ------------------------- |
-| `paper`          | `#F5F0E6` | 頁面底（暖奶油）          |
-| `paper-dim`      | `#EFE7D8` | 交替區塊底、分區          |
-| `surface`        | `#FBF8F1` | 卡片、輸入框底            |
-| `surface-raised` | `#EDE4D3` | 強調卡片（tan）           |
-| `ink`            | `#1E1B16` | 主文字 / 暖黑（主按鈕底） |
-| `ink-muted`      | `#6E6656` | 次要文字                  |
-| `ink-faint`      | `#9A9280` | 輔助/佔位文字             |
-| `line`           | `#E5DDCD` | 髮絲線、分隔、邊框        |
-| `line-strong`    | `#D8CEBA` | 較明顯邊界                |
+| Token              | Hex       | 用途                 |
+| ------------------ | --------- | -------------------- |
+| `background`       | `#F7F8FA` | 頁面畫布（極淺灰）   |
+| `card`             | `#FFFFFF` | 卡片、面板（純白）   |
+| `foreground`       | `#17181B` | 主文字（近黑，中性） |
+| `muted-foreground` | `#6B7280` | 次要文字（gray-500） |
+| `muted/secondary`  | `#F1F3F5` | 淡填色、次要區塊     |
+| `border/input`     | `#E7E9ED` | 邊框、分隔線（淺灰） |
 
-### 2.2 大地色點綴（accent）
+### 2.2 品牌綠（唯一重點色）
 
-| Token                  | Hex       | 語義建議                   |
-| ---------------------- | --------- | -------------------------- |
-| `moss`（**品牌主色**） | `#5F6B45` | 連結、選中、品牌識別、成功 |
-| `ochre`                | `#B98A2E` | 警示/提醒、加值標記        |
-| `clay`                 | `#A85436` | 錯誤/需行動、強調 CTA 點綴 |
-| `taupe`                | `#C4B49A` | 中性標籤、次要區塊         |
+| Token               | Hex       | 用途                             |
+| ------------------- | --------- | -------------------------------- |
+| `primary`／`brand`  | `#16A34A` | 主按鈕、連結、品牌識別（＝主色） |
+| `accent`            | `#E9F7EF` | 綠淡底（選中/hover 背景）        |
+| `accent-foreground` | `#15803D` | 綠字（選中態文字/圖示）          |
+| `ring`              | `#16A34A` | focus ring                       |
 
-### 2.3 語義色（與現有 status 對齊、但暖化）
+> 主按鈕＝**品牌綠**（白字）；連結/選中/作用中導覽項用綠；其餘介面保持中性。綠只點在重點。
 
-| 狀態        | 前景                | 底        | 對應現有 class  |
-| ----------- | ------------------- | --------- | --------------- |
-| 正常/成功   | `moss #5F6B45`      | `#ECEDE0` | `.status-green` |
-| 警示        | `ochre #8A6A22`     | `#F5EAD2` | `.status-amber` |
-| 需行動/錯誤 | `clay #8F3F24`      | `#F3E0D6` | `.status-red`   |
-| 退場/中性   | `ink-faint #8A8270` | `#EFEADF` | `.status-gray`  |
+### 2.3 語義色（乾淨 SaaS，對齊既有 status class）
 
-> 主要互動按鈕用 **暖黑 `ink` 藥丸**（參考視覺的黑色 pill）；**moss** 作為品牌識別與連結/選中態。
+| 狀態        | 前景              | 底        | 對應現有 class  |
+| ----------- | ----------------- | --------- | --------------- |
+| 正常/成功   | `#15803D`（綠）   | `#E9F7EF` | `.status-green` |
+| 警示        | `#B45309`（琥珀） | `#FEF3C7` | `.status-amber` |
+| 需行動/錯誤 | `#DC2626`（紅）   | `#FDECEC` | `.status-red`   |
+| 退場/中性   | `#6B7280`（灰）   | `#F1F3F5` | `.status-gray`  |
 
-### 2.4 `@theme` 置換（可直接貼入 `client/src/index.css`）
+### 2.4 `@theme`（已套用於 `client/src/index.css`）
 
 ```css
 @theme inline {
-  --color-background: #f5f0e6;
-  --color-foreground: #1e1b16;
-  --color-card: #fbf8f1;
-  --color-card-foreground: #1e1b16;
-  --color-primary: #1e1b16; /* 暖黑 */
-  --color-primary-foreground: #fbf8f1;
-  --color-secondary: #ede4d3;
-  --color-secondary-foreground: #1e1b16;
-  --color-muted: #efe7d8;
-  --color-muted-foreground: #6e6656;
-  --color-accent: #ecede0; /* moss 淡底 */
-  --color-accent-foreground: #3e472c;
-  --color-border: #e5ddcd;
-  --color-input: #e5ddcd;
-  --color-ring: #5f6b45; /* moss focus ring */
-  --color-brand: #5f6b45; /* moss */
-  --color-ochre: #b98a2e;
-  --color-clay: #a85436;
-  --color-taupe: #c4b49a;
+  --color-background: #f7f8fa; /* 畫布淺灰 */
+  --color-foreground: #17181b;
+  --color-card: #ffffff; /* 卡片＝白 */
+  --color-card-foreground: #17181b;
+  --color-secondary: #f1f3f5;
+  --color-muted: #f1f3f5;
+  --color-muted-foreground: #6b7280;
+  --color-border: #e7e9ed;
+  --color-input: #e7e9ed;
+  --color-primary: #16a34a; /* 品牌綠＝主按鈕 */
+  --color-primary-foreground: #ffffff;
+  --color-brand: #16a34a;
+  --color-accent: #e9f7ef; /* 綠淡底（選中/hover） */
+  --color-accent-foreground: #15803d;
+  --color-ring: #16a34a;
+  --color-destructive: #dc2626;
 }
 ```
+
+側欄為淺色（白底、灰字、綠色作用中）；圓角：控制項 8px、卡片 10px。
 
 ---
 

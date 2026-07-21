@@ -16,56 +16,56 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
-// ── 品牌色票 ────────────────────────────────────────────
-// Warm Editorial（見 docs/design-system.md）
+// ── 色票 ────────────────────────────────────────────────
+// Clean SaaS（見 docs/design-system.md）：白/淺灰為主，單一品牌綠作重點
 const TOKENS = [
   {
-    name: "品牌主色 · moss",
-    token: "--color-brand",
-    hex: "#5F6B45",
-    usage: "連結、選中、品牌識別、成功",
-    bg: "#5F6B45",
+    name: "品牌主色 · green",
+    token: "--color-primary",
+    hex: "#16A34A",
+    usage: "按鈕、連結、選中、focus（唯一重點色）",
+    bg: "#16A34A",
     text: "#FFFFFF",
   },
   {
-    name: "墨色 · ink",
+    name: "主文字",
     token: "--color-foreground",
-    hex: "#1E1B16",
-    usage: "主文字、主按鈕（暖黑藥丸）",
-    bg: "#1E1B16",
-    text: "#FBF8F1",
-  },
-  {
-    name: "ochre",
-    token: "--color-ochre",
-    hex: "#B98A2E",
-    usage: "警示/提醒、加值標記（點綴）",
-    bg: "#B98A2E",
-    text: "#2A1F08",
-  },
-  {
-    name: "clay",
-    token: "--color-clay",
-    hex: "#A85436",
-    usage: "錯誤/需行動、強調（點綴）",
-    bg: "#A85436",
+    hex: "#17181B",
+    usage: "標題與內文（近黑）",
+    bg: "#17181B",
     text: "#FFFFFF",
   },
   {
-    name: "taupe",
-    token: "--color-taupe",
-    hex: "#C4B49A",
-    usage: "中性標籤、次要區塊",
-    bg: "#C4B49A",
-    text: "#2A2418",
+    name: "次要文字",
+    token: "--color-muted-foreground",
+    hex: "#6B7280",
+    usage: "說明、次要資訊",
+    bg: "#6B7280",
+    text: "#FFFFFF",
   },
   {
-    name: "紙張 · paper",
+    name: "頁面畫布",
     token: "--color-background",
-    hex: "#F5F0E6",
-    usage: "頁面底（暖奶油）",
-    bg: "#F5F0E6",
-    text: "#1E1B16",
+    hex: "#F7F8FA",
+    usage: "頁面底（極淺灰）",
+    bg: "#F7F8FA",
+    text: "#17181B",
+  },
+  {
+    name: "卡片 · 白",
+    token: "--color-card",
+    hex: "#FFFFFF",
+    usage: "卡片、面板",
+    bg: "#FFFFFF",
+    text: "#17181B",
+  },
+  {
+    name: "邊框 · 淺灰",
+    token: "--color-border",
+    hex: "#E7E9ED",
+    usage: "分隔線、輸入框邊框",
+    bg: "#E7E9ED",
+    text: "#17181B",
   },
 ];
 
@@ -134,7 +134,7 @@ function SectionTitle({
       <div className="flex items-center gap-3 mb-1">
         <span
           className="text-xs font-mono px-2 py-0.5 rounded"
-          style={{ background: "#5F6B45", color: "#FFFFFF" }}
+          style={{ background: "#16A34A", color: "#FFFFFF" }}
         >
           {number}
         </span>
@@ -154,7 +154,7 @@ export default function BrandPreview() {
       {/* Header */}
       <div
         className="border-b px-8 py-5 flex items-center justify-between"
-        style={{ borderColor: "#5F6B4522" }}
+        style={{ borderColor: "#16A34A22" }}
       >
         <div className="flex items-center gap-4">
           <Logo variant="color" size="md" showText />
@@ -167,7 +167,7 @@ export default function BrandPreview() {
         <Badge
           variant="outline"
           className="text-xs"
-          style={{ borderColor: "#5F6B45", color: "#5F6B45" }}
+          style={{ borderColor: "#16A34A", color: "#16A34A" }}
         >
           僅供確認，不影響功能
         </Badge>
@@ -178,8 +178,8 @@ export default function BrandPreview() {
         <section>
           <SectionTitle
             number="01"
-            title="Design Token — 色票（Warm Editorial）"
-            subtitle="全站一律取用 token，禁止硬編色碼；大地色只做點綴，詳見 docs/design-system.md"
+            title="Design Token — 色票（Clean SaaS）"
+            subtitle="白/淺灰為主，品牌綠只用於重點；全站一律取用 token，禁止硬編色碼。詳見 docs/design-system.md"
           />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {TOKENS.map(t => (
@@ -205,7 +205,7 @@ export default function BrandPreview() {
                   </p>
                   <p
                     className="text-xs font-mono mt-1"
-                    style={{ color: "#5F6B45" }}
+                    style={{ color: "#16A34A" }}
                   >
                     {t.token}
                   </p>
@@ -239,7 +239,7 @@ export default function BrandPreview() {
                       <p className="text-xs text-muted-foreground">{label}</p>
                       <p
                         className="text-xs font-medium"
-                        style={{ color: "#5F6B45" }}
+                        style={{ color: "#16A34A" }}
                       >
                         {note}
                       </p>
@@ -264,7 +264,7 @@ export default function BrandPreview() {
                   </div>
                   <div
                     className="rounded-lg p-5 flex flex-col items-center gap-3"
-                    style={{ background: "#1E1B16" }}
+                    style={{ background: "#17181B" }}
                   >
                     <Logo variant="white" size="lg" showText />
                     <p className="text-xs" style={{ color: "#FFFFFF88" }}>
@@ -318,12 +318,12 @@ export default function BrandPreview() {
           />
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {POSES.map(({ pose, label, usage, isNew }) => (
-              <Card key={pose} className={isNew ? "ring-2 ring-[#B98A2E]" : ""}>
+              <Card key={pose} className={isNew ? "ring-2 ring-[#16A34A]" : ""}>
                 <CardContent className="pt-6 flex flex-col items-center text-center">
                   {isNew && (
                     <Badge
                       className="mb-2 text-xs"
-                      style={{ background: "#B98A2E", color: "#FFFFFF" }}
+                      style={{ background: "#16A34A", color: "#FFFFFF" }}
                     >
                       新增姿態
                     </Badge>
@@ -335,7 +335,7 @@ export default function BrandPreview() {
                   </p>
                   <p
                     className="text-xs font-mono mt-2"
-                    style={{ color: "#5F6B45" }}
+                    style={{ color: "#16A34A" }}
                   >
                     pose="{pose}"
                   </p>
@@ -368,7 +368,7 @@ export default function BrandPreview() {
                   action={
                     <Button
                       size="sm"
-                      style={{ background: "#5F6B45", color: "#FFFFFF" }}
+                      style={{ background: "#16A34A", color: "#FFFFFF" }}
                     >
                       + 新增移工
                     </Button>
@@ -434,7 +434,7 @@ export default function BrandPreview() {
               <CardHeader>
                 <CardTitle
                   className="text-sm font-mono"
-                  style={{ color: "#5F6B45" }}
+                  style={{ color: "#16A34A" }}
                 >
                   &lt;Logo /&gt;
                 </CardTitle>
@@ -500,7 +500,7 @@ export default function BrandPreview() {
               <CardHeader>
                 <CardTitle
                   className="text-sm font-mono"
-                  style={{ color: "#5F6B45" }}
+                  style={{ color: "#16A34A" }}
                 >
                   &lt;Mascot /&gt;
                 </CardTitle>
@@ -557,7 +557,7 @@ export default function BrandPreview() {
               <CardHeader>
                 <CardTitle
                   className="text-sm font-mono"
-                  style={{ color: "#5F6B45" }}
+                  style={{ color: "#16A34A" }}
                 >
                   &lt;EmptyState /&gt;
                 </CardTitle>
@@ -779,9 +779,9 @@ export default function BrandPreview() {
                           className="text-xs"
                           style={
                             priority === "P0"
-                              ? { background: "#5F6B45", color: "#FFF" }
+                              ? { background: "#16A34A", color: "#FFF" }
                               : priority === "P1"
-                                ? { borderColor: "#B98A2E", color: "#B98A2E" }
+                                ? { borderColor: "#16A34A", color: "#16A34A" }
                                 : {}
                           }
                         >
@@ -807,7 +807,7 @@ export default function BrandPreview() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Badge style={{ background: "#5F6B45", color: "#FFF" }}>
+                  <Badge style={{ background: "#16A34A", color: "#FFF" }}>
                     已繪製
                   </Badge>
                   Phase 1 新增姿態
@@ -842,7 +842,7 @@ export default function BrandPreview() {
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Badge
                     variant="outline"
-                    style={{ borderColor: "#B98A2E", color: "#B98A2E" }}
+                    style={{ borderColor: "#16A34A", color: "#16A34A" }}
                   >
                     待確認
                   </Badge>

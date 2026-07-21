@@ -39,6 +39,12 @@ export default function Login() {
 
   const afterAuth = async () => {
     await utils.auth.me.invalidate();
+    // 內部人員（staff/admin）用 Email/密碼登入時，若沒有指定 next，直接進後台。
+    const me = await utils.auth.me.fetch();
+    if (next === "/" && (me?.role === "staff" || me?.role === "admin")) {
+      navigate("/admin");
+      return;
+    }
     navigate(next);
   };
 

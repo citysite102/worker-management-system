@@ -4,7 +4,6 @@
   "untestedProcedures": [
     "auth.me",
     "publicJobs.expressInterest",
-    "publicJobs.get",
-    "publicJobs.list"
+    "publicJobs.get"
   ]
 }

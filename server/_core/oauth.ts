@@ -59,7 +59,8 @@ export function registerOAuthRoutes(app: Express) {
         maxAge: ONE_YEAR_MS,
       });
 
-      res.redirect(302, "/");
+      // 員工經 Manus OAuth 登入後導向後台（/admin 由前端 RequireStaff 再驗一次角色）
+      res.redirect(302, "/admin");
     } catch (error) {
       console.error("[OAuth] Callback failed", error);
       res.status(500).json({ error: "OAuth callback failed" });

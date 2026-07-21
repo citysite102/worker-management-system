@@ -11,7 +11,14 @@ type Mode = "login" | "register";
 /** 登入後導回的目的地：只接受站內相對路徑（避免 open redirect）。 */
 function safeNext(search: string): string {
   const raw = new URLSearchParams(search).get("next");
-  if (raw && raw.startsWith("/") && !raw.startsWith("//")) return raw;
+  // 只接受站內相對路徑；擋掉 //host 與含反斜線（瀏覽器可能把 \ 正規化成 /）的變形。
+  if (
+    raw &&
+    raw.startsWith("/") &&
+    !raw.startsWith("//") &&
+    !raw.includes("\\")
+  )
+    return raw;
   return "/";
 }
 

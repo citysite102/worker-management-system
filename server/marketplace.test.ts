@@ -19,6 +19,7 @@ const dbMock = vi.hoisted(() => ({
   insertModerationEvent: vi.fn().mockResolvedValue(undefined),
   // moderation
   getPendingJobPostings: vi.fn().mockResolvedValue([]),
+  claimJobPostingForApproval: vi.fn().mockResolvedValue(true),
   getUserById: vi
     .fn()
     .mockResolvedValue({ id: 9, name: "王雇主", email: "e@x.co" }),
@@ -266,12 +267,19 @@ describe("審核（moderation）權限與轉 case", () => {
         category: "labor_out",
       })
     );
+    // 自動 demand 於公開站隱藏，避免與 posting 卡片重複（Code Review #1）
     expect(dbMock.createDemand).toHaveBeenCalledWith(
-      expect.objectContaining({ caseId: 401, neededCount: 2, status: "open" })
+      expect.objectContaining({
+        caseId: 401,
+        neededCount: 2,
+        status: "open",
+        publicHidden: 1,
+      })
     );
+    // claim 已把狀態設 approved，第 4 步只回填 caseId
     expect(dbMock.updateJobPosting).toHaveBeenCalledWith(
       700,
-      expect.objectContaining({ status: "approved", caseId: 401 })
+      expect.objectContaining({ caseId: 401 })
     );
   });
 
@@ -283,6 +291,23 @@ describe("審核（moderation）權限與轉 case", () => {
     await expect(
       staff().moderation.approvePosting({ id: 700, managerId: 3 })
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("approve：併發搶佔失敗（claimed=false）→ BAD_REQUEST，不建立 case", async () => {
+    dbMock.getJobPostingById.mockResolvedValueOnce({
+      id: 700,
+      status: "pending_review",
+      employerUserId: 9,
+      customerId: null,
+      jobType: "caregiver",
+      city: "臺中市",
+      headcount: 1,
+    });
+    dbMock.claimJobPostingForApproval.mockResolvedValueOnce(false);
+    await expect(
+      staff().moderation.approvePosting({ id: 700, managerId: 3 })
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(dbMock.createCase).not.toHaveBeenCalled();
   });
 
   it("reject：寫入 rejected + 理由", async () => {

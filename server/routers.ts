@@ -85,6 +85,7 @@ import {
   getJobPostingsByEmployer,
   updateJobPosting,
   getPendingJobPostings,
+  claimJobPostingForApproval,
   listApprovedJobPostings,
   listPublicOpenDemands,
   setDemandPublicHidden,
@@ -2993,7 +2994,7 @@ export const appRouter = router({
             entityType: "job_posting",
             entityId: id,
             action: "submit",
-            staffId: ctx.user.id,
+            staffId: null, // submit 為雇主動作，非 staff 審核
           });
         }
         await logAudit(ctx, {
@@ -3042,7 +3043,7 @@ export const appRouter = router({
             entityType: "job_posting",
             entityId: id,
             action: "submit",
-            staffId: ctx.user.id,
+            staffId: null, // submit 為雇主動作，非 staff 審核
           });
         }
         await logAudit(ctx, {
@@ -3095,69 +3096,88 @@ export const appRouter = router({
             message: "此需求單非待審狀態，無法審核",
           });
 
-        // 1) 決定雇主 customer：已勾稽用既有；否則自動建立一筆待驗證雇主 stub
-        let customerId = posting.customerId;
-        if (!customerId) {
-          const employer = await getUserById(posting.employerUserId);
-          customerId = await createCustomer({
-            employerType: "company",
-            name: employer?.name || `公開站雇主 #${posting.employerUserId}`,
-            contractStatus: "negotiating",
-            pricingTier: "standard",
-            managerId: input.managerId,
-            notes: "由公開站需求單審核通過時自動建立（待客服勾稽/驗證）。",
+        // 原子搶佔：把狀態標成 approved。兩個 staff 同時通過時只有一個搶得到，
+        // 另一個 claimed=false → 擋下，避免重複建立 case。
+        const claimed = await claimJobPostingForApproval(input.id);
+        if (!claimed)
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "此需求單已被處理，請重新整理",
           });
+
+        try {
+          // 1) 決定雇主 customer：已勾稽用既有；否則自動建立一筆待驗證雇主 stub
+          let customerId = posting.customerId;
+          if (!customerId) {
+            const employer = await getUserById(posting.employerUserId);
+            customerId = await createCustomer({
+              employerType: "company",
+              name: employer?.name || `公開站雇主 #${posting.employerUserId}`,
+              contractStatus: "negotiating",
+              pricingTier: "standard",
+              managerId: input.managerId,
+              notes: "由公開站需求單審核通過時自動建立（待客服勾稽/驗證）。",
+            });
+          }
+
+          // 2) 建立案件（帶入公開縣市，供找工作頁顯示地點）
+          const jobLabel = QUAL_TYPE_LABEL[posting.jobType];
+          const caseName = input.caseName || `${jobLabel}－${posting.city}`;
+          const caseId = await createCase({
+            customerId,
+            name: caseName,
+            managerId: input.managerId,
+            status: "in_progress",
+            publicCity: posting.city,
+          });
+
+          // 3) 建立案件資格 + 媒合需求。
+          //    這張 demand 於公開站隱藏（publicHidden=1）：此職缺已由 job_posting
+          //    以 source="posting" 呈現；若 demand 也曝光會在找工作頁重複一張卡。
+          const qualId = await createQualification({
+            caseId,
+            label: `${jobLabel}（公開需求單）`,
+            category: inferQualCategory(posting.jobType),
+            qualType: posting.jobType,
+            quotaTotal: posting.headcount,
+            applicationStatus: "preparing",
+          });
+          await createDemand({
+            caseId,
+            label: `${jobLabel}－${posting.city}`,
+            qualificationId: qualId,
+            qualType: posting.jobType,
+            neededCount: posting.headcount,
+            status: "open",
+            publicHidden: 1,
+          });
+
+          // 4) 回填 case 連結與上架時間（狀態已於 claim 設為 approved）
+          await updateJobPosting(input.id, {
+            caseId,
+            publishedAt: new Date(),
+            rejectReason: null,
+          });
+          await insertModerationEvent({
+            entityType: "job_posting",
+            entityId: input.id,
+            action: "approve",
+            staffId: ctx.user.id,
+          });
+          await logAudit(ctx, {
+            action: "moderation.posting.approve",
+            entityType: "job_postings",
+            entityId: input.id,
+            meta: { caseId, customerId },
+          });
+          return { success: true, caseId } as const;
+        } catch (err) {
+          // 建 case 中途失敗 → 還原成待審，讓此單可重新審核（best-effort）。
+          await updateJobPosting(input.id, { status: "pending_review" }).catch(
+            () => {}
+          );
+          throw err;
         }
-
-        // 2) 建立案件（帶入公開縣市，供找工作頁顯示地點）
-        const jobLabel = QUAL_TYPE_LABEL[posting.jobType];
-        const caseName = input.caseName || `${jobLabel}－${posting.city}`;
-        const caseId = await createCase({
-          customerId,
-          name: caseName,
-          managerId: input.managerId,
-          status: "in_progress",
-          publicCity: posting.city,
-        });
-
-        // 3) 建立案件資格 + 媒合需求
-        const qualId = await createQualification({
-          caseId,
-          label: `${jobLabel}（公開需求單）`,
-          category: inferQualCategory(posting.jobType),
-          qualType: posting.jobType,
-          quotaTotal: posting.headcount,
-          applicationStatus: "preparing",
-        });
-        await createDemand({
-          caseId,
-          label: `${jobLabel}－${posting.city}`,
-          qualificationId: qualId,
-          qualType: posting.jobType,
-          neededCount: posting.headcount,
-          status: "open",
-        });
-
-        // 4) 更新需求單狀態並回連 case
-        await updateJobPosting(input.id, {
-          status: "approved",
-          caseId,
-          publishedAt: new Date(),
-          rejectReason: null,
-        });
-        await insertModerationEvent({
-          entityType: "job_posting",
-          entityId: input.id,
-          action: "approve",
-          staffId: ctx.user.id,
-        });
-        await logAudit(ctx, {
-          action: "moderation.posting.approve",
-          entityType: "job_postings",
-          entityId: input.id,
-          meta: { caseId, customerId },
-        });
-        return { success: true, caseId } as const;
       }),
     // 退件（附結構化理由 + 補正說明；雇主可修改後重送）
     rejectPosting: staffProcedure

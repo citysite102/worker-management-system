@@ -1248,6 +1248,28 @@ export async function updateJobPosting(
   return db.update(jobPostings).set(data).where(eq(jobPostings.id, id));
 }
 
+/**
+ * 原子搶佔：把 pending_review 的需求單標成 approved，回傳是否搶到。
+ * 用條件式 UPDATE（WHERE status='pending_review'）當審核的併發保護 ——
+ * 兩個 staff 同時按「通過」時只有一個會 affectedRows=1，另一個為 0，
+ * 避免重複建立 case。搶到者接著建 case 並回填 caseId。
+ */
+export async function claimJobPostingForApproval(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const res = await db
+    .update(jobPostings)
+    .set({ status: "approved" })
+    .where(
+      and(eq(jobPostings.id, id), eq(jobPostings.status, "pending_review"))
+    );
+  const affected =
+    (res as unknown as { affectedRows?: number }[])[0]?.affectedRows ??
+    (res as unknown as { affectedRows?: number }).affectedRows ??
+    0;
+  return Number(affected) > 0;
+}
+
 /** 審核佇列：待審需求單（pending_review），最舊的在前（先到先審）。 */
 export async function getPendingJobPostings() {
   const db = await getDb();

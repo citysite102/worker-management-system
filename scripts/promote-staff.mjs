@@ -51,6 +51,22 @@ async function promote(where, param, label) {
   if (res.affectedRows > 0) {
     console.log(`✅ 升為 staff：${label}`);
     promoted += res.affectedRows;
+    // 稽核：角色變更（audit_logs 已於 WS1 建立）
+    try {
+      const [rows] = await conn.execute(`SELECT id FROM users WHERE ${where}`, [
+        param,
+      ]);
+      for (const r of rows) {
+        await conn.execute(
+          `INSERT INTO audit_logs (actorUserId, action, entityType, entityId, meta)
+           VALUES (NULL, 'user.role_change', 'users', ?, ?)`,
+          [r.id, JSON.stringify({ to: "staff", via: "promote-staff-cli" })]
+        );
+      }
+    } catch (err) {
+      // audit_logs 尚未建立（migration 未跑）時不擋主流程
+      console.warn("  （稽核寫入略過：", err.code ?? err.message, "）");
+    }
   } else {
     console.log(`⏭  未變更（找不到、已是 admin，或已是 staff）：${label}`);
   }

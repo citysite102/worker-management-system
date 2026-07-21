@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import { getClientIp } from "./audit";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -36,13 +37,27 @@ export function registerOAuthRoutes(app: Express) {
         lastSignedIn: new Date(),
       });
 
+      // 稽核：記錄登入事件（fail-safe，不影響登入流程）
+      const signedInUser = await db.getUserByOpenId(userInfo.openId);
+      await db.createAuditLog({
+        actorUserId: signedInUser?.id ?? null,
+        action: "auth.login",
+        meta: JSON.stringify({
+          loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
+        }),
+        ip: getClientIp(req) ?? null,
+      });
+
       const sessionToken = await sdk.createSessionToken(userInfo.openId, {
         name: userInfo.name || "",
         expiresInMs: ONE_YEAR_MS,
       });
 
       const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      res.cookie(COOKIE_NAME, sessionToken, {
+        ...cookieOptions,
+        maxAge: ONE_YEAR_MS,
+      });
 
       res.redirect(302, "/");
     } catch (error) {

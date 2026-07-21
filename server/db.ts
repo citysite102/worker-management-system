@@ -1,7 +1,47 @@
-import { and, desc, eq, inArray, lt, ne, notInArray, or, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  lt,
+  ne,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, managers, workers, customers, InsertManager, InsertWorker, InsertCustomer, cases, caseQualifications, caseDemands, caseAssignments, caseAssignmentWorkers, caseEmployments, InsertCase, InsertCaseQualification, InsertCaseDemand, InsertCaseAssignment, InsertCaseAssignmentWorker, InsertCaseEmployment, customerCareReceivers, customerQualifications, InsertCustomerCareReceiver, InsertCustomerQualification, kpiSnapshots, InsertKpiSnapshot, KpiSnapshot } from "../drizzle/schema";
-import { ENV } from './_core/env';
+import {
+  InsertUser,
+  users,
+  managers,
+  workers,
+  customers,
+  InsertManager,
+  InsertWorker,
+  InsertCustomer,
+  cases,
+  caseQualifications,
+  caseDemands,
+  caseAssignments,
+  caseAssignmentWorkers,
+  caseEmployments,
+  InsertCase,
+  InsertCaseQualification,
+  InsertCaseDemand,
+  InsertCaseAssignment,
+  InsertCaseAssignmentWorker,
+  InsertCaseEmployment,
+  customerCareReceivers,
+  customerQualifications,
+  InsertCustomerCareReceiver,
+  InsertCustomerQualification,
+  kpiSnapshots,
+  InsertKpiSnapshot,
+  KpiSnapshot,
+  auditLogs,
+  InsertAuditLog,
+} from "../drizzle/schema";
+import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -20,7 +60,10 @@ export async function getDb() {
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await getDb();
-  if (!db) { console.warn("[Database] Cannot upsert user: database not available"); return; }
+  if (!db) {
+    console.warn("[Database] Cannot upsert user: database not available");
+    return;
+  }
   try {
     const values: InsertUser = { openId: user.openId };
     const updateSet: Record<string, unknown> = {};
@@ -34,19 +77,38 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       updateSet[field] = normalized;
     };
     textFields.forEach(assignNullable);
-    if (user.lastSignedIn !== undefined) { values.lastSignedIn = user.lastSignedIn; updateSet.lastSignedIn = user.lastSignedIn; }
-    if (user.role !== undefined) { values.role = user.role; updateSet.role = user.role; }
-    else if (user.openId === ENV.ownerOpenId) { values.role = 'admin'; updateSet.role = 'admin'; }
+    if (user.lastSignedIn !== undefined) {
+      values.lastSignedIn = user.lastSignedIn;
+      updateSet.lastSignedIn = user.lastSignedIn;
+    }
+    if (user.role !== undefined) {
+      values.role = user.role;
+      updateSet.role = user.role;
+    } else if (user.openId === ENV.ownerOpenId) {
+      values.role = "admin";
+      updateSet.role = "admin";
+    }
     if (!values.lastSignedIn) values.lastSignedIn = new Date();
-    if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
-    await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
-  } catch (error) { console.error("[Database] Failed to upsert user:", error); throw error; }
+    if (Object.keys(updateSet).length === 0)
+      updateSet.lastSignedIn = new Date();
+    await db
+      .insert(users)
+      .values(values)
+      .onDuplicateKeyUpdate({ set: updateSet });
+  } catch (error) {
+    console.error("[Database] Failed to upsert user:", error);
+    throw error;
+  }
 }
 
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.openId, openId))
+    .limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
 
@@ -62,6 +124,21 @@ function insertedId(result: unknown): number {
   const id = r?.[0]?.insertId ?? r?.insertId;
   if (id === undefined || id === null) throw new Error("插入後取不到 insertId");
   return Number(id);
+}
+
+// ─── Audit Logs（稽核）───────────────────────────────────────────────────────
+/**
+ * 寫一筆操作稽核。fail-safe：稽核寫入失敗只記 console，絕不讓呼叫端的主流程失敗
+ * （稽核是輔助，不能因為它掛掉而擋住登入/登出等操作）。無 DB 連線時直接略過。
+ */
+export async function createAuditLog(entry: InsertAuditLog): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    await db.insert(auditLogs).values(entry);
+  } catch (error) {
+    console.error("[audit] createAuditLog 失敗（不影響主流程）：", error);
+  }
 }
 
 // ─── Managers ────────────────────────────────────────────────────────────────
@@ -84,7 +161,10 @@ export async function countDependentsByManager(managerId: number) {
   const count = sql<number>`count(*)`;
   const [w, c, k] = await Promise.all([
     db.select({ count }).from(workers).where(eq(workers.managerId, managerId)),
-    db.select({ count }).from(customers).where(eq(customers.managerId, managerId)),
+    db
+      .select({ count })
+      .from(customers)
+      .where(eq(customers.managerId, managerId)),
     db.select({ count }).from(cases).where(eq(cases.managerId, managerId)),
   ]);
   return {
@@ -117,12 +197,19 @@ export async function getAllWorkers() {
 export async function getWorkerById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(workers).where(eq(workers.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(workers)
+    .where(eq(workers.id, id))
+    .limit(1);
   return result[0];
 }
 
 /** 依居留證號查重（排除自身） */
-export async function getWorkerByPermitNo(permitNo: string, excludeId?: number) {
+export async function getWorkerByPermitNo(
+  permitNo: string,
+  excludeId?: number
+) {
   const db = await getDb();
   if (!db) return undefined;
   const conditions = excludeId
@@ -133,7 +220,10 @@ export async function getWorkerByPermitNo(permitNo: string, excludeId?: number) 
 }
 
 /** 依護照號查重（排除自身） */
-export async function getWorkerByPassportNo(passportNo: string, excludeId?: number) {
+export async function getWorkerByPassportNo(
+  passportNo: string,
+  excludeId?: number
+) {
   const db = await getDb();
   if (!db) return undefined;
   const conditions = excludeId
@@ -144,7 +234,10 @@ export async function getWorkerByPassportNo(passportNo: string, excludeId?: numb
 }
 
 /** 相容舊版：依任一證號查重 */
-export async function getWorkerByIdNumber(idNumber: string, excludeId?: number) {
+export async function getWorkerByIdNumber(
+  idNumber: string,
+  excludeId?: number
+) {
   const db = await getDb();
   if (!db) return undefined;
   const permitResult = await getWorkerByPermitNo(idNumber, excludeId);
@@ -180,7 +273,11 @@ export async function getAllCustomers() {
 export async function getCustomerById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(customers)
+    .where(eq(customers.id, id))
+    .limit(1);
   return result[0];
 }
 
@@ -210,17 +307,25 @@ export async function createCustomer(data: InsertCustomer): Promise<number> {
   return insertedId(await db.insert(customers).values(data));
 }
 
-export async function updateCustomer(id: number, data: Partial<InsertCustomer>) {
+export async function updateCustomer(
+  id: number,
+  data: Partial<InsertCustomer>
+) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.update(customers).set(data).where(eq(customers.id, id));
 }
 
 /** 該雇主底下的案件數 —— 用來判斷可不可以刪。 */
-export async function countCasesByCustomer(customerId: number): Promise<number> {
+export async function countCasesByCustomer(
+  customerId: number
+): Promise<number> {
   const db = await getDb();
   if (!db) return 0;
-  const rows = await db.select({ count: sql<number>`count(*)` }).from(cases).where(eq(cases.customerId, customerId));
+  const rows = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(cases)
+    .where(eq(cases.customerId, customerId));
   return Number(rows[0]?.count ?? 0);
 }
 
@@ -236,20 +341,31 @@ export async function countCasesByCustomer(customerId: number): Promise<number> 
 export async function deleteCustomer(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(customerCareReceivers).where(eq(customerCareReceivers.customerId, id));
-  await db.delete(customerQualifications).where(eq(customerQualifications.customerId, id));
+  await db
+    .delete(customerCareReceivers)
+    .where(eq(customerCareReceivers.customerId, id));
+  await db
+    .delete(customerQualifications)
+    .where(eq(customerQualifications.customerId, id));
   return db.delete(customers).where(eq(customers.id, id));
 }
 
 // ─── Cases（案件）────────────────────────────────────────────────────────────
-export async function getAllCases(filters?: { customerId?: number; status?: string; managerId?: number; search?: string }) {
+export async function getAllCases(filters?: {
+  customerId?: number;
+  status?: string;
+  managerId?: number;
+  search?: string;
+}) {
   const db = await getDb();
   if (!db) return [];
   const rows = await db.select().from(cases).orderBy(cases.createdAt);
   let result = rows;
-  if (filters?.customerId) result = result.filter(c => c.customerId === filters.customerId);
+  if (filters?.customerId)
+    result = result.filter(c => c.customerId === filters.customerId);
   if (filters?.status) result = result.filter(c => c.status === filters.status);
-  if (filters?.managerId) result = result.filter(c => c.managerId === filters.managerId);
+  if (filters?.managerId)
+    result = result.filter(c => c.managerId === filters.managerId);
   if (filters?.search) {
     const s = filters.search.toLowerCase();
     result = result.filter(c => c.name.toLowerCase().includes(s));
@@ -280,9 +396,14 @@ export async function deleteCase(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   // 連動刪除：先刪成員，再刪配對，再刪需求/資格，最後刪案件
-  const assignments = await db.select({ id: caseAssignments.id }).from(caseAssignments).where(eq(caseAssignments.caseId, id));
+  const assignments = await db
+    .select({ id: caseAssignments.id })
+    .from(caseAssignments)
+    .where(eq(caseAssignments.caseId, id));
   for (const a of assignments) {
-    await db.delete(caseAssignmentWorkers).where(eq(caseAssignmentWorkers.assignmentId, a.id));
+    await db
+      .delete(caseAssignmentWorkers)
+      .where(eq(caseAssignmentWorkers.assignmentId, a.id));
   }
   await db.delete(caseAssignments).where(eq(caseAssignments.caseId, id));
   await db.delete(caseDemands).where(eq(caseDemands.caseId, id));
@@ -293,17 +414,31 @@ export async function deleteCase(id: number) {
 /** 計算案件底下各子資料的數量（用於刪除前提示） */
 export async function getCaseChildCounts(caseId: number) {
   const db = await getDb();
-  if (!db) return { qualCount: 0, demandCount: 0, assignmentCount: 0, memberCount: 0 };
+  if (!db)
+    return { qualCount: 0, demandCount: 0, assignmentCount: 0, memberCount: 0 };
   // 全部下推成 count(*)：原本把整批資料撈回來再用 .length 計數，成員數還逐一
   // assignment 查一次（N+1）。改成四個平行聚合查詢，成員數用 join 一次算完，
   // 查詢次數不再隨 assignment 數量增加。
   const [quals, demands, assignments, members] = await Promise.all([
-    db.select({ count: sql<number>`count(*)` }).from(caseQualifications).where(eq(caseQualifications.caseId, caseId)),
-    db.select({ count: sql<number>`count(*)` }).from(caseDemands).where(eq(caseDemands.caseId, caseId)),
-    db.select({ count: sql<number>`count(*)` }).from(caseAssignments).where(eq(caseAssignments.caseId, caseId)),
-    db.select({ count: sql<number>`count(*)` })
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(caseQualifications)
+      .where(eq(caseQualifications.caseId, caseId)),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(caseDemands)
+      .where(eq(caseDemands.caseId, caseId)),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(caseAssignments)
+      .where(eq(caseAssignments.caseId, caseId)),
+    db
+      .select({ count: sql<number>`count(*)` })
       .from(caseAssignmentWorkers)
-      .innerJoin(caseAssignments, eq(caseAssignmentWorkers.assignmentId, caseAssignments.id))
+      .innerJoin(
+        caseAssignments,
+        eq(caseAssignmentWorkers.assignmentId, caseAssignments.id)
+      )
       .where(eq(caseAssignments.caseId, caseId)),
   ]);
   return {
@@ -318,33 +453,52 @@ export async function getCaseChildCounts(caseId: number) {
 export async function getQualificationsByCaseId(caseId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(caseQualifications).where(eq(caseQualifications.caseId, caseId)).orderBy(caseQualifications.id);
+  return db
+    .select()
+    .from(caseQualifications)
+    .where(eq(caseQualifications.caseId, caseId))
+    .orderBy(caseQualifications.id);
 }
 
 export async function getQualificationById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(caseQualifications).where(eq(caseQualifications.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(caseQualifications)
+    .where(eq(caseQualifications.id, id))
+    .limit(1);
   return result[0];
 }
 
-export async function createQualification(data: InsertCaseQualification): Promise<number> {
+export async function createQualification(
+  data: InsertCaseQualification
+): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return insertedId(await db.insert(caseQualifications).values(data));
 }
 
-export async function updateQualification(id: number, data: Partial<InsertCaseQualification>) {
+export async function updateQualification(
+  id: number,
+  data: Partial<InsertCaseQualification>
+) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  return db.update(caseQualifications).set(data).where(eq(caseQualifications.id, id));
+  return db
+    .update(caseQualifications)
+    .set(data)
+    .where(eq(caseQualifications.id, id));
 }
 
 export async function deleteQualification(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   // 解除配對的 qualificationId 連結（不刪配對）
-  await db.update(caseAssignments).set({ qualificationId: null }).where(eq(caseAssignments.qualificationId, id));
+  await db
+    .update(caseAssignments)
+    .set({ qualificationId: null })
+    .where(eq(caseAssignments.qualificationId, id));
   return db.delete(caseQualifications).where(eq(caseQualifications.id, id));
 }
 
@@ -352,29 +506,54 @@ export async function deleteQualification(id: number) {
 export async function getQuotaUsed(qualificationId: number): Promise<number> {
   const db = await getDb();
   if (!db) return 0;
-  const assignmentRows = await db.select({ id: caseAssignments.id }).from(caseAssignments).where(eq(caseAssignments.qualificationId, qualificationId));
+  const assignmentRows = await db
+    .select({ id: caseAssignments.id })
+    .from(caseAssignments)
+    .where(eq(caseAssignments.qualificationId, qualificationId));
   if (assignmentRows.length === 0) return 0;
   const assignmentIds = assignmentRows.map(a => a.id);
-  const members = await db.select().from(caseAssignmentWorkers)
-    .where(and(inArray(caseAssignmentWorkers.assignmentId, assignmentIds), eq(caseAssignmentWorkers.stage, 'employed')));
+  const members = await db
+    .select()
+    .from(caseAssignmentWorkers)
+    .where(
+      and(
+        inArray(caseAssignmentWorkers.assignmentId, assignmentIds),
+        eq(caseAssignmentWorkers.stage, "employed")
+      )
+    );
   return members.length;
 }
 
 /** 批次計算多個資格的 quotaUsed（消除 N+1） */
-export async function getQuotaUsedBatch(qualificationIds: number[]): Promise<Map<number, number>> {
+export async function getQuotaUsedBatch(
+  qualificationIds: number[]
+): Promise<Map<number, number>> {
   const result = new Map<number, number>(qualificationIds.map(id => [id, 0]));
   if (qualificationIds.length === 0) return result;
   const db = await getDb();
   if (!db) return result;
-  const assignmentRows = await db.select({ id: caseAssignments.id, qualificationId: caseAssignments.qualificationId })
-    .from(caseAssignments).where(inArray(caseAssignments.qualificationId, qualificationIds));
+  const assignmentRows = await db
+    .select({
+      id: caseAssignments.id,
+      qualificationId: caseAssignments.qualificationId,
+    })
+    .from(caseAssignments)
+    .where(inArray(caseAssignments.qualificationId, qualificationIds));
   if (assignmentRows.length === 0) return result;
   const assignmentIds = assignmentRows.map(a => a.id);
-  const members = await db.select({ assignmentId: caseAssignmentWorkers.assignmentId })
+  const members = await db
+    .select({ assignmentId: caseAssignmentWorkers.assignmentId })
     .from(caseAssignmentWorkers)
-    .where(and(inArray(caseAssignmentWorkers.assignmentId, assignmentIds), eq(caseAssignmentWorkers.stage, 'employed')));
+    .where(
+      and(
+        inArray(caseAssignmentWorkers.assignmentId, assignmentIds),
+        eq(caseAssignmentWorkers.stage, "employed")
+      )
+    );
   // 將 assignmentId 對映回 qualificationId
-  const assignmentToQual = new Map(assignmentRows.map(a => [a.id, a.qualificationId!]));
+  const assignmentToQual = new Map(
+    assignmentRows.map(a => [a.id, a.qualificationId!])
+  );
   for (const m of members) {
     const qualId = assignmentToQual.get(m.assignmentId);
     if (qualId != null) result.set(qualId, (result.get(qualId) ?? 0) + 1);
@@ -383,28 +562,66 @@ export async function getQuotaUsedBatch(qualificationIds: number[]): Promise<Map
 }
 
 /** 批次取得多個案件的子表維度（消除 N+1） */
-export async function getCaseDimensionsBatch(caseIds: number[]): Promise<Map<number, { qualCount: number; demandCount: number; assignmentCount: number; memberCount: number }>> {
-  const empty = { qualCount: 0, demandCount: 0, assignmentCount: 0, memberCount: 0 };
+export async function getCaseDimensionsBatch(caseIds: number[]): Promise<
+  Map<
+    number,
+    {
+      qualCount: number;
+      demandCount: number;
+      assignmentCount: number;
+      memberCount: number;
+    }
+  >
+> {
+  const empty = {
+    qualCount: 0,
+    demandCount: 0,
+    assignmentCount: 0,
+    memberCount: 0,
+  };
   const result = new Map(caseIds.map(id => [id, { ...empty }]));
   if (caseIds.length === 0) return result;
   const db = await getDb();
   if (!db) return result;
   const [quals, demands, assignments] = await Promise.all([
-    db.select({ caseId: caseQualifications.caseId }).from(caseQualifications).where(inArray(caseQualifications.caseId, caseIds)),
-    db.select({ caseId: caseDemands.caseId }).from(caseDemands).where(inArray(caseDemands.caseId, caseIds)),
-    db.select({ id: caseAssignments.id, caseId: caseAssignments.caseId }).from(caseAssignments).where(inArray(caseAssignments.caseId, caseIds)),
+    db
+      .select({ caseId: caseQualifications.caseId })
+      .from(caseQualifications)
+      .where(inArray(caseQualifications.caseId, caseIds)),
+    db
+      .select({ caseId: caseDemands.caseId })
+      .from(caseDemands)
+      .where(inArray(caseDemands.caseId, caseIds)),
+    db
+      .select({ id: caseAssignments.id, caseId: caseAssignments.caseId })
+      .from(caseAssignments)
+      .where(inArray(caseAssignments.caseId, caseIds)),
   ]);
-  for (const q of quals) { const r = result.get(q.caseId); if (r) r.qualCount++; }
-  for (const d of demands) { const r = result.get(d.caseId); if (r) r.demandCount++; }
-  for (const a of assignments) { const r = result.get(a.caseId); if (r) r.assignmentCount++; }
+  for (const q of quals) {
+    const r = result.get(q.caseId);
+    if (r) r.qualCount++;
+  }
+  for (const d of demands) {
+    const r = result.get(d.caseId);
+    if (r) r.demandCount++;
+  }
+  for (const a of assignments) {
+    const r = result.get(a.caseId);
+    if (r) r.assignmentCount++;
+  }
   if (assignments.length > 0) {
     const assignmentIds = assignments.map(a => a.id);
-    const members = await db.select({ assignmentId: caseAssignmentWorkers.assignmentId })
-      .from(caseAssignmentWorkers).where(inArray(caseAssignmentWorkers.assignmentId, assignmentIds));
+    const members = await db
+      .select({ assignmentId: caseAssignmentWorkers.assignmentId })
+      .from(caseAssignmentWorkers)
+      .where(inArray(caseAssignmentWorkers.assignmentId, assignmentIds));
     const assignmentToCaseId = new Map(assignments.map(a => [a.id, a.caseId]));
     for (const m of members) {
       const caseId = assignmentToCaseId.get(m.assignmentId);
-      if (caseId != null) { const r = result.get(caseId); if (r) r.memberCount++; }
+      if (caseId != null) {
+        const r = result.get(caseId);
+        if (r) r.memberCount++;
+      }
     }
   }
   return result;
@@ -414,13 +631,21 @@ export async function getCaseDimensionsBatch(caseIds: number[]): Promise<Map<num
 export async function getDemandsByCaseId(caseId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(caseDemands).where(eq(caseDemands.caseId, caseId)).orderBy(caseDemands.id);
+  return db
+    .select()
+    .from(caseDemands)
+    .where(eq(caseDemands.caseId, caseId))
+    .orderBy(caseDemands.id);
 }
 
 export async function getDemandById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(caseDemands).where(eq(caseDemands.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(caseDemands)
+    .where(eq(caseDemands.id, id))
+    .limit(1);
   return result[0];
 }
 
@@ -430,7 +655,10 @@ export async function createDemand(data: InsertCaseDemand): Promise<number> {
   return insertedId(await db.insert(caseDemands).values(data));
 }
 
-export async function updateDemand(id: number, data: Partial<InsertCaseDemand>) {
+export async function updateDemand(
+  id: number,
+  data: Partial<InsertCaseDemand>
+) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.update(caseDemands).set(data).where(eq(caseDemands.id, id));
@@ -440,50 +668,75 @@ export async function deleteDemand(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   // 解除配對的 demandId 連結（不刪配對）
-  await db.update(caseAssignments).set({ demandId: null }).where(eq(caseAssignments.demandId, id));
+  await db
+    .update(caseAssignments)
+    .set({ demandId: null })
+    .where(eq(caseAssignments.demandId, id));
   return db.delete(caseDemands).where(eq(caseDemands.id, id));
 }
 
 /** 計算需求的 matchedCount（confirmed 以上成員數）與 employedCount */
-export async function getDemandProgress(demandId: number): Promise<{ matchedCount: number; employedCount: number }> {
+export async function getDemandProgress(
+  demandId: number
+): Promise<{ matchedCount: number; employedCount: number }> {
   const db = await getDb();
   if (!db) return { matchedCount: 0, employedCount: 0 };
-  const assignmentRows = await db.select({ id: caseAssignments.id }).from(caseAssignments).where(eq(caseAssignments.demandId, demandId));
+  const assignmentRows = await db
+    .select({ id: caseAssignments.id })
+    .from(caseAssignments)
+    .where(eq(caseAssignments.demandId, demandId));
   if (assignmentRows.length === 0) return { matchedCount: 0, employedCount: 0 };
   let matchedCount = 0;
   let employedCount = 0;
   for (const a of assignmentRows) {
-    const members = await db.select().from(caseAssignmentWorkers).where(eq(caseAssignmentWorkers.assignmentId, a.id));
+    const members = await db
+      .select()
+      .from(caseAssignmentWorkers)
+      .where(eq(caseAssignmentWorkers.assignmentId, a.id));
     for (const m of members) {
-      if (['confirmed', 'upcoming', 'employed'].includes(m.stage)) matchedCount++;
-      if (m.stage === 'employed') employedCount++;
+      if (["confirmed", "upcoming", "employed"].includes(m.stage))
+        matchedCount++;
+      if (m.stage === "employed") employedCount++;
     }
   }
   return { matchedCount, employedCount };
 }
 
 /** 批次計算多筆需求的進度（消除 N+1）：總計 2 次查詢 */
-export async function getDemandProgressBatch(demandIds: number[]): Promise<Map<number, { matchedCount: number; employedCount: number }>> {
-  const result = new Map<number, { matchedCount: number; employedCount: number }>(
-    demandIds.map(id => [id, { matchedCount: 0, employedCount: 0 }])
-  );
+export async function getDemandProgressBatch(
+  demandIds: number[]
+): Promise<Map<number, { matchedCount: number; employedCount: number }>> {
+  const result = new Map<
+    number,
+    { matchedCount: number; employedCount: number }
+  >(demandIds.map(id => [id, { matchedCount: 0, employedCount: 0 }]));
   if (demandIds.length === 0) return result;
   const db = await getDb();
   if (!db) return result;
-  const assignmentRows = await db.select({ id: caseAssignments.id, demandId: caseAssignments.demandId })
-    .from(caseAssignments).where(inArray(caseAssignments.demandId, demandIds));
+  const assignmentRows = await db
+    .select({ id: caseAssignments.id, demandId: caseAssignments.demandId })
+    .from(caseAssignments)
+    .where(inArray(caseAssignments.demandId, demandIds));
   if (assignmentRows.length === 0) return result;
   const assignmentIds = assignmentRows.map(a => a.id);
-  const assignmentToDemand = new Map(assignmentRows.map(a => [a.id, a.demandId!]));
-  const members = await db.select({ assignmentId: caseAssignmentWorkers.assignmentId, stage: caseAssignmentWorkers.stage })
-    .from(caseAssignmentWorkers).where(inArray(caseAssignmentWorkers.assignmentId, assignmentIds));
+  const assignmentToDemand = new Map(
+    assignmentRows.map(a => [a.id, a.demandId!])
+  );
+  const members = await db
+    .select({
+      assignmentId: caseAssignmentWorkers.assignmentId,
+      stage: caseAssignmentWorkers.stage,
+    })
+    .from(caseAssignmentWorkers)
+    .where(inArray(caseAssignmentWorkers.assignmentId, assignmentIds));
   for (const m of members) {
     const demandId = assignmentToDemand.get(m.assignmentId);
     if (demandId == null) continue;
     const r = result.get(demandId);
     if (!r) continue;
-    if (['confirmed', 'upcoming', 'employed'].includes(m.stage)) r.matchedCount++;
-    if (m.stage === 'employed') r.employedCount++;
+    if (["confirmed", "upcoming", "employed"].includes(m.stage))
+      r.matchedCount++;
+    if (m.stage === "employed") r.employedCount++;
   }
   return result;
 }
@@ -492,23 +745,36 @@ export async function getDemandProgressBatch(demandIds: number[]): Promise<Map<n
 export async function getAssignmentsByCaseId(caseId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(caseAssignments).where(eq(caseAssignments.caseId, caseId)).orderBy(caseAssignments.id);
+  return db
+    .select()
+    .from(caseAssignments)
+    .where(eq(caseAssignments.caseId, caseId))
+    .orderBy(caseAssignments.id);
 }
 
 export async function getAssignmentById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(caseAssignments).where(eq(caseAssignments.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(caseAssignments)
+    .where(eq(caseAssignments.id, id))
+    .limit(1);
   return result[0];
 }
 
-export async function createAssignment(data: InsertCaseAssignment): Promise<number> {
+export async function createAssignment(
+  data: InsertCaseAssignment
+): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return insertedId(await db.insert(caseAssignments).values(data));
 }
 
-export async function updateAssignment(id: number, data: Partial<InsertCaseAssignment>) {
+export async function updateAssignment(
+  id: number,
+  data: Partial<InsertCaseAssignment>
+) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.update(caseAssignments).set(data).where(eq(caseAssignments.id, id));
@@ -517,7 +783,9 @@ export async function updateAssignment(id: number, data: Partial<InsertCaseAssig
 export async function deleteAssignment(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(caseAssignmentWorkers).where(eq(caseAssignmentWorkers.assignmentId, id));
+  await db
+    .delete(caseAssignmentWorkers)
+    .where(eq(caseAssignmentWorkers.assignmentId, id));
   return db.delete(caseAssignments).where(eq(caseAssignments.id, id));
 }
 
@@ -525,49 +793,72 @@ export async function deleteAssignment(id: number) {
 export async function getMembersByAssignmentId(assignmentId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(caseAssignmentWorkers).where(eq(caseAssignmentWorkers.assignmentId, assignmentId)).orderBy(caseAssignmentWorkers.id);
+  return db
+    .select()
+    .from(caseAssignmentWorkers)
+    .where(eq(caseAssignmentWorkers.assignmentId, assignmentId))
+    .orderBy(caseAssignmentWorkers.id);
 }
 
 export async function getMembersByCaseId(caseId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(caseAssignmentWorkers).where(eq(caseAssignmentWorkers.caseId, caseId)).orderBy(caseAssignmentWorkers.id);
+  return db
+    .select()
+    .from(caseAssignmentWorkers)
+    .where(eq(caseAssignmentWorkers.caseId, caseId))
+    .orderBy(caseAssignmentWorkers.id);
 }
 
 export async function getMemberById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(caseAssignmentWorkers).where(eq(caseAssignmentWorkers.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(caseAssignmentWorkers)
+    .where(eq(caseAssignmentWorkers.id, id))
+    .limit(1);
   return result[0];
 }
 
-export async function createMember(data: InsertCaseAssignmentWorker): Promise<number> {
+export async function createMember(
+  data: InsertCaseAssignmentWorker
+): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return insertedId(await db.insert(caseAssignmentWorkers).values(data));
 }
 
-export async function updateMember(id: number, data: Partial<InsertCaseAssignmentWorker>) {
+export async function updateMember(
+  id: number,
+  data: Partial<InsertCaseAssignmentWorker>
+) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  return db.update(caseAssignmentWorkers).set(data).where(eq(caseAssignmentWorkers.id, id));
+  return db
+    .update(caseAssignmentWorkers)
+    .set(data)
+    .where(eq(caseAssignmentWorkers.id, id));
 }
 
 export async function deleteMember(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  return db.delete(caseAssignmentWorkers).where(eq(caseAssignmentWorkers.id, id));
+  return db
+    .delete(caseAssignmentWorkers)
+    .where(eq(caseAssignmentWorkers.id, id));
 }
 
 /** 取得移工在其他案件的進行中參與（用於跨案件提醒） */
 export async function getWorkerInvolvements(excludeCaseId?: number) {
   const db = await getDb();
   if (!db) return [];
-  const activeStages = ['candidate', 'confirmed', 'upcoming', 'employed'];
+  const activeStages = ["candidate", "confirmed", "upcoming", "employed"];
   const allMembers = await db.select().from(caseAssignmentWorkers);
-  const activeMembers = allMembers.filter(m =>
-    activeStages.includes(m.stage) &&
-    (excludeCaseId === undefined || m.caseId !== excludeCaseId)
+  const activeMembers = allMembers.filter(
+    m =>
+      activeStages.includes(m.stage) &&
+      (excludeCaseId === undefined || m.caseId !== excludeCaseId)
   );
   return activeMembers;
 }
@@ -575,23 +866,37 @@ export async function getWorkerInvolvements(excludeCaseId?: number) {
 /** 計算案件三維度進度（資格維度、媒合維度、聘僱維度）與 suggestedComplete */
 export async function getCaseDimensions(caseId: number) {
   const db = await getDb();
-  if (!db) return { qualReady: false, matchReady: false, hireReady: false, suggestedComplete: false };
+  if (!db)
+    return {
+      qualReady: false,
+      matchReady: false,
+      hireReady: false,
+      suggestedComplete: false,
+    };
 
   const [quals, demands, assignments] = await Promise.all([
-    db.select().from(caseQualifications).where(eq(caseQualifications.caseId, caseId)),
+    db
+      .select()
+      .from(caseQualifications)
+      .where(eq(caseQualifications.caseId, caseId)),
     db.select().from(caseDemands).where(eq(caseDemands.caseId, caseId)),
     db.select().from(caseAssignments).where(eq(caseAssignments.caseId, caseId)),
   ]);
 
   // 資格維度：至少一筆資格，且所有資格 applicationStatus = approved
-  const qualReady = quals.length > 0 && quals.every(q => q.applicationStatus === 'approved');
+  const qualReady =
+    quals.length > 0 && quals.every(q => q.applicationStatus === "approved");
 
   // 媒合維度：至少一筆需求，且所有需求 status = fulfilled
-  const matchReady = demands.length > 0 && demands.every(d => d.status === 'fulfilled');
+  const matchReady =
+    demands.length > 0 && demands.every(d => d.status === "fulfilled");
 
   // 聘僱維度：至少一筆配對成員 stage = employed
-  const allMembers = await db.select().from(caseAssignmentWorkers).where(eq(caseAssignmentWorkers.caseId, caseId));
-  const hireReady = allMembers.some(m => m.stage === 'employed');
+  const allMembers = await db
+    .select()
+    .from(caseAssignmentWorkers)
+    .where(eq(caseAssignmentWorkers.caseId, caseId));
+  const hireReady = allMembers.some(m => m.stage === "employed");
 
   const suggestedComplete = qualReady && matchReady && hireReady;
   return { qualReady, matchReady, hireReady, suggestedComplete };
@@ -601,21 +906,29 @@ export async function getCaseDimensions(caseId: number) {
 export async function getEmploymentsByCase(caseId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(caseEmployments).where(eq(caseEmployments.caseId, caseId));
+  return db
+    .select()
+    .from(caseEmployments)
+    .where(eq(caseEmployments.caseId, caseId));
 }
-export async function createEmployment(data: InsertCaseEmployment): Promise<number> {
+export async function createEmployment(
+  data: InsertCaseEmployment
+): Promise<number> {
   const db = await getDb();
-  if (!db) throw new Error('DB not available');
+  if (!db) throw new Error("DB not available");
   return insertedId(await db.insert(caseEmployments).values(data));
 }
-export async function updateEmployment(id: number, data: Partial<InsertCaseEmployment>) {
+export async function updateEmployment(
+  id: number,
+  data: Partial<InsertCaseEmployment>
+) {
   const db = await getDb();
-  if (!db) throw new Error('DB not available');
+  if (!db) throw new Error("DB not available");
   await db.update(caseEmployments).set(data).where(eq(caseEmployments.id, id));
 }
 export async function deleteEmployment(id: number) {
   const db = await getDb();
-  if (!db) throw new Error('DB not available');
+  if (!db) throw new Error("DB not available");
   await db.delete(caseEmployments).where(eq(caseEmployments.id, id));
 }
 
@@ -623,52 +936,79 @@ export async function deleteEmployment(id: number) {
 export async function getCareReceiversByCustomerId(customerId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(customerCareReceivers).where(eq(customerCareReceivers.customerId, customerId));
+  return db
+    .select()
+    .from(customerCareReceivers)
+    .where(eq(customerCareReceivers.customerId, customerId));
 }
-export async function createCareReceiver(data: InsertCustomerCareReceiver): Promise<number> {
+export async function createCareReceiver(
+  data: InsertCustomerCareReceiver
+): Promise<number> {
   const db = await getDb();
-  if (!db) throw new Error('DB not available');
+  if (!db) throw new Error("DB not available");
   return insertedId(await db.insert(customerCareReceivers).values(data));
 }
-export async function updateCareReceiver(id: number, data: Partial<InsertCustomerCareReceiver>) {
+export async function updateCareReceiver(
+  id: number,
+  data: Partial<InsertCustomerCareReceiver>
+) {
   const db = await getDb();
-  if (!db) throw new Error('DB not available');
-  await db.update(customerCareReceivers).set(data).where(eq(customerCareReceivers.id, id));
+  if (!db) throw new Error("DB not available");
+  await db
+    .update(customerCareReceivers)
+    .set(data)
+    .where(eq(customerCareReceivers.id, id));
 }
 export async function deleteCareReceiver(id: number) {
   const db = await getDb();
-  if (!db) throw new Error('DB not available');
-  await db.delete(customerCareReceivers).where(eq(customerCareReceivers.id, id));
+  if (!db) throw new Error("DB not available");
+  await db
+    .delete(customerCareReceivers)
+    .where(eq(customerCareReceivers.id, id));
 }
 
 // ─── Customer Qualifications（申請資格）──────────────────────────────────────
 export async function getQualificationsByCustomerId(customerId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(customerQualifications).where(eq(customerQualifications.customerId, customerId));
+  return db
+    .select()
+    .from(customerQualifications)
+    .where(eq(customerQualifications.customerId, customerId));
 }
-export async function createCustomerQualification(data: InsertCustomerQualification): Promise<number> {
+export async function createCustomerQualification(
+  data: InsertCustomerQualification
+): Promise<number> {
   const db = await getDb();
-  if (!db) throw new Error('DB not available');
+  if (!db) throw new Error("DB not available");
   return insertedId(await db.insert(customerQualifications).values(data));
 }
-export async function updateCustomerQualification(id: number, data: Partial<InsertCustomerQualification>) {
+export async function updateCustomerQualification(
+  id: number,
+  data: Partial<InsertCustomerQualification>
+) {
   const db = await getDb();
-  if (!db) throw new Error('DB not available');
-  await db.update(customerQualifications).set(data).where(eq(customerQualifications.id, id));
+  if (!db) throw new Error("DB not available");
+  await db
+    .update(customerQualifications)
+    .set(data)
+    .where(eq(customerQualifications.id, id));
 }
 export async function deleteCustomerQualification(id: number) {
   const db = await getDb();
-  if (!db) throw new Error('DB not available');
-  await db.delete(customerQualifications).where(eq(customerQualifications.id, id));
+  if (!db) throw new Error("DB not available");
+  await db
+    .delete(customerQualifications)
+    .where(eq(customerQualifications.id, id));
 }
 
 // ─── Dashboard 聚合（將計數下推至 SQL，避免全表載入到記憶體）──────────────────
 
 type CountRow = { value: string | null; count: number };
 
-const toCountRows = (rows: { value: string | null; count: unknown }[]): CountRow[] =>
-  rows.map(r => ({ value: r.value, count: Number(r.count) }));
+const toCountRows = (
+  rows: { value: string | null; count: unknown }[]
+): CountRow[] => rows.map(r => ({ value: r.value, count: Number(r.count) }));
 
 /** 各維度的分組計數 + 總數，全部以 SQL GROUP BY / COUNT 完成。 */
 export async function getDashboardCounts() {
@@ -723,7 +1063,10 @@ export async function getDashboardCounts() {
  * 取得「未結案且至少一張證件在 cutoffDate（含）之前到期」的移工，只取計算所需欄位。
  * 證件日期以 YYYY-MM-DD 字串儲存，ISO 格式可直接做字典序比較。
  */
-export async function getExpiryCandidateWorkers(cutoffDate: string, closedStatuses: string[]) {
+export async function getExpiryCandidateWorkers(
+  cutoffDate: string,
+  closedStatuses: string[]
+) {
   const db = await getDb();
   if (!db) return [];
   return db
@@ -742,9 +1085,9 @@ export async function getExpiryCandidateWorkers(cutoffDate: string, closedStatus
           lt(workers.residentPermitExpiry, cutoffDate),
           eq(workers.residentPermitExpiry, cutoffDate),
           lt(workers.passportExpiry, cutoffDate),
-          eq(workers.passportExpiry, cutoffDate),
-        ),
-      ),
+          eq(workers.passportExpiry, cutoffDate)
+        )
+      )
     );
 }
 
@@ -787,12 +1130,15 @@ export async function getComplianceCandidates(closedStatuses: string[]) {
     .from(cases)
     .innerJoin(workers, eq(cases.primaryWorkerId, workers.id))
     .leftJoin(managers, eq(cases.managerId, managers.id))
-    .leftJoin(customerQualifications, eq(cases.customerQualificationId, customerQualifications.id))
+    .leftJoin(
+      customerQualifications,
+      eq(cases.customerQualificationId, customerQualifications.id)
+    )
     .where(
       and(
         ne(cases.status, "cancelled"),
-        notInArray(workers.lifecycleStatus, closedStatuses as any),
-      ),
+        notInArray(workers.lifecycleStatus, closedStatuses as any)
+      )
     );
 }
 
@@ -818,7 +1164,9 @@ export async function upsertKpiSnapshot(snapshot: InsertKpiSnapshot) {
 }
 
 /** 取得 beforeDate 之前最近一筆快照，用於計算變化量。 */
-export async function getPreviousKpiSnapshot(beforeDate: string): Promise<KpiSnapshot | undefined> {
+export async function getPreviousKpiSnapshot(
+  beforeDate: string
+): Promise<KpiSnapshot | undefined> {
   const db = await getDb();
   if (!db) return undefined;
   const rows = await db

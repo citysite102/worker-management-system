@@ -1,7 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// 隔離稽核寫入（不碰 DB），同時可斷言 logout 有記稽核
+vi.mock("./_core/audit", () => ({
+  logAudit: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { appRouter } from "./routers";
 import { COOKIE_NAME } from "../shared/const";
 import type { TrpcContext } from "./_core/context";
+import { logAudit } from "./_core/audit";
 
 type CookieCall = {
   name: string;
@@ -67,5 +74,19 @@ describe("auth.logout", () => {
       httpOnly: true,
       path: "/",
     });
+  });
+
+  it("records an audit entry for the logout", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    vi.mocked(logAudit).mockClear();
+
+    await caller.auth.logout();
+
+    expect(logAudit).toHaveBeenCalledTimes(1);
+    expect(logAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ action: "auth.logout" })
+    );
   });
 });

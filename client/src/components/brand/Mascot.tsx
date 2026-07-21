@@ -4,7 +4,7 @@
  * 品牌色票：
  *   身體   #86C79E（soft green）
  *   表情線 #1F2937（slate）
- *   點綴   #16A34A（brand green，道具用）
+ *   點綴   #1D4ED8（brand green，道具用）
  *
  * Pose 清單：
  *   "thumbsup"   比讚  — 空狀態（無資料、初始化）
@@ -26,8 +26,8 @@ import React from "react";
 // ── 品牌色常數 ──────────────────────────────────────────
 const BODY = "#86C79E"; // 吉祥物身體（soft green）
 const LINE = "#1F2937"; // 表情線（slate）
-const ACCENT = "#16A34A"; // 點綴色（暖橘）
-const TEAL = "#16A34A"; // brand green（道具用）
+const ACCENT = "#1D4ED8"; // 點綴色（暖橘）
+const TEAL = "#1D4ED8"; // brand blue（道具用）
 
 // ── 尺寸對照 ────────────────────────────────────────────
 type MascotPose =

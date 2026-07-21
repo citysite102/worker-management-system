@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ─── 設計系統：Clean SaaS（詳見 docs/design-system.md）──────────────────────
-   白 / 淺灰為主的乾淨介面，單一品牌綠只出現在按鈕、連結、選中等重點；
+   白 / 淺灰為主的乾淨介面，單一品牌深藍只出現在按鈕、連結、選中等重點；
    其餘一律中性。所有頁面一律取用這些 token，禁止硬編色碼。 */
 @theme inline {
   --radius-sm: 0.375rem; /* 6px  */
@@ -26,13 +26,13 @@
   --color-border: #e7e9ed; /* 邊框、分隔線（淺灰） */
   --color-input: #e7e9ed;
 
-  /* 品牌綠（只用於重點：按鈕、連結、選中、focus） */
-  --color-primary: #16a34a; /* 主色 = 綠 */
+  /* 品牌深藍（只用於重點：按鈕、連結、選中、focus）。成功/在職的綠見狀態色 */
+  --color-primary: #1d4ed8; /* 主色 = 深藍（blue-700） */
   --color-primary-foreground: #ffffff;
-  --color-brand: #16a34a;
-  --color-accent: #e9f7ef; /* 綠淡底（選中/hover） */
-  --color-accent-foreground: #15803d; /* 綠字 */
-  --color-ring: #16a34a; /* focus ring = 綠 */
+  --color-brand: #1d4ed8;
+  --color-accent: #eef2ff; /* 藍淡底（選中/hover） */
+  --color-accent-foreground: #1e40af; /* 藍字 */
+  --color-ring: #1d4ed8; /* focus ring = 藍 */
   --color-destructive: #dc2626;
 
   /* Status colors — 乾淨語義（對齊既有 .status-* class） */
@@ -59,15 +59,15 @@
     "Hanken Grotesk", "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Fraunces", "Noto Serif TC", Georgia, serif;
 
-  /* Sidebar：淺色（白底、灰字、綠色作用中） */
+  /* Sidebar：淺色（白底、灰字、藍色作用中） */
   --color-sidebar: #ffffff;
   --color-sidebar-foreground: #4b5563;
-  --color-sidebar-primary: #16a34a;
+  --color-sidebar-primary: #1d4ed8;
   --color-sidebar-primary-foreground: #ffffff;
   --color-sidebar-accent: #f1f3f5;
-  --color-sidebar-accent-foreground: #16a34a; /* 作用中導覽項＝綠 */
+  --color-sidebar-accent-foreground: #1d4ed8; /* 作用中導覽項＝藍 */
   --color-sidebar-border: #e7e9ed;
-  --color-sidebar-ring: #16a34a;
+  --color-sidebar-ring: #1d4ed8;
 }
 
 @layer base {

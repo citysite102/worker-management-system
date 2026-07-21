@@ -368,7 +368,14 @@ export const appRouter = router({
         day: "2-digit",
       }).format(new Date()); // YYYY-MM-DD（台北時區）
 
-      const candidates = await getComplianceCandidates(CLOSED_STATUSES);
+      // 合規查詢失敗一律降級成「空清單」，不讓鈴鐺/儀表板因後端例外而卡住
+      // （曾發生過 schema 變更後連線池 prepared statement 失效導致查詢丟例外）。
+      let candidates: Awaited<ReturnType<typeof getComplianceCandidates>> = [];
+      try {
+        candidates = await getComplianceCandidates(CLOSED_STATUSES);
+      } catch (error) {
+        console.error("[compliance] 合規候選查詢失敗，本次回空清單：", error);
+      }
 
       type ComplianceAlert = {
         kind: "health_check" | "employment_permit";

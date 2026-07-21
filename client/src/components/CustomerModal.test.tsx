@@ -79,7 +79,7 @@ describe("CustomerModal 的必填判斷", () => {
     await user.hover(screen.getByTestId("customer-modal-submit-wrap"));
     const tip = await screen.findByRole("tooltip");
 
-    expect(tip).toHaveTextContent("雇主名稱");
+    expect(tip).toHaveTextContent("客戶名稱");
     expect(tip).toHaveTextContent("合約狀態");
     expect(tip).toHaveTextContent("定價級距");
     expect(tip).toHaveTextContent("負責人");
@@ -92,7 +92,7 @@ describe("CustomerModal 的必填判斷", () => {
     await user.type(screen.getByTestId("customer-modal-name"), "王");
     await user.hover(screen.getByTestId("customer-modal-submit-wrap"));
 
-    expect(await screen.findByRole("tooltip")).toHaveTextContent("雇主名稱");
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("客戶名稱");
   });
 
   it("名稱只填空白字元不算填了（trim 後長度為 0）", async () => {
@@ -102,7 +102,7 @@ describe("CustomerModal 的必填判斷", () => {
     await user.type(screen.getByTestId("customer-modal-name"), "   ");
     await user.hover(screen.getByTestId("customer-modal-submit-wrap"));
 
-    expect(await screen.findByRole("tooltip")).toHaveTextContent("雇主名稱");
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("客戶名稱");
   });
 
   it("填滿名稱後，缺少清單只剩三個下拉欄位", async () => {
@@ -113,7 +113,7 @@ describe("CustomerModal 的必填判斷", () => {
     await user.hover(screen.getByTestId("customer-modal-submit-wrap"));
     const tip = await screen.findByRole("tooltip");
 
-    expect(tip).not.toHaveTextContent("雇主名稱");
+    expect(tip).not.toHaveTextContent("客戶名稱");
     expect(tip).toHaveTextContent("合約狀態");
     expect(tip).toHaveTextContent("定價級距");
     expect(tip).toHaveTextContent("負責人");
@@ -146,7 +146,7 @@ describe("CustomerModal 的必填判斷", () => {
     expect(tip).toHaveTextContent("定價級距");
     expect(tip).not.toHaveTextContent("合約狀態");
     expect(tip).not.toHaveTextContent("負責人");
-    expect(tip).not.toHaveTextContent("雇主名稱");
+    expect(tip).not.toHaveTextContent("客戶名稱");
   });
 
   it("四項都填了才解除停用", async () => {
@@ -181,7 +181,7 @@ describe("CustomerModal 的雇主類型切換", () => {
 
     expect(screen.getByLabelText("統一編號")).toBeInTheDocument();
     expect(
-      screen.queryByLabelText("雇主國民身分證字號")
+      screen.queryByLabelText("客戶國民身分證字號")
     ).not.toBeInTheDocument();
   });
 
@@ -191,7 +191,7 @@ describe("CustomerModal 的雇主類型切換", () => {
 
     await user.click(screen.getByRole("button", { name: "個人雇主" }));
 
-    expect(screen.getByLabelText("雇主國民身分證字號")).toBeInTheDocument();
+    expect(screen.getByLabelText("客戶國民身分證字號")).toBeInTheDocument();
     expect(screen.getByLabelText("聘前講習證明序號")).toBeInTheDocument();
     expect(screen.queryByLabelText("統一編號")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("聯絡窗口姓名")).not.toBeInTheDocument();
@@ -206,7 +206,7 @@ describe("CustomerModal 的雇主類型切換", () => {
 
     await user.click(screen.getByRole("button", { name: "個人雇主" }));
 
-    expect(screen.getByLabelText(/雇主姓名/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/客戶姓名/)).toBeInTheDocument();
     expect(screen.getByLabelText("戶籍地址")).toBeInTheDocument();
   });
 
@@ -351,7 +351,7 @@ describe("CustomerModal 的編輯模式", () => {
       "王大明"
     );
     // employerType 是 individual，所以出現的是個人專屬欄位
-    expect(screen.getByLabelText("雇主國民身分證字號")).toHaveValue(
+    expect(screen.getByLabelText("客戶國民身分證字號")).toHaveValue(
       "A123456789"
     );
     expect(screen.getByLabelText("行動電話")).toHaveValue("0912345678");
@@ -374,7 +374,7 @@ describe("CustomerModal 的編輯模式", () => {
 
     // Radix 會渲染兩份標題（一份給螢幕閱讀器朗讀），用 role 取可見的那份
     expect(
-      await screen.findByRole("heading", { name: "編輯雇主資料" })
+      await screen.findByRole("heading", { name: "編輯客戶資料" })
     ).toBeInTheDocument();
   });
 
@@ -410,7 +410,7 @@ describe("CustomerModal 的同名警告流程", () => {
     await user.click(screen.getByTestId("customer-modal-submit"));
 
     expect(
-      await screen.findByRole("heading", { name: "同名雇主警告" })
+      await screen.findByRole("heading", { name: "同名客戶警告" })
     ).toBeInTheDocument();
   });
 
@@ -423,7 +423,7 @@ describe("CustomerModal 的同名警告流程", () => {
     await user.click(screen.getByTestId("customer-modal-submit"));
 
     expect(
-      screen.queryByRole("heading", { name: "同名雇主警告" })
+      screen.queryByRole("heading", { name: "同名客戶警告" })
     ).not.toBeInTheDocument();
   });
 
@@ -434,7 +434,7 @@ describe("CustomerModal 的同名警告流程", () => {
 
     await fillAllRequired(user);
     await user.click(screen.getByTestId("customer-modal-submit"));
-    await screen.findByRole("heading", { name: "同名雇主警告" });
+    await screen.findByRole("heading", { name: "同名客戶警告" });
 
     await user.click(screen.getByRole("button", { name: "確定建立" }));
 
@@ -458,7 +458,7 @@ describe("CustomerModal 的同名警告流程", () => {
     await fillAllRequired(user);
     await user.click(screen.getByTestId("customer-modal-submit"));
     const warning = await screen.findByRole("heading", {
-      name: "同名雇主警告",
+      name: "同名客戶警告",
     });
     expect(warning).toBeInTheDocument();
 
@@ -466,7 +466,7 @@ describe("CustomerModal 的同名警告流程", () => {
     await user.click(cancelButtons[cancelButtons.length - 1]);
 
     expect(
-      screen.queryByRole("heading", { name: "同名雇主警告" })
+      screen.queryByRole("heading", { name: "同名客戶警告" })
     ).not.toBeInTheDocument();
     expect(getMutation("customers.create").mutate).toHaveBeenCalledTimes(1);
   });

@@ -22,5 +22,11 @@ export default function globalSetup() {
   console.log("[e2e] 灌入假資料 ...");
   execFileSync("node", ["seed-mock-data.mjs"], { stdio: "inherit", env });
 
+  console.log("[e2e] 建立測試登入帳號（worker/employer/staff）...");
+  execFileSync("node", ["scripts/seed-test-accounts.mjs"], {
+    stdio: "inherit",
+    env,
+  });
+
   console.log("[e2e] 資料準備完成");
 }

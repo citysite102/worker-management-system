@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -8,10 +8,19 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 type Mode = "login" | "register";
 
+/** 登入後導回的目的地：只接受站內相對路徑（避免 open redirect）。 */
+function safeNext(search: string): string {
+  const raw = new URLSearchParams(search).get("next");
+  if (raw && raw.startsWith("/") && !raw.startsWith("//")) return raw;
+  return "/";
+}
+
 /** 公開站登入 / 註冊（Email/密碼，接 WS2 auth）。員工走 Manus OAuth。 */
 export default function Login() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
+  const search = useSearch();
+  const next = safeNext(search);
   const utils = trpc.useUtils();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
@@ -23,7 +32,7 @@ export default function Login() {
 
   const afterAuth = async () => {
     await utils.auth.me.invalidate();
-    navigate("/");
+    navigate(next);
   };
 
   const loginMut = trpc.auth.login.useMutation({
@@ -112,6 +121,7 @@ export default function Login() {
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
+                data-testid="login-email"
                 className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent"
               />
             </div>
@@ -125,12 +135,14 @@ export default function Login() {
                 minLength={isRegister ? 8 : undefined}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
+                data-testid="login-password"
                 className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent"
               />
             </div>
             <button
               type="submit"
               disabled={pending}
+              data-testid="login-submit"
               className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {isRegister ? t("login.registerBtn") : t("login.loginBtn")}

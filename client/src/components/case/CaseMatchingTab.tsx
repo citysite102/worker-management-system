@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Pencil, Trash2, UserPlus, AlertTriangle, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, UserPlus, AlertTriangle, Users, Eye, EyeOff } from "lucide-react";
+import { TW_CITIES } from "@/lib/marketplace";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getStatusLabel, DEMAND_STATUS_OPTIONS, QUAL_TYPE_OPTIONS, ASSIGNMENT_STAGE_OPTIONS } from "@/lib/constants";
 
@@ -106,6 +107,21 @@ export default function CaseMatchingTab({ caseId }: Props) {
     onError: e => toast.error(e.message),
   });
 
+  // ── 公開站曝光（P1）：既有需求單在「找工作」頁的縣市與逐筆隱藏 ──────────────
+  const { data: caseData } = trpc.cases.getById.useQuery({ id: caseId });
+  const [publicCity, setPublicCityInput] = useState<string>("");
+  useEffect(() => {
+    setPublicCityInput(caseData?.publicCity ?? "");
+  }, [caseData?.publicCity]);
+  const setPublicCityMutation = trpc.cases.setPublicCity.useMutation({
+    onSuccess: () => { toast.success("已更新公開縣市"); utils.cases.getById.invalidate({ id: caseId }); },
+    onError: e => toast.error(e.message),
+  });
+  const setPublicHiddenMutation = trpc.caseDemands.setPublicHidden.useMutation({
+    onSuccess: () => { utils.caseDemands.listByCase.invalidate({ caseId }); },
+    onError: e => toast.error(e.message),
+  });
+
   // ── 需求 Modal ──────────────────────────────────────────────────────────────
   const openAddDemand = () => {
     setEditingDemand(null);
@@ -162,6 +178,32 @@ export default function CaseMatchingTab({ caseId }: Props) {
             <Plus className="w-3.5 h-3.5" />新增需求
           </Button>
         </div>
+        {/* 公開站曝光：設定此案件在「找工作」頁顯示的縣市（去識別地點）。 */}
+        <div className="flex items-end gap-2 rounded-lg border border-dashed bg-muted/20 p-3">
+          <div className="flex-1">
+            <Label className="text-xs text-muted-foreground">公開站顯示縣市</Label>
+            <Select value={publicCity || "none"} onValueChange={v => setPublicCityInput(v === "none" ? "" : v)}>
+              <SelectTrigger className="mt-1 h-9" data-testid="public-city-select">
+                <SelectValue placeholder="未設定（顯示面議）" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">未設定（顯示面議）</SelectItem>
+                {TW_CITIES.map(c => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={setPublicCityMutation.isPending || (publicCity ?? "") === (caseData?.publicCity ?? "")}
+            onClick={() => setPublicCityMutation.mutate({ id: caseId, city: publicCity || undefined })}
+            data-testid="public-city-save"
+          >
+            儲存
+          </Button>
+        </div>
         {demandsLoading ? (
           <Skeleton className="h-20 w-full" />
         ) : demands.length === 0 ? (
@@ -186,6 +228,18 @@ export default function CaseMatchingTab({ caseId }: Props) {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    {(d.status === "open" || d.status === "filling") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        title={d.publicHidden ? "目前於公開站隱藏，點擊顯示" : "目前於公開站顯示，點擊隱藏"}
+                        onClick={() => setPublicHiddenMutation.mutate({ id: d.id, hidden: !d.publicHidden })}
+                        data-testid={`toggle-public-${d.id}`}
+                      >
+                        {d.publicHidden ? <EyeOff className="w-3 h-3 text-muted-foreground" /> : <Eye className="w-3 h-3 text-primary" />}
+                      </Button>
+                    )}
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditDemand(d)}>
                       <Pencil className="w-3 h-3" />
                     </Button>

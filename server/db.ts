@@ -40,6 +40,10 @@ import {
   KpiSnapshot,
   auditLogs,
   InsertAuditLog,
+  jobPostings,
+  InsertJobPosting,
+  moderationEvents,
+  InsertModerationEvent,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -110,6 +114,14 @@ export async function getUserByOpenId(openId: string) {
     .where(eq(users.openId, openId))
     .limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+/** 依 id 查使用者（審核需求單時帶出雇主帳號資訊）。 */
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result[0];
 }
 
 /** 依 email 查使用者（Email/密碼登入用；email 非唯一，取第一筆）。 */
@@ -1195,4 +1207,124 @@ export async function getPreviousKpiSnapshot(
     .orderBy(desc(kpiSnapshots.snapshotDate))
     .limit(1);
   return rows[0];
+}
+
+// ─── Job Postings（公開需求單，P1）────────────────────────────────────────────
+export async function createJobPosting(
+  data: InsertJobPosting
+): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return insertedId(await db.insert(jobPostings).values(data));
+}
+
+export async function getJobPostingById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(jobPostings)
+    .where(eq(jobPostings.id, id))
+    .limit(1);
+  return rows[0];
+}
+
+export async function getJobPostingsByEmployer(employerUserId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(jobPostings)
+    .where(eq(jobPostings.employerUserId, employerUserId))
+    .orderBy(desc(jobPostings.createdAt));
+}
+
+export async function updateJobPosting(
+  id: number,
+  data: Partial<InsertJobPosting>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.update(jobPostings).set(data).where(eq(jobPostings.id, id));
+}
+
+/** 審核佇列：待審需求單（pending_review），最舊的在前（先到先審）。 */
+export async function getPendingJobPostings() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(jobPostings)
+    .where(eq(jobPostings.status, "pending_review"))
+    .orderBy(jobPostings.createdAt);
+}
+
+/** 公開「找工作」：已上架（approved）的需求單。 */
+export async function listApprovedJobPostings() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(jobPostings)
+    .where(eq(jobPostings.status, "approved"))
+    .orderBy(desc(jobPostings.publishedAt));
+}
+
+/**
+ * 公開「找工作」：既有內部需求單中「尚未媒合成功」且未被隱藏者。
+ * 只回傳去識別後的子集（qualType / 人數 / 案件公開縣市），不含任何 PII —— 雇主
+ * 姓名、地址、notes 一律不 join、不外露（規格 §11）。
+ */
+export async function listPublicOpenDemands() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: caseDemands.id,
+      caseId: caseDemands.caseId,
+      qualType: caseDemands.qualType,
+      neededCount: caseDemands.neededCount,
+      status: caseDemands.status,
+      publicCity: cases.publicCity,
+      createdAt: caseDemands.createdAt,
+    })
+    .from(caseDemands)
+    .innerJoin(cases, eq(caseDemands.caseId, cases.id))
+    .where(
+      and(
+        inArray(caseDemands.status, ["open", "filling"]),
+        eq(caseDemands.publicHidden, 0)
+      )
+    )
+    .orderBy(desc(caseDemands.createdAt));
+}
+
+/** 設定既有需求單是否在公開站隱藏（staff 逐筆控制）。 */
+export async function setDemandPublicHidden(demandId: number, hidden: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db
+    .update(caseDemands)
+    .set({ publicHidden: hidden ? 1 : 0 })
+    .where(eq(caseDemands.id, demandId));
+}
+
+/** 設定案件的公開顯示縣市（供既有需求單在找工作頁顯示地點）。 */
+export async function setCasePublicCity(caseId: number, city: string | null) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.update(cases).set({ publicCity: city }).where(eq(cases.id, caseId));
+}
+
+// ─── Moderation Events（審核稽核，P1）─────────────────────────────────────────
+export async function insertModerationEvent(
+  data: InsertModerationEvent
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.insert(moderationEvents).values(data);
+  } catch (error) {
+    console.error("[moderation] 稽核事件寫入失敗（不影響主流程）：", error);
+  }
 }

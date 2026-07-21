@@ -324,6 +324,10 @@ export const cases = mysqlTable(
       .notNull()
       .default("in_progress"),
     caseCondition: varchar("caseCondition", { length: 100 }), // 案件情況（自由文字）
+    // ── 公開媒合平台（P1）──────────────────────────────────────────────────────
+    // 既有需求單在公開「找工作」頁曝光時使用的縣市（去識別，staff 於後台補齊）。
+    // 精確地址（含 PII）永不對公開層開放，只露此縣市層級。
+    publicCity: varchar("publicCity", { length: 20 }), // 公開顯示縣市
     // ── 主要移工 ──────────────────────────────────────────────────────────────
     primaryWorkerId: int("primaryWorkerId"), // → workers.id（主要外國人）
     careReceiverId: int("careReceiverId"), // → customer_care_receivers.id（個人雇主時關聯被照顧者）
@@ -517,6 +521,9 @@ export const caseDemands = mysqlTable(
     ])
       .notNull()
       .default("open"),
+    // 公開媒合平台（P1）：既有需求單預設在公開「找工作」頁曝光（open/filling），
+    // staff 可逐筆隱藏（1＝不公開）。已媒合滿/關閉本就不曝光。
+    publicHidden: int("publicHidden").notNull().default(0), // 0/1
     notes: text("notes"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -765,3 +772,97 @@ export const kpiSnapshots = mysqlTable("kpi_snapshots", {
 });
 export type KpiSnapshot = typeof kpiSnapshots.$inferSelect;
 export type InsertKpiSnapshot = typeof kpiSnapshots.$inferInsert;
+
+// ─── Job Postings（公開需求單，P1）────────────────────────────────────────────
+// 雇主自公開站張貼的工作需求：draft → pending_review → approved（自動轉 case）
+// / rejected；上架後 paused/filled/closed。審核通過即建立對應 case + 資格 + 需求，
+// 延續現有 案件→資格→媒合→僱傭 流程（規格 §7.3、§10）。
+export const jobPostings = mysqlTable(
+  "job_postings",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    // 張貼者（自助雇主帳號）→ users.id；勾稽到既有名冊時填 customerId → customers.id
+    employerUserId: int("employerUserId").notNull(),
+    customerId: int("customerId"),
+    // 職類（沿用內部 qualType enum；公開站收攏為 看護/房務/其他 三桶）
+    jobType: mysqlEnum("jobType", [
+      "caregiver",
+      "domestic_helper",
+      "manufacturing",
+      "agriculture",
+      "construction",
+      "white_collar",
+      "intermediate",
+      "overseas_student",
+    ]).notNull(),
+    // 地點（縣市必填、區選填）
+    city: varchar("city", { length: 20 }).notNull(),
+    district: varchar("district", { length: 30 }),
+    headcount: int("headcount").notNull().default(1), // 需求人數
+    employmentType: mysqlEnum("employmentType", [
+      "live_in", // 住家（同住）
+      "live_out", // 不住家
+      "institution", // 機構
+      "other", // 其他
+    ])
+      .notNull()
+      .default("live_in"),
+    requirements: text("requirements"), // 條件（語言/經驗等，受法遵限制）
+    publicDescription: text("publicDescription"), // 公開說明
+    // 薪資以區間顯示（選填）
+    salaryMin: int("salaryMin"),
+    salaryMax: int("salaryMax"),
+    expectedStartDate: varchar("expectedStartDate", { length: 10 }), // 期望上工日 YYYY-MM-DD
+    // 狀態機（規格 §10）
+    status: mysqlEnum("status", [
+      "draft", // 草稿
+      "pending_review", // 審核中
+      "approved", // 已通過（上架）
+      "rejected", // 已退件
+      "paused", // 暫停
+      "filled", // 已滿
+      "closed", // 已關閉
+    ])
+      .notNull()
+      .default("pending_review"),
+    rejectReason: varchar("rejectReason", { length: 300 }), // 退件理由（結構化代碼 + 補正說明）
+    caseId: int("caseId"), // 審核通過後建立的內部案件 → cases.id
+    publishedAt: timestamp("publishedAt"), // 上架時間
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  t => ({
+    employerIdx: index("job_postings_employerUserId_idx").on(t.employerUserId),
+    statusIdx: index("job_postings_status_idx").on(t.status),
+    caseIdx: index("job_postings_caseId_idx").on(t.caseId),
+  })
+);
+export type JobPosting = typeof jobPostings.$inferSelect;
+export type InsertJobPosting = typeof jobPostings.$inferInsert;
+
+// ─── Moderation Events（審核稽核軌跡，P1）─────────────────────────────────────
+// 需求單（未來含履歷/自填經歷）每次狀態轉移的審核紀錄（規格 §9.2、§10）。
+export const moderationEvents = mysqlTable(
+  "moderation_events",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    entityType: varchar("entityType", { length: 50 }).notNull(), // 如 "job_posting"
+    entityId: int("entityId").notNull(),
+    action: mysqlEnum("action", [
+      "submit", // 送審
+      "approve", // 通過
+      "reject", // 退件
+    ]).notNull(),
+    reason: text("reason"), // 退件理由 / 備註
+    staffId: int("staffId"), // 審核者 → users.id（系統事件可為 null）
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => ({
+    entityIdx: index("moderation_events_entity_idx").on(
+      t.entityType,
+      t.entityId
+    ),
+  })
+);
+export type ModerationEvent = typeof moderationEvents.$inferSelect;
+export type InsertModerationEvent = typeof moderationEvents.$inferInsert;

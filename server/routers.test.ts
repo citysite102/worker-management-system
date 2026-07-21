@@ -70,15 +70,36 @@ function complianceCand(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function createCtx(): TrpcContext {
+// WS3 硬化後，內部 procedure 需 staff/admin。這些是「行為」測試（非權限測試），
+// 因此預設注入一個 admin 使用者；權限矩陣另於 server/marketplace.test.ts 覆蓋。
+function createCtx(user: TrpcContext["user"] = ADMIN_CTX_USER): TrpcContext {
   return {
-    user: null,
+    user,
     req: { protocol: "https", headers: {} } as TrpcContext["req"],
     res: {
       clearCookie: vi.fn(),
     } as unknown as TrpcContext["res"],
   };
 }
+
+const ADMIN_CTX_USER: TrpcContext["user"] = {
+  id: 1,
+  openId: "test-admin",
+  name: "測試管理員",
+  email: "admin@test.local",
+  loginMethod: "dev",
+  role: "admin",
+  accountType: null,
+  workerId: null,
+  customerId: null,
+  phone: null,
+  phoneVerified: 0,
+  preferredLang: null,
+  passwordHash: null,
+  createdAt: new Date("2026-01-01T00:00:00Z"),
+  updatedAt: new Date("2026-01-01T00:00:00Z"),
+  lastSignedIn: new Date("2026-01-01T00:00:00Z"),
+};
 
 describe("managers.list", () => {
   it("returns manager list", async () => {

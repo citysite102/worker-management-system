@@ -15,8 +15,14 @@ import CustomerDetail from "./pages/CustomerDetail";
 import Settings from "./pages/Settings";
 import BrandPreview from "./pages/BrandPreview";
 import { RequireStaff } from "./components/RequireStaff";
+import { RequireAuth } from "./components/public/RequireAuth";
 import PublicHome from "./pages/public/Home";
 import Login from "./pages/public/Login";
+import Jobs from "./pages/public/Jobs";
+import JobDetail from "./pages/public/JobDetail";
+import EmployerPostings from "./pages/employer/Postings";
+import PostingForm from "./pages/employer/PostingForm";
+import Moderation from "./pages/Moderation";
 import "./i18n";
 
 /** 內部後台（既有頁面）。掛在 /admin 之下，路徑維持相對。 */
@@ -32,6 +38,7 @@ function AdminApp() {
         <Route path="/cases/:id" component={CaseDetail} />
         <Route path="/workers/:id" component={WorkerDetail} />
         <Route path="/customers/:id" component={CustomerDetail} />
+        <Route path="/moderation" component={Moderation} />
         <Route path="/settings" component={Settings} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
@@ -54,6 +61,33 @@ function Router() {
       </Route>
       {/* 公開站 */}
       <Route path="/login" component={Login} />
+      {/* 找工作（需登入，§15-1）*/}
+      <Route path="/jobs">
+        <RequireAuth>
+          <Jobs />
+        </RequireAuth>
+      </Route>
+      <Route path="/jobs/:source/:id">
+        <RequireAuth>
+          <JobDetail />
+        </RequireAuth>
+      </Route>
+      {/* 雇主專區（需登入且為雇主帳號）*/}
+      <Route path="/employer">
+        <RequireAuth accountType="employer">
+          <EmployerPostings />
+        </RequireAuth>
+      </Route>
+      <Route path="/employer/post">
+        <RequireAuth accountType="employer">
+          <PostingForm />
+        </RequireAuth>
+      </Route>
+      <Route path="/employer/post/:id">
+        <RequireAuth accountType="employer">
+          <PostingForm />
+        </RequireAuth>
+      </Route>
       <Route path="/" component={PublicHome} />
       <Route component={NotFound} />
     </Switch>

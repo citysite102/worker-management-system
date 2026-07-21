@@ -21,6 +21,7 @@ import {
   Settings,
   Briefcase,
   LayoutDashboard,
+  ClipboardCheck,
 } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -31,6 +32,7 @@ const menuItems = [
   { icon: Users, label: "移工管理", path: "/workers" },
   { icon: Building2, label: "客戶管理", path: "/customers" },
   { icon: Briefcase, label: "案件管理", path: "/cases" },
+  { icon: ClipboardCheck, label: "需求單審核", path: "/moderation" },
   { icon: Settings, label: "設定", path: "/settings" },
 ];
 

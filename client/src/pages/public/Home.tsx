@@ -1,37 +1,14 @@
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import { Briefcase, ShieldCheck, Languages } from "lucide-react";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { Logo } from "@/components/brand/Logo";
+import { PublicHeader } from "@/components/public/PublicHeader";
 
 /** 公開站首頁（WS4 分流 + WS5 i18n 的落點）。 */
 export default function PublicHome() {
   const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Nav */}
-      <header className="border-b border-border bg-card">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Logo variant="color" size="sm" />
-            <span className="font-bold tracking-tight">長誠媒合</span>
-          </div>
-          <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
-            <span>{t("nav.findJobs")}</span>
-            <span>{t("nav.findWorkers")}</span>
-            <span>{t("nav.employer")}</span>
-          </nav>
-          <div className="flex items-center gap-3">
-            <LanguageSwitcher />
-            <Link
-              href="/login"
-              className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-            >
-              {t("nav.login")}
-            </Link>
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       {/* Hero */}
       <main className="max-w-6xl mx-auto px-6">
@@ -44,14 +21,16 @@ export default function PublicHome() {
           </p>
           <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
             <Link
-              href="/login"
+              href="/jobs"
               className="inline-flex items-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+              data-testid="cta-find-jobs"
             >
               {t("home.ctaFindJobs")} →
             </Link>
             <Link
-              href="/login"
+              href="/employer"
               className="inline-flex items-center rounded-md border border-border bg-card px-5 py-2.5 text-sm font-semibold hover:bg-muted transition-colors"
+              data-testid="cta-post-job"
             >
               {t("home.ctaPostJob")}
             </Link>

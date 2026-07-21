@@ -2,7 +2,13 @@ import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import {
+  publicProcedure,
+  protectedProcedure,
+  staffProcedure,
+  employerProcedure,
+  router,
+} from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import {
   getAllManagers,
@@ -73,6 +79,17 @@ import {
   upsertKpiSnapshot,
   getPreviousKpiSnapshot,
   getComplianceCandidates,
+  getUserById,
+  createJobPosting,
+  getJobPostingById,
+  getJobPostingsByEmployer,
+  updateJobPosting,
+  getPendingJobPostings,
+  listApprovedJobPostings,
+  listPublicOpenDemands,
+  setDemandPublicHidden,
+  setCasePublicCity,
+  insertModerationEvent,
 } from "./db";
 import {
   evaluateHealthChecks,
@@ -600,6 +617,95 @@ function calcNextMedicalExamDate(
   return d.toISOString().slice(0, 10);
 }
 
+// ─── 公開媒合平台輔助（P1）────────────────────────────────────────────────────
+type MarketplaceQualType =
+  | "caregiver"
+  | "domestic_helper"
+  | "manufacturing"
+  | "agriculture"
+  | "construction"
+  | "white_collar"
+  | "intermediate"
+  | "overseas_student";
+
+/** 內部職類 → 案件命名用中文標籤。 */
+const QUAL_TYPE_LABEL: Record<MarketplaceQualType, string> = {
+  caregiver: "看護",
+  domestic_helper: "幫傭",
+  manufacturing: "製造業",
+  agriculture: "農業",
+  construction: "營造業",
+  white_collar: "白領",
+  intermediate: "中階技術",
+  overseas_student: "僑外生",
+};
+
+/** 公開站三桶職類：看護 / 房務 / 其他。 */
+function jobCategory(
+  qualType: MarketplaceQualType
+): "caregiver" | "domestic_helper" | "other" {
+  if (qualType === "caregiver") return "caregiver";
+  if (qualType === "domestic_helper") return "domestic_helper";
+  return "other";
+}
+
+/** 需求單轉 case 時，依職類推斷案件資格類別（勞基法內外 / 專業評點）。 */
+function inferQualCategory(
+  qualType: MarketplaceQualType
+): "labor_in" | "labor_out" | "professional" {
+  if (
+    qualType === "white_collar" ||
+    qualType === "overseas_student" ||
+    qualType === "intermediate"
+  )
+    return "professional";
+  if (qualType === "caregiver" || qualType === "domestic_helper")
+    return "labor_out";
+  return "labor_in";
+}
+
+/** 雇主張貼／編輯需求單的共用欄位（規格 §7.3：職類/地點/人數/聘僱型態必填）。 */
+const jobPostingInput = z.object({
+  jobType: z.enum([
+    "caregiver",
+    "domestic_helper",
+    "manufacturing",
+    "agriculture",
+    "construction",
+    "white_collar",
+    "intermediate",
+    "overseas_student",
+  ]),
+  city: z.string().trim().min(1, "請選擇工作縣市").max(20),
+  district: z
+    .string()
+    .trim()
+    .max(30)
+    .optional()
+    .transform(s => s?.trim() || undefined),
+  headcount: z.number().int().min(1, "至少 1 人").max(99).default(1),
+  employmentType: z
+    .enum(["live_in", "live_out", "institution", "other"])
+    .default("live_in"),
+  requirements: z
+    .string()
+    .max(2000)
+    .optional()
+    .transform(s => s?.trim() || undefined),
+  publicDescription: z
+    .string()
+    .max(2000)
+    .optional()
+    .transform(s => s?.trim() || undefined),
+  salaryMin: z.number().int().min(0).max(999999).optional(),
+  salaryMax: z.number().int().min(0).max(999999).optional(),
+  expectedStartDate: z
+    .string()
+    .max(10)
+    .optional()
+    .transform(s => s?.trim() || undefined),
+});
+
 // ─── Routers ──────────────────────────────────────────────────────────────────
 /**
  * 「有效」的配對成員階段 —— 尚未離開此案件的狀態。
@@ -716,7 +822,7 @@ export const appRouter = router({
 
   // ─── Dashboard（統計總覽）────────────────────────────────────────────────────
   dashboard: router({
-    summary: publicProcedure.query(async () => {
+    summary: staffProcedure.query(async () => {
       const CLOSED_STATUSES = ["returned", "absconded"];
       const EXPIRY_WINDOW_DAYS = 60;
 
@@ -858,7 +964,7 @@ export const appRouter = router({
     //   ① 定期健檢（工作滿 6/18/30 個月，前後 30 日窗口）——避免衛生局逾期移送
     //   ② 聘僱許可續聘（核准聘僱截止日前須辦續聘/展延）——避免許可到期失效
     // 居留證/護照到期已由 dashboard.summary 的證件到期提醒涵蓋，不在此重複。
-    compliance: publicProcedure.query(async () => {
+    compliance: staffProcedure.query(async () => {
       const CLOSED_STATUSES = ["returned", "absconded"];
       const todayStr = new Intl.DateTimeFormat("en-CA", {
         timeZone: "Asia/Taipei",
@@ -1017,14 +1123,14 @@ export const appRouter = router({
 
   // ─── Managers ──────────────────────────────────────────────────────────────
   managers: router({
-    list: publicProcedure.query(async () => getAllManagers()),
-    create: publicProcedure
+    list: staffProcedure.query(async () => getAllManagers()),
+    create: staffProcedure
       .input(z.object({ name: z.string().trim().min(1, "名稱為必填").max(50) }))
       .mutation(async ({ input }) => {
         const id = await createManager({ name: input.name });
         return { success: true, id };
       }),
-    delete: publicProcedure
+    delete: staffProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input }) => {
         // 還有東西指派給這位負責人就不許刪。資料庫層的 FK 也會擋，但那會噴出
@@ -1048,7 +1154,7 @@ export const appRouter = router({
 
   // ─── Workers ───────────────────────────────────────────────────────────────
   workers: router({
-    list: publicProcedure.query(async () => {
+    list: staffProcedure.query(async () => {
       const rows = await getAllWorkers();
       // 附加自動計算欄位
       return rows.map(w => ({
@@ -1061,7 +1167,7 @@ export const appRouter = router({
         ),
       }));
     }),
-    getById: publicProcedure
+    getById: staffProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ input }) => {
         const w = await getWorkerById(input.id);
@@ -1077,7 +1183,7 @@ export const appRouter = router({
           ),
         };
       }),
-    create: publicProcedure.input(workerInput).mutation(async ({ input }) => {
+    create: staffProcedure.input(workerInput).mutation(async ({ input }) => {
       await validateWorkerData(input)();
       const phone = input.phone ? normalizePhone(input.phone) : undefined;
       const newId = await createWorker({
@@ -1114,7 +1220,7 @@ export const appRouter = router({
       });
       return { success: true, id: newId };
     }),
-    update: publicProcedure
+    update: staffProcedure
       .input(z.object({ id: z.number().int().positive() }).merge(workerInput))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
@@ -1154,7 +1260,7 @@ export const appRouter = router({
         });
         return { success: true };
       }),
-    delete: publicProcedure
+    delete: staffProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input }) => {
         await deleteWorker(input.id);
@@ -1162,7 +1268,7 @@ export const appRouter = router({
       }),
 
     // ── S3 檔案上傳 ──────────────────────────────────────────────────────────
-    uploadFile: publicProcedure
+    uploadFile: staffProcedure
       .input(
         z.object({
           workerId: z.number().int().positive(),
@@ -1194,7 +1300,7 @@ export const appRouter = router({
       }),
 
     // ── CSV 批次匯入 ─────────────────────────────────────────────────────────
-    import: publicProcedure
+    import: staffProcedure
       .input(z.object({ rows: z.array(workerInput) }))
       .mutation(async ({ input }) => {
         const results: {
@@ -1257,8 +1363,8 @@ export const appRouter = router({
 
   // ─── Customers ─────────────────────────────────────────────────────────────
   customers: router({
-    list: publicProcedure.query(async () => getAllCustomers()),
-    getById: publicProcedure
+    list: staffProcedure.query(async () => getAllCustomers()),
+    getById: staffProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ input }) => {
         const customer = await getCustomerById(input.id);
@@ -1266,7 +1372,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "NOT_FOUND", message: "找不到此客戶" });
         return customer;
       }),
-    create: publicProcedure.input(customerInput).mutation(async ({ input }) => {
+    create: staffProcedure.input(customerInput).mutation(async ({ input }) => {
       await validateCustomerData(input)();
       if (!input.forceCreate) {
         const existingName = await getCustomerByName(input.name);
@@ -1333,7 +1439,7 @@ export const appRouter = router({
       });
       return { success: true, id };
     }),
-    update: publicProcedure
+    update: staffProcedure
       .input(z.object({ id: z.number().int().positive() }).merge(customerInput))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
@@ -1395,7 +1501,7 @@ export const appRouter = router({
         });
         return { success: true };
       }),
-    delete: publicProcedure
+    delete: staffProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input }) => {
         // 底下還有案件就不許刪 —— 案件牽涉勞動部許可函與聘僱契約，
@@ -1412,7 +1518,7 @@ export const appRouter = router({
       }),
 
     // ── S3 檔案上傳 ────────────────────────────────────────────────────────────────────────────────────
-    uploadFile: publicProcedure
+    uploadFile: staffProcedure
       .input(
         z.object({
           fieldName: z.enum([
@@ -1441,12 +1547,12 @@ export const appRouter = router({
       }),
     // ─── Care Receivers CRUD ───────────────────────────────────────────────────────────────────────────────
     careReceivers: router({
-      listByCustomer: publicProcedure
+      listByCustomer: staffProcedure
         .input(z.object({ customerId: z.number().int().positive() }))
         .query(async ({ input }) =>
           getCareReceiversByCustomerId(input.customerId)
         ),
-      create: publicProcedure
+      create: staffProcedure
         .input(
           z.object({
             customerId: z.number().int().positive(),
@@ -1470,7 +1576,7 @@ export const appRouter = router({
           const id = await createCareReceiver(input);
           return { id };
         }),
-      update: publicProcedure
+      update: staffProcedure
         .input(
           z.object({
             id: z.number().int().positive(),
@@ -1495,7 +1601,7 @@ export const appRouter = router({
           await updateCareReceiver(id, data);
           return { success: true };
         }),
-      delete: publicProcedure
+      delete: staffProcedure
         .input(z.object({ id: z.number().int().positive() }))
         .mutation(async ({ input }) => {
           await deleteCareReceiver(input.id);
@@ -1504,12 +1610,12 @@ export const appRouter = router({
     }),
     // ─── Customer Qualifications CRUD ─────────────────────────────────────────────────────────────────────
     qualifications: router({
-      listByCustomer: publicProcedure
+      listByCustomer: staffProcedure
         .input(z.object({ customerId: z.number().int().positive() }))
         .query(async ({ input }) =>
           getQualificationsByCustomerId(input.customerId)
         ),
-      create: publicProcedure
+      create: staffProcedure
         .input(
           z.object({
             customerId: z.number().int().positive(),
@@ -1564,7 +1670,7 @@ export const appRouter = router({
           const id = await createCustomerQualification(input);
           return { id };
         }),
-      update: publicProcedure
+      update: staffProcedure
         .input(
           z.object({
             id: z.number().int().positive(),
@@ -1620,7 +1726,7 @@ export const appRouter = router({
           await updateCustomerQualification(id, data);
           return { success: true };
         }),
-      delete: publicProcedure
+      delete: staffProcedure
         .input(z.object({ id: z.number().int().positive() }))
         .mutation(async ({ input }) => {
           await deleteCustomerQualification(input.id);
@@ -1631,7 +1737,7 @@ export const appRouter = router({
 
   // ─── Cases Router ─────────────────────────────────────────────────────
   cases: router({
-    list: publicProcedure
+    list: staffProcedure
       .input(
         z
           .object({
@@ -1683,7 +1789,7 @@ export const appRouter = router({
           return orderBy === "created_desc" ? tb - ta : ta - tb;
         });
       }),
-    getById: publicProcedure
+    getById: staffProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ input }) => {
         const c = await getCaseById(input.id);
@@ -1729,7 +1835,7 @@ export const appRouter = router({
           ...dims,
         };
       }),
-    create: publicProcedure
+    create: staffProcedure
       .input(
         z.object({
           customerId: z.number().int().positive("客戶為必填"),
@@ -1990,7 +2096,7 @@ export const appRouter = router({
         const id = await createCase({ ...input, caseNo });
         return { success: true, id, caseNo };
       }),
-    update: publicProcedure
+    update: staffProcedure
       .input(
         z.object({
           id: z.number().int().positive(),
@@ -2237,20 +2343,37 @@ export const appRouter = router({
         await updateCase(id, data);
         return { success: true };
       }),
-    delete: publicProcedure
+    delete: staffProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input }) => {
         await deleteCase(input.id);
         return { success: true };
       }),
-    getChildCounts: publicProcedure
+    getChildCounts: staffProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ input }) => getCaseChildCounts(input.id)),
+    // 公開站曝光：設定案件在找工作頁顯示的縣市（既有需求單去識別地點）。
+    setPublicCity: staffProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          city: z
+            .string()
+            .trim()
+            .max(20)
+            .optional()
+            .transform(s => s?.trim() || null),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await setCasePublicCity(input.id, input.city);
+        return { success: true };
+      }),
   }),
 
   // ─── Case Qualifications Router ───────────────────────────────────────────
   caseQualifications: router({
-    listByCase: publicProcedure
+    listByCase: staffProcedure
       .input(z.object({ caseId: z.number().int().positive() }))
       .query(async ({ input }) => {
         const quals = await getQualificationsByCaseId(input.caseId);
@@ -2263,7 +2386,7 @@ export const appRouter = router({
           return { ...q, quotaUsed, quotaRemaining: q.quotaTotal - quotaUsed };
         });
       }),
-    getById: publicProcedure
+    getById: staffProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ input }) => {
         const q = await getQualificationById(input.id);
@@ -2272,7 +2395,7 @@ export const appRouter = router({
         const quotaUsed = await getQuotaUsed(q.id);
         return { ...q, quotaUsed, quotaRemaining: q.quotaTotal - quotaUsed };
       }),
-    create: publicProcedure
+    create: staffProcedure
       .input(
         z.object({
           caseId: z.number().int().positive(),
@@ -2325,7 +2448,7 @@ export const appRouter = router({
         const id = await createQualification(input);
         return { success: true, id };
       }),
-    update: publicProcedure
+    update: staffProcedure
       .input(
         z.object({
           id: z.number().int().positive(),
@@ -2377,7 +2500,7 @@ export const appRouter = router({
         await updateQualification(id, data);
         return { success: true };
       }),
-    delete: publicProcedure
+    delete: staffProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input }) => {
         await deleteQualification(input.id);
@@ -2387,7 +2510,7 @@ export const appRouter = router({
 
   // ─── Case Demands Router ──────────────────────────────────────────────────
   caseDemands: router({
-    listByCase: publicProcedure
+    listByCase: staffProcedure
       .input(z.object({ caseId: z.number().int().positive() }))
       .query(async ({ input }) => {
         const demands = await getDemandsByCaseId(input.caseId);
@@ -2407,7 +2530,7 @@ export const appRouter = router({
           return { ...d, matchedCount, employedCount, progress };
         });
       }),
-    create: publicProcedure
+    create: staffProcedure
       .input(
         z.object({
           caseId: z.number().int().positive(),
@@ -2437,7 +2560,7 @@ export const appRouter = router({
         const id = await createDemand(input);
         return { success: true, id };
       }),
-    update: publicProcedure
+    update: staffProcedure
       .input(
         z.object({
           id: z.number().int().positive(),
@@ -2466,17 +2589,29 @@ export const appRouter = router({
         await updateDemand(id, data);
         return { success: true };
       }),
-    delete: publicProcedure
+    delete: staffProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input }) => {
         await deleteDemand(input.id);
+        return { success: true };
+      }),
+    // 公開站曝光控制：逐筆隱藏/顯示既有需求單（規格 §11、使用者定案）。
+    setPublicHidden: staffProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          hidden: z.boolean(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await setDemandPublicHidden(input.id, input.hidden);
         return { success: true };
       }),
   }),
 
   // ─── Case Assignments Router ──────────────────────────────────────────────
   caseAssignments: router({
-    listByCase: publicProcedure
+    listByCase: staffProcedure
       .input(
         z.object({
           caseId: z.number().int().positive(),
@@ -2516,7 +2651,7 @@ export const appRouter = router({
           return { ...a, members: enrichedMembers };
         });
       }),
-    create: publicProcedure
+    create: staffProcedure
       .input(
         z.object({
           caseId: z.number().int().positive(),
@@ -2561,7 +2696,7 @@ export const appRouter = router({
         }
         return { success: true, assignmentId };
       }),
-    update: publicProcedure
+    update: staffProcedure
       .input(
         z.object({
           id: z.number().int().positive(),
@@ -2577,13 +2712,13 @@ export const appRouter = router({
         await updateAssignment(id, data);
         return { success: true };
       }),
-    delete: publicProcedure
+    delete: staffProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input }) => {
         await deleteAssignment(input.id);
         return { success: true };
       }),
-    addWorker: publicProcedure
+    addWorker: staffProcedure
       .input(
         z.object({
           assignmentId: z.number().int().positive(),
@@ -2613,7 +2748,7 @@ export const appRouter = router({
         });
         return { success: true };
       }),
-    updateMember: publicProcedure
+    updateMember: staffProcedure
       .input(
         z.object({
           memberId: z.number().int().positive(),
@@ -2629,7 +2764,7 @@ export const appRouter = router({
         await updateMember(memberId, data);
         return { success: true };
       }),
-    updateMemberStage: publicProcedure
+    updateMemberStage: staffProcedure
       .input(
         z.object({
           memberId: z.number().int().positive(),
@@ -2672,13 +2807,13 @@ export const appRouter = router({
         await updateMember(input.memberId, { stage: input.stage });
         return { success: true };
       }),
-    removeWorker: publicProcedure
+    removeWorker: staffProcedure
       .input(z.object({ memberId: z.number().int().positive() }))
       .mutation(async ({ input }) => {
         await deleteMember(input.memberId);
         return { success: true };
       }),
-    workerInvolvements: publicProcedure
+    workerInvolvements: staffProcedure
       .input(
         z.object({ excludeCaseId: z.number().int().positive().optional() })
       )
@@ -2709,7 +2844,7 @@ export const appRouter = router({
           };
         });
       }),
-    getMembersByCaseId: publicProcedure
+    getMembersByCaseId: staffProcedure
       .input(z.object({ caseId: z.number().int().positive() }))
       .query(async ({ input }) => {
         const members = await getMembersByCaseId(input.caseId);
@@ -2730,7 +2865,7 @@ export const appRouter = router({
       }),
   }),
   caseEmployments: router({
-    listByCase: publicProcedure
+    listByCase: staffProcedure
       .input(z.object({ caseId: z.number().int().positive() }))
       .query(async ({ input }) => {
         const emps = await getEmploymentsByCase(input.caseId);
@@ -2749,7 +2884,7 @@ export const appRouter = router({
             : "",
         }));
       }),
-    create: publicProcedure
+    create: staffProcedure
       .input(
         z.object({
           caseId: z.number().int().positive(),
@@ -2779,7 +2914,7 @@ export const appRouter = router({
         });
         return { success: true, id };
       }),
-    update: publicProcedure
+    update: staffProcedure
       .input(
         z.object({
           id: z.number().int().positive(),
@@ -2808,11 +2943,433 @@ export const appRouter = router({
         });
         return { success: true };
       }),
-    delete: publicProcedure
+    delete: staffProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input }) => {
         await deleteEmployment(input.id);
         return { success: true };
+      }),
+  }),
+
+  // ─── 雇主自助：需求單張貼（P1）────────────────────────────────────────────
+  // employerProcedure：需登入且 accountType=employer（staff/admin 亦可代操作）。
+  employer: router({
+    // 自己的需求單列表
+    myPostings: employerProcedure.query(async ({ ctx }) =>
+      getJobPostingsByEmployer(ctx.user.id)
+    ),
+    // 自己的單筆需求單（含編輯用）
+    getPosting: employerProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        const p = await getJobPostingById(input.id);
+        if (!p || p.employerUserId !== ctx.user.id)
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此需求單" });
+        return p;
+      }),
+    // 建立需求單（submit=true 直接送審，否則存草稿）
+    createPosting: employerProcedure
+      .input(jobPostingInput.extend({ submit: z.boolean().default(true) }))
+      .mutation(async ({ ctx, input }) => {
+        const { submit, ...data } = input;
+        const status = submit ? "pending_review" : "draft";
+        const id = await createJobPosting({
+          employerUserId: ctx.user.id,
+          customerId: ctx.user.customerId ?? null,
+          jobType: data.jobType,
+          city: data.city,
+          district: data.district ?? null,
+          headcount: data.headcount,
+          employmentType: data.employmentType,
+          requirements: data.requirements ?? null,
+          publicDescription: data.publicDescription ?? null,
+          salaryMin: data.salaryMin ?? null,
+          salaryMax: data.salaryMax ?? null,
+          expectedStartDate: data.expectedStartDate ?? null,
+          status,
+        });
+        if (submit) {
+          await insertModerationEvent({
+            entityType: "job_posting",
+            entityId: id,
+            action: "submit",
+            staffId: ctx.user.id,
+          });
+        }
+        await logAudit(ctx, {
+          action: "employer.posting.create",
+          entityType: "job_postings",
+          entityId: id,
+          meta: { status },
+        });
+        return { success: true, id, status } as const;
+      }),
+    // 編輯需求單（僅 draft / rejected 可改）；submit=true 送審
+    updatePosting: employerProcedure
+      .input(
+        jobPostingInput.extend({
+          id: z.number().int().positive(),
+          submit: z.boolean().default(false),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const { id, submit, ...data } = input;
+        const existing = await getJobPostingById(id);
+        if (!existing || existing.employerUserId !== ctx.user.id)
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此需求單" });
+        if (existing.status !== "draft" && existing.status !== "rejected")
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "此需求單目前狀態不可編輯",
+          });
+        const status = submit ? "pending_review" : existing.status;
+        await updateJobPosting(id, {
+          jobType: data.jobType,
+          city: data.city,
+          district: data.district ?? null,
+          headcount: data.headcount,
+          employmentType: data.employmentType,
+          requirements: data.requirements ?? null,
+          publicDescription: data.publicDescription ?? null,
+          salaryMin: data.salaryMin ?? null,
+          salaryMax: data.salaryMax ?? null,
+          expectedStartDate: data.expectedStartDate ?? null,
+          status,
+          rejectReason: submit ? null : existing.rejectReason,
+        });
+        if (submit) {
+          await insertModerationEvent({
+            entityType: "job_posting",
+            entityId: id,
+            action: "submit",
+            staffId: ctx.user.id,
+          });
+        }
+        await logAudit(ctx, {
+          action: "employer.posting.update",
+          entityType: "job_postings",
+          entityId: id,
+          meta: { status },
+        });
+        return { success: true, status } as const;
+      }),
+  }),
+
+  // ─── 審核佇列：需求單審核（P1，staff）─────────────────────────────────────
+  moderation: router({
+    // 待審需求單（附雇主帳號資訊供審核判斷）
+    pendingPostings: staffProcedure.query(async () => {
+      const postings = await getPendingJobPostings();
+      return Promise.all(
+        postings.map(async p => {
+          const employer = await getUserById(p.employerUserId);
+          return {
+            ...p,
+            employerName: employer?.name ?? null,
+            employerEmail: employer?.email ?? null,
+          };
+        })
+      );
+    }),
+    // 通過 → 自動建立 case + 資格 + 需求，並回連（規格 §2-G、§7.3、§10）
+    approvePosting: staffProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          managerId: z.number().int().positive("請指派負責人"),
+          caseName: z
+            .string()
+            .trim()
+            .max(100)
+            .optional()
+            .transform(s => s?.trim() || undefined),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const posting = await getJobPostingById(input.id);
+        if (!posting)
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此需求單" });
+        if (posting.status !== "pending_review")
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "此需求單非待審狀態，無法審核",
+          });
+
+        // 1) 決定雇主 customer：已勾稽用既有；否則自動建立一筆待驗證雇主 stub
+        let customerId = posting.customerId;
+        if (!customerId) {
+          const employer = await getUserById(posting.employerUserId);
+          customerId = await createCustomer({
+            employerType: "company",
+            name: employer?.name || `公開站雇主 #${posting.employerUserId}`,
+            contractStatus: "negotiating",
+            pricingTier: "standard",
+            managerId: input.managerId,
+            notes: "由公開站需求單審核通過時自動建立（待客服勾稽/驗證）。",
+          });
+        }
+
+        // 2) 建立案件（帶入公開縣市，供找工作頁顯示地點）
+        const jobLabel = QUAL_TYPE_LABEL[posting.jobType];
+        const caseName = input.caseName || `${jobLabel}－${posting.city}`;
+        const caseId = await createCase({
+          customerId,
+          name: caseName,
+          managerId: input.managerId,
+          status: "in_progress",
+          publicCity: posting.city,
+        });
+
+        // 3) 建立案件資格 + 媒合需求
+        const qualId = await createQualification({
+          caseId,
+          label: `${jobLabel}（公開需求單）`,
+          category: inferQualCategory(posting.jobType),
+          qualType: posting.jobType,
+          quotaTotal: posting.headcount,
+          applicationStatus: "preparing",
+        });
+        await createDemand({
+          caseId,
+          label: `${jobLabel}－${posting.city}`,
+          qualificationId: qualId,
+          qualType: posting.jobType,
+          neededCount: posting.headcount,
+          status: "open",
+        });
+
+        // 4) 更新需求單狀態並回連 case
+        await updateJobPosting(input.id, {
+          status: "approved",
+          caseId,
+          publishedAt: new Date(),
+          rejectReason: null,
+        });
+        await insertModerationEvent({
+          entityType: "job_posting",
+          entityId: input.id,
+          action: "approve",
+          staffId: ctx.user.id,
+        });
+        await logAudit(ctx, {
+          action: "moderation.posting.approve",
+          entityType: "job_postings",
+          entityId: input.id,
+          meta: { caseId, customerId },
+        });
+        return { success: true, caseId } as const;
+      }),
+    // 退件（附結構化理由 + 補正說明；雇主可修改後重送）
+    rejectPosting: staffProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          reasonCode: z.enum([
+            "incomplete", // 資料不全
+            "illegal_content", // 違規文案
+            "illegal_terms", // 條件不合法
+            "duplicate", // 重複張貼
+            "other", // 其他
+          ]),
+          note: z
+            .string()
+            .trim()
+            .max(280)
+            .optional()
+            .transform(s => s?.trim() || undefined),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const posting = await getJobPostingById(input.id);
+        if (!posting)
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此需求單" });
+        if (posting.status !== "pending_review")
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "此需求單非待審狀態，無法退件",
+          });
+        const reason = input.note
+          ? `${input.reasonCode}:${input.note}`
+          : input.reasonCode;
+        await updateJobPosting(input.id, {
+          status: "rejected",
+          rejectReason: reason.slice(0, 300),
+        });
+        await insertModerationEvent({
+          entityType: "job_posting",
+          entityId: input.id,
+          action: "reject",
+          reason,
+          staffId: ctx.user.id,
+        });
+        await logAudit(ctx, {
+          action: "moderation.posting.reject",
+          entityType: "job_postings",
+          entityId: input.id,
+          meta: { reasonCode: input.reasonCode },
+        });
+        return { success: true } as const;
+      }),
+  }),
+
+  // ─── 公開站：找工作（P1）──────────────────────────────────────────────────
+  // 規格 §15-1 定案「找工作也需登入」→ protectedProcedure（任何登入者可瀏覽）。
+  // 統一呈現兩個來源：① 審核通過的公開需求單；② 既有內部需求單中尚未媒合成功
+  // 且未被隱藏者。皆去識別，不外露任何雇主 PII。
+  publicJobs: router({
+    list: protectedProcedure
+      .input(
+        z
+          .object({
+            category: z
+              .enum(["caregiver", "domestic_helper", "other"])
+              .optional(),
+            city: z.string().trim().max(20).optional(),
+            employmentType: z
+              .enum(["live_in", "live_out", "institution", "other"])
+              .optional(),
+          })
+          .optional()
+      )
+      .query(async ({ input }) => {
+        const [postings, demands] = await Promise.all([
+          listApprovedJobPostings(),
+          listPublicOpenDemands(),
+        ]);
+        type Card = {
+          source: "posting" | "demand";
+          refId: number;
+          category: "caregiver" | "domestic_helper" | "other";
+          jobType: string;
+          city: string | null;
+          district: string | null;
+          employmentType: string | null;
+          headcount: number;
+          publicDescription: string | null;
+          salaryMin: number | null;
+          salaryMax: number | null;
+          postedAt: string | null;
+        };
+        const cards: Card[] = [];
+        for (const p of postings) {
+          cards.push({
+            source: "posting",
+            refId: p.id,
+            category: jobCategory(p.jobType),
+            jobType: p.jobType,
+            city: p.city,
+            district: p.district,
+            employmentType: p.employmentType,
+            headcount: p.headcount,
+            publicDescription: p.publicDescription,
+            salaryMin: p.salaryMin,
+            salaryMax: p.salaryMax,
+            postedAt: (p.publishedAt ?? p.createdAt)?.toISOString() ?? null,
+          });
+        }
+        for (const d of demands) {
+          cards.push({
+            source: "demand",
+            refId: d.id,
+            category: jobCategory(d.qualType),
+            jobType: d.qualType,
+            city: d.publicCity,
+            district: null,
+            employmentType: null,
+            headcount: d.neededCount,
+            publicDescription: null,
+            salaryMin: null,
+            salaryMax: null,
+            postedAt: d.createdAt?.toISOString() ?? null,
+          });
+        }
+        const filtered = cards.filter(c => {
+          if (input?.category && c.category !== input.category) return false;
+          if (input?.city && c.city !== input.city) return false;
+          if (
+            input?.employmentType &&
+            c.employmentType !== input.employmentType
+          )
+            return false;
+          return true;
+        });
+        filtered.sort((a, b) =>
+          (b.postedAt ?? "").localeCompare(a.postedAt ?? "")
+        );
+        return filtered;
+      }),
+    // 單筆職缺詳情（登入可見；仍不外露雇主 PII）
+    get: protectedProcedure
+      .input(
+        z.object({
+          source: z.enum(["posting", "demand"]),
+          id: z.number().int().positive(),
+        })
+      )
+      .query(async ({ input }) => {
+        if (input.source === "posting") {
+          const p = await getJobPostingById(input.id);
+          if (!p || p.status !== "approved")
+            throw new TRPCError({ code: "NOT_FOUND", message: "找不到此職缺" });
+          return {
+            source: "posting" as const,
+            refId: p.id,
+            category: jobCategory(p.jobType),
+            jobType: p.jobType,
+            city: p.city,
+            district: p.district,
+            employmentType: p.employmentType,
+            headcount: p.headcount,
+            requirements: p.requirements,
+            publicDescription: p.publicDescription,
+            salaryMin: p.salaryMin,
+            salaryMax: p.salaryMax,
+            expectedStartDate: p.expectedStartDate,
+            postedAt: (p.publishedAt ?? p.createdAt)?.toISOString() ?? null,
+          };
+        }
+        const d = await getDemandById(input.id);
+        if (
+          !d ||
+          d.publicHidden === 1 ||
+          !["open", "filling"].includes(d.status)
+        )
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此職缺" });
+        const c = await getCaseById(d.caseId);
+        return {
+          source: "demand" as const,
+          refId: d.id,
+          category: jobCategory(d.qualType),
+          jobType: d.qualType,
+          city: c?.publicCity ?? null,
+          district: null,
+          employmentType: null,
+          headcount: d.neededCount,
+          requirements: null,
+          publicDescription: null,
+          salaryMin: null,
+          salaryMax: null,
+          expectedStartDate: null,
+          postedAt: d.createdAt?.toISOString() ?? null,
+        };
+      }),
+    // 「我有興趣」：P1 先記錄意向（稽核）；仲介居中的完整媒合流程於 P3。
+    expressInterest: protectedProcedure
+      .input(
+        z.object({
+          source: z.enum(["posting", "demand"]),
+          id: z.number().int().positive(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        await logAudit(ctx, {
+          action: "public.job.interest",
+          entityType:
+            input.source === "posting" ? "job_postings" : "case_demands",
+          entityId: input.id,
+          meta: { source: input.source },
+        });
+        return { success: true } as const;
       }),
   }),
 });

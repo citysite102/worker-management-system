@@ -28,6 +28,8 @@ export interface AuditInput {
   entityId?: number | null;
   /** 額外資訊；會被 JSON.stringify 存入 meta 欄位。 */
   meta?: Record<string, unknown> | null;
+  /** 明確指定執行者（登入/註冊時 ctx.user 尚未設定，直接帶新使用者 id）。 */
+  actorUserId?: number | null;
 }
 
 /**
@@ -38,7 +40,8 @@ export async function logAudit(
   ctx: Pick<TrpcContext, "user" | "req">,
   input: AuditInput
 ): Promise<void> {
-  const actorUserId = ctx.user?.id && ctx.user.id > 0 ? ctx.user.id : null;
+  const actorUserId =
+    input.actorUserId ?? (ctx.user?.id && ctx.user.id > 0 ? ctx.user.id : null);
   await createAuditLog({
     actorUserId,
     action: input.action,

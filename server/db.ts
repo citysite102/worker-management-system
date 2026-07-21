@@ -112,6 +112,25 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+/** 依 email 查使用者（Email/密碼登入用；email 非唯一，取第一筆）。 */
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/** 建立使用者（Email/密碼註冊用），回傳新 id。 */
+export async function createUser(data: InsertUser): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return insertedId(await db.insert(users).values(data));
+}
+
 /**
  * 從 drizzle/mysql2 的 insert 結果取出自動遞增的主鍵。
  *

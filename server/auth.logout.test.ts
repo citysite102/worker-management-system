@@ -36,6 +36,7 @@ function createAuthContext(): {
     phone: null,
     phoneVerified: 0,
     preferredLang: null,
+    passwordHash: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     lastSignedIn: new Date(),

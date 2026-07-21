@@ -4,9 +4,9 @@ import type { TrpcContext } from "./_core/context";
 
 // Mock DB functions
 vi.mock("./db", () => ({
-  getAllManagers: vi.fn().mockResolvedValue([
-    { id: 1, name: "Jacob", createdAt: new Date() },
-  ]),
+  getAllManagers: vi
+    .fn()
+    .mockResolvedValue([{ id: 1, name: "Jacob", createdAt: new Date() }]),
   // create* 一律回傳新資料的 id（number）。mock 若給錯型別，測試就會放過
   // 「procedure 把整包物件當成 id 回傳」這種錯誤。
   createManager: vi.fn().mockResolvedValue(101),
@@ -26,19 +26,46 @@ vi.mock("./db", () => ({
   updateCustomer: vi.fn().mockResolvedValue({}),
   deleteCustomer: vi.fn().mockResolvedValue({}),
   getComplianceCandidates: vi.fn().mockResolvedValue([]),
+  createAuditLog: vi.fn().mockResolvedValue(undefined),
+  getUserByEmail: vi.fn().mockResolvedValue(undefined),
+  createUser: vi.fn().mockResolvedValue(501),
+}));
+
+// 隔離 session 發放（不簽 JWT、不設 cookie）
+vi.mock("./_core/auth/session", () => ({
+  issueSession: vi.fn().mockResolvedValue(undefined),
+  newLocalOpenId: () => "local_test123",
+}));
+
+// 密碼驗證：以 "correctpass" 為正解，避免真跑 scrypt
+vi.mock("./_core/auth/password", () => ({
+  hashPassword: vi.fn().mockResolvedValue("scrypt$salt$hash"),
+  verifyPassword: vi.fn().mockImplementation(async pw => pw === "correctpass"),
 }));
 
 // 合規候選列的完整欄位骨架（未指定者一律 null），供測試逐案覆寫。
 function complianceCand(overrides: Record<string, unknown> = {}) {
   return {
-    caseId: 9000, caseNo: "GVC25-20200101-000", caseName: "測試案",
-    caseStatus: "in_progress", managerId: 1, managerName: "Jacob",
-    workerId: 5, workerName: "Budi", workerNameCn: "布迪", workerNameEn: "Budi",
+    caseId: 9000,
+    caseNo: "GVC25-20200101-000",
+    caseName: "測試案",
+    caseStatus: "in_progress",
+    managerId: 1,
+    managerName: "Jacob",
+    workerId: 5,
+    workerName: "Budi",
+    workerNameCn: "布迪",
+    workerNameEn: "Budi",
     workerLifecycle: "employed",
     workerLastMedicalExamDate: null,
-    approvedStartDate: null, continuousEmploymentDate: null,
-    approvedEndDate: null, employmentPeriodMonths: null, terminationDate: null,
-    exam6mDate: null, exam18mDate: null, exam30mDate: null,
+    approvedStartDate: null,
+    continuousEmploymentDate: null,
+    approvedEndDate: null,
+    employmentPeriodMonths: null,
+    terminationDate: null,
+    exam6mDate: null,
+    exam18mDate: null,
+    exam30mDate: null,
     ...overrides,
   };
 }
@@ -276,6 +303,91 @@ describe("customers.create validation", () => {
   });
 });
 
+describe("auth.register / auth.login（Email/密碼）", () => {
+  async function db() {
+    return await import("./db");
+  }
+
+  it("register：新 Email 建立帳號、回傳 id 與 accountType", async () => {
+    const d = await db();
+    vi.mocked(d.getUserByEmail).mockResolvedValueOnce(undefined);
+    vi.mocked(d.createUser).mockResolvedValueOnce(501);
+    const caller = appRouter.createCaller(createCtx());
+    const r = await caller.auth.register({
+      email: "New@Example.com",
+      password: "at-least-8",
+      accountType: "worker",
+    });
+    expect(r).toEqual({ success: true, id: 501, accountType: "worker" });
+    // email 應被正規化為小寫
+    expect(vi.mocked(d.createUser).mock.calls[0][0]).toMatchObject({
+      email: "new@example.com",
+      loginMethod: "email",
+      accountType: "worker",
+    });
+  });
+
+  it("register：Email 已存在 → CONFLICT", async () => {
+    const d = await db();
+    vi.mocked(d.getUserByEmail).mockResolvedValueOnce({ id: 9 } as never);
+    const caller = appRouter.createCaller(createCtx());
+    await expect(
+      caller.auth.register({
+        email: "dup@example.com",
+        password: "at-least-8",
+        accountType: "employer",
+      })
+    ).rejects.toThrow("此 Email 已註冊");
+  });
+
+  it("register：密碼太短被擋", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    await expect(
+      caller.auth.register({
+        email: "a@b.com",
+        password: "short",
+        accountType: "worker",
+      })
+    ).rejects.toThrow();
+  });
+
+  it("login：正確密碼 → success", async () => {
+    const d = await db();
+    vi.mocked(d.getUserByEmail).mockResolvedValueOnce({
+      id: 7,
+      openId: "local_x",
+      name: "T",
+      passwordHash: "scrypt$s$h",
+    } as never);
+    const caller = appRouter.createCaller(createCtx());
+    const r = await caller.auth.login({
+      email: "u@example.com",
+      password: "correctpass",
+    });
+    expect(r).toEqual({ success: true });
+  });
+
+  it("login：帳號不存在或密碼錯誤 → 皆回同一錯誤（不洩漏 email 是否存在）", async () => {
+    const d = await db();
+    const caller = appRouter.createCaller(createCtx());
+    // 帳號不存在
+    vi.mocked(d.getUserByEmail).mockResolvedValueOnce(undefined);
+    await expect(
+      caller.auth.login({ email: "nobody@example.com", password: "whatever" })
+    ).rejects.toThrow("帳號或密碼錯誤");
+    // 密碼錯誤
+    vi.mocked(d.getUserByEmail).mockResolvedValueOnce({
+      id: 7,
+      openId: "local_x",
+      name: "T",
+      passwordHash: "scrypt$s$h",
+    } as never);
+    await expect(
+      caller.auth.login({ email: "u@example.com", password: "wrong" })
+    ).rejects.toThrow("帳號或密碼錯誤");
+  });
+});
+
 describe("dashboard.compliance（法定合規提醒）", () => {
   async function setCandidates(rows: Record<string, unknown>[]) {
     const db = await import("./db");
@@ -284,10 +396,20 @@ describe("dashboard.compliance（法定合規提醒）", () => {
 
   it("健檢：起始日久遠且未登錄 → 6/18/30 三次逾期；已登錄者不出現", async () => {
     await setCandidates([
-      complianceCand({ caseId: 9001, workerId: 5, workerNameCn: "布迪", approvedStartDate: "2020-01-01" }),
       complianceCand({
-        caseId: 9002, workerId: 6, workerNameCn: "莎莉", approvedStartDate: "2020-01-01",
-        exam6mDate: "2020-07-01", exam18mDate: "2021-07-01", exam30mDate: "2022-07-01",
+        caseId: 9001,
+        workerId: 5,
+        workerNameCn: "布迪",
+        approvedStartDate: "2020-01-01",
+      }),
+      complianceCand({
+        caseId: 9002,
+        workerId: 6,
+        workerNameCn: "莎莉",
+        approvedStartDate: "2020-01-01",
+        exam6mDate: "2020-07-01",
+        exam18mDate: "2021-07-01",
+        exam30mDate: "2022-07-01",
       }),
     ]);
     const caller = appRouter.createCaller(createCtx());
@@ -295,9 +417,15 @@ describe("dashboard.compliance（法定合規提醒）", () => {
 
     const health = result.alerts.filter(a => a.kind === "health_check");
     expect(health).toHaveLength(3);
-    expect(health.every(a => a.status === "overdue" && a.workerId === 5)).toBe(true);
+    expect(health.every(a => a.status === "overdue" && a.workerId === 5)).toBe(
+      true
+    );
     expect(new Set(health.map(a => a.milestone))).toEqual(new Set([6, 18, 30]));
-    expect(result.countsByKind.healthCheck).toEqual({ overdue: 3, dueNow: 0, upcoming: 0 });
+    expect(result.countsByKind.healthCheck).toEqual({
+      overdue: 3,
+      dueNow: 0,
+      upcoming: 0,
+    });
 
     const m6 = health.find(a => a.milestone === 6)!;
     expect(m6.workerName).toBe("布迪");
@@ -308,7 +436,9 @@ describe("dashboard.compliance（法定合規提醒）", () => {
   it("健檢資料分兩處：移工檔體檢日落在窗口內 → 該次不再逾期", async () => {
     await setCandidates([
       complianceCand({
-        caseId: 9003, workerId: 7, workerNameCn: "阿里",
+        caseId: 9003,
+        workerId: 7,
+        workerNameCn: "阿里",
         approvedStartDate: "2020-01-01",
         workerLastMedicalExamDate: "2020-07-01", // 落在 6 個月窗口 → 補上
       }),
@@ -317,15 +447,22 @@ describe("dashboard.compliance（法定合規提醒）", () => {
     const result = await caller.dashboard.compliance();
     const health = result.alerts.filter(a => a.kind === "health_check");
     // 6m 由移工檔補上，只剩 18m / 30m 逾期
-    expect(health.map(a => a.milestone).sort((x, y) => x! - y!)).toEqual([18, 30]);
+    expect(health.map(a => a.milestone).sort((x, y) => x! - y!)).toEqual([
+      18, 30,
+    ]);
   });
 
   it("聘僱許可：核准聘僱截止日已過 → 逾期續聘提醒", async () => {
     await setCandidates([
       complianceCand({
-        caseId: 9004, workerId: 8, workerNameCn: "妮雅",
-        approvedStartDate: "2020-01-01", approvedEndDate: "2021-01-01",
-        exam6mDate: "2020-07-01", exam18mDate: "2021-07-01", exam30mDate: "2022-07-01",
+        caseId: 9004,
+        workerId: 8,
+        workerNameCn: "妮雅",
+        approvedStartDate: "2020-01-01",
+        approvedEndDate: "2021-01-01",
+        exam6mDate: "2020-07-01",
+        exam18mDate: "2021-07-01",
+        exam30mDate: "2022-07-01",
       }),
     ]);
     const caller = appRouter.createCaller(createCtx());
@@ -340,9 +477,14 @@ describe("dashboard.compliance（法定合規提醒）", () => {
   it("聘僱許可：無截止日但有期間月數 → 由起始日推算截止日（computed）", async () => {
     await setCandidates([
       complianceCand({
-        caseId: 9006, workerId: 10, workerNameCn: "阿德",
-        approvedStartDate: "2020-01-01", employmentPeriodMonths: 12, // 推算截止 2021-01-01
-        exam6mDate: "2020-07-01", exam18mDate: "2021-07-01", exam30mDate: "2022-07-01",
+        caseId: 9006,
+        workerId: 10,
+        workerNameCn: "阿德",
+        approvedStartDate: "2020-01-01",
+        employmentPeriodMonths: 12, // 推算截止 2021-01-01
+        exam6mDate: "2020-07-01",
+        exam18mDate: "2021-07-01",
+        exam30mDate: "2022-07-01",
       }),
     ]);
     const caller = appRouter.createCaller(createCtx());
@@ -356,8 +498,11 @@ describe("dashboard.compliance（法定合規提醒）", () => {
   it("聘僱許可：只有截止日、無起始日 → 仍提醒續聘（不漏接）", async () => {
     await setCandidates([
       complianceCand({
-        caseId: 9007, workerId: 11, workerNameCn: "無起始日",
-        approvedStartDate: null, continuousEmploymentDate: null,
+        caseId: 9007,
+        workerId: 11,
+        workerNameCn: "無起始日",
+        approvedStartDate: null,
+        continuousEmploymentDate: null,
         approvedEndDate: "2021-01-01",
       }),
     ]);
@@ -368,19 +513,29 @@ describe("dashboard.compliance（法定合規提醒）", () => {
     expect(permit[0].status).toBe("overdue");
     expect(permit[0].anchorSource).toBeNull();
     // 沒有起始日就無法推算健檢，不應有健檢提醒
-    expect(result.alerts.filter(a => a.kind === "health_check")).toHaveLength(0);
+    expect(result.alerts.filter(a => a.kind === "health_check")).toHaveLength(
+      0
+    );
   });
 
   it("聘僱許可：已終止（terminationDate 有值）不提醒續聘", async () => {
     await setCandidates([
       complianceCand({
-        caseId: 9005, workerId: 9, workerNameCn: "阿明",
-        approvedStartDate: "2020-01-01", approvedEndDate: "2021-01-01", terminationDate: "2020-12-01",
-        exam6mDate: "2020-07-01", exam18mDate: "2021-07-01", exam30mDate: "2022-07-01",
+        caseId: 9005,
+        workerId: 9,
+        workerNameCn: "阿明",
+        approvedStartDate: "2020-01-01",
+        approvedEndDate: "2021-01-01",
+        terminationDate: "2020-12-01",
+        exam6mDate: "2020-07-01",
+        exam18mDate: "2021-07-01",
+        exam30mDate: "2022-07-01",
       }),
     ]);
     const caller = appRouter.createCaller(createCtx());
     const result = await caller.dashboard.compliance();
-    expect(result.alerts.filter(a => a.kind === "employment_permit")).toHaveLength(0);
+    expect(
+      result.alerts.filter(a => a.kind === "employment_permit")
+    ).toHaveLength(0);
   });
 });

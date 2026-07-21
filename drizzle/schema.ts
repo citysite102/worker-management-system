@@ -30,6 +30,8 @@ export const users = mysqlTable(
     phone: varchar("phone", { length: 20 }),
     phoneVerified: int("phoneVerified").default(0).notNull(), // 0/1（沿用專案以 int 表布林的慣例）
     preferredLang: mysqlEnum("preferredLang", ["zh-TW", "vi", "id", "en"]),
+    // Email/密碼登入用（scrypt 雜湊；社群/OAuth 帳號為 null）。見 server/_core/auth。
+    passwordHash: varchar("passwordHash", { length: 255 }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
     lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

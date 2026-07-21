@@ -85,6 +85,9 @@ import {
 } from "@shared/healthCheck";
 import { storagePut } from "./storage";
 import { logAudit } from "./_core/audit";
+import { getUserByEmail, createUser } from "./db";
+import { hashPassword, verifyPassword } from "./_core/auth/password";
+import { issueSession, newLocalOpenId } from "./_core/auth/session";
 import {
   validateTwPhone,
   normalizePhone,
@@ -622,6 +625,93 @@ export const appRouter = router({
       await logAudit(ctx, { action: "auth.logout" });
       return { success: true } as const;
     }),
+
+    // ─── Email/密碼 註冊（公開；社群/OAuth 走 /api/oauth 與後續 P1 供應商）────────
+    register: publicProcedure
+      .input(
+        z.object({
+          email: z
+            .string()
+            .trim()
+            .toLowerCase()
+            .email("Email 格式不正確")
+            .max(320),
+          password: z.string().min(8, "密碼至少 8 碼").max(200),
+          accountType: z.enum(["worker", "employer"]),
+          name: z
+            .string()
+            .trim()
+            .max(100)
+            .optional()
+            .transform(s => s?.trim() || undefined),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const existing = await getUserByEmail(input.email);
+        if (existing) {
+          throw new TRPCError({ code: "CONFLICT", message: "此 Email 已註冊" });
+        }
+        const openId = newLocalOpenId();
+        const passwordHash = await hashPassword(input.password);
+        const id = await createUser({
+          openId,
+          email: input.email,
+          name: input.name ?? null,
+          loginMethod: "email",
+          role: "user",
+          accountType: input.accountType,
+          passwordHash,
+          lastSignedIn: new Date(),
+        });
+        await issueSession(ctx.req, ctx.res, {
+          openId,
+          name: input.name ?? null,
+        });
+        await logAudit(ctx, {
+          action: "auth.register",
+          entityType: "users",
+          entityId: id,
+          actorUserId: id,
+          meta: { accountType: input.accountType, loginMethod: "email" },
+        });
+        return { success: true, id, accountType: input.accountType } as const;
+      }),
+
+    // ─── Email/密碼 登入（公開）───────────────────────────────────────────────
+    login: publicProcedure
+      .input(
+        z.object({
+          email: z
+            .string()
+            .trim()
+            .toLowerCase()
+            .email("Email 格式不正確")
+            .max(320),
+          password: z.string().min(1).max(200),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const user = await getUserByEmail(input.email);
+        const ok =
+          user && (await verifyPassword(input.password, user.passwordHash));
+        // 不區分「帳號不存在」與「密碼錯誤」，避免洩漏 email 是否註冊
+        if (!user || !ok) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "帳號或密碼錯誤",
+          });
+        }
+        await issueSession(ctx.req, ctx.res, {
+          openId: user.openId,
+          name: user.name,
+        });
+        await logAudit(ctx, {
+          action: "auth.login",
+          actorUserId: user.id,
+          meta: { loginMethod: "email" },
+        });
+        return { success: true } as const;
+      }),
   }),
 
   // ─── Dashboard（統計總覽）────────────────────────────────────────────────────

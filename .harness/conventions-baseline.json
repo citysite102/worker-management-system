@@ -1,8 +1,10 @@
 {
   "_comment": "由 scripts/check-conventions.mjs --update 產生。清單只能縮小，不能變長；縮小後請重跑 --update 把 baseline 收緊，避免退步空間被保留。",
   "publicProcedures": [
+    "auth.login",
     "auth.logout",
     "auth.me",
+    "auth.register",
     "caseAssignments.addWorker",
     "caseAssignments.create",
     "caseAssignments.delete",

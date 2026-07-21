@@ -22,6 +22,7 @@ const ADMIN_USER: User = {
   phone: null,
   phoneVerified: 0,
   preferredLang: null,
+  passwordHash: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
   updatedAt: new Date("2026-01-01T00:00:00Z"),
   lastSignedIn: new Date("2026-01-01T00:00:00Z"),

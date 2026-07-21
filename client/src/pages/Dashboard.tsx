@@ -1,6 +1,7 @@
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { getStatusLabel, type LabelDomain } from "@/lib/constants";
+import { expiryTier, EXPIRY_PILL_CLASS, expiryLabel } from "@/lib/expiry";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, Building2, Briefcase, UserCheck, CalendarClock, AlertTriangle, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
 
@@ -114,6 +115,7 @@ function TrendBadge({ delta, goodWhenUp, since }: { delta: number; goodWhenUp: b
 export default function Dashboard() {
   const [, navigate] = useLocation();
   const { data, isLoading } = trpc.dashboard.summary.useQuery();
+  const { data: compliance, isLoading: complianceLoading } = trpc.dashboard.compliance.useQuery();
   const trends = data?.trends ?? null;
 
   const statCards = [
@@ -190,7 +192,6 @@ export default function Dashboard() {
         ) : (
           <ul data-testid="dashboard-expiring-list" className="divide-y">
             {data!.expiringDocuments.map((d, i) => {
-              const expired = d.daysLeft < 0;
               return (
                 <li
                   key={`${d.workerId}-${d.docType}-${i}`}
@@ -207,11 +208,76 @@ export default function Dashboard() {
                     </span>
                   </span>
                   <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                      expired ? "status-red" : "status-amber"
+                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EXPIRY_PILL_CLASS[expiryTier(d.daysLeft)]}`}
+                  >
+                    {expiryLabel(d.daysLeft)}
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {/* 法定合規提醒（定期健檢 6/18/30 個月 + 聘僱許可續聘） */}
+      <div data-testid="dashboard-compliance" className="rounded-lg border bg-card">
+        <div className="flex items-center gap-2 px-5 py-4 border-b flex-wrap">
+          <AlertTriangle className="w-4 h-4 text-red-500" />
+          <h2 className="text-sm font-semibold">法定合規提醒</h2>
+          <span className="text-xs text-muted-foreground">（定期健檢 6/18/30 個月 · 聘僱許可續聘）</span>
+          {compliance && (compliance.counts.overdue > 0 || compliance.counts.dueNow > 0) && (
+            <span className="ml-auto flex items-center gap-2 text-xs">
+              {compliance.counts.overdue > 0 && (
+                <span className="text-red-600 font-medium">{compliance.counts.overdue} 筆逾期</span>
+              )}
+              {compliance.counts.dueNow > 0 && (
+                <span className="text-orange-500 font-medium">{compliance.counts.dueNow} 筆待辦</span>
+              )}
+            </span>
+          )}
+        </div>
+        {complianceLoading ? (
+          <div className="px-5 py-8 text-center text-sm text-muted-foreground">載入中…</div>
+        ) : (compliance?.alerts.length ?? 0) === 0 ? (
+          <div data-testid="dashboard-compliance-empty" className="px-5 py-8 text-center text-sm text-muted-foreground">目前沒有即將到期或逾期的法定合規事項 🎉</div>
+        ) : (
+          <ul data-testid="dashboard-compliance-list" className="divide-y">
+            {compliance!.alerts.map((a) => {
+              const isOverdue = a.status === "overdue";
+              const isDueNow = a.status === "due_now";
+              const isHealth = a.kind === "health_check";
+              const badgeClass = isOverdue ? "status-red" : isDueNow ? "status-amber" : "status-gray";
+              const badgeText = isOverdue
+                ? `逾期 ${Math.abs(a.daysToDeadline)} 天`
+                : isHealth
+                  ? `應於 ${a.windowEnd} 前完成`
+                  : `${a.daysToDeadline} 天後到期`;
+              return (
+                <li
+                  key={isHealth ? `hc-${a.caseId}-${a.milestone}` : `ep-${a.caseId}`}
+                  data-testid="dashboard-compliance-row"
+                  data-case-id={a.caseId}
+                  data-kind={a.kind}
+                  data-status={a.status}
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                  onClick={() => navigate(`/cases/${a.caseId}`)}
+                >
+                  <span
+                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium shrink-0 ${
+                      isHealth ? "bg-sky-50 text-sky-600 border border-sky-200" : "bg-violet-50 text-violet-600 border border-violet-200"
                     }`}
                   >
-                    {expired ? `已過期 ${Math.abs(d.daysLeft)} 天` : `${d.daysLeft} 天後到期`}
+                    {isHealth ? "健檢" : "聘僱許可"}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="font-medium text-sm">{a.workerName}</span>
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {a.title} · {isHealth ? `基準日 ${a.dueDate}` : `截止日 ${a.dueDate}`} · 負責人 {a.managerName}
+                    </span>
+                  </span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${badgeClass}`}>
+                    {badgeText}
                   </span>
                   <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                 </li>

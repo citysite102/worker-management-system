@@ -13,7 +13,7 @@ function daysUntilExpiry(dateStr: string): number {
 }
 
 type NotificationItem = {
-  id: string; // 複合 key：`${workerId}-${expiryType}`
+  id: string; // 複合 key：`${workerId}-${expiryType}` 或 `hc-${caseId}-${milestone}`
   workerId: number;
   name: string;
   expiryDate: string;
@@ -21,6 +21,9 @@ type NotificationItem = {
   days: number;
   managerName: string;
   urgency: "expired" | "critical" | "warning"; // 已過期 / 30天內 / 90天內
+  labelOverride?: string; // 自訂緊急標籤（健檢用）
+  detailText?: string;    // 自訂明細文字（健檢用）
+  href?: string;          // 自訂導航目標（健檢導向案件）
 };
 
 export function NotificationBell() {
@@ -30,7 +33,8 @@ export function NotificationBell() {
 
   const { data: workers = [], isLoading: workersLoading } = trpc.workers.list.useQuery();
   const { data: managers = [], isLoading: managersLoading } = trpc.managers.list.useQuery();
-  const isLoading = workersLoading || managersLoading;
+  const { data: compliance, isLoading: complianceLoading } = trpc.dashboard.compliance.useQuery();
+  const isLoading = workersLoading || managersLoading || complianceLoading;
 
   const managerMap = useMemo(() => {
     const map: Record<number, string> = {};
@@ -65,20 +69,42 @@ export function NotificationBell() {
         const item = makeItem((w as any).passportExpiry, "passport");
         if (item.days <= 90) items.push(item);
       }
-      // 體檢：根據最近一次體檢日期自動計算下次可體檢日（+5個月）
-      const lastExam = (w as any).lastMedicalExamDate as string | undefined;
-      if (lastExam) {
-        const d = new Date(lastExam);
-        if (!isNaN(d.getTime())) {
-          d.setMonth(d.getMonth() + 5);
-          const nextExamStr = d.toISOString().slice(0, 10);
-          const item = makeItem(nextExamStr, "medical");
-          if (item.days <= 90) items.push(item);
-        }
-      }
     });
+
+    // 法定合規（定期健檢 6/18/30 個月 + 聘僱許可續聘）：由後端合規引擎依聘僱起始日
+    // 推算法定窗口。健檢不再用「上次體檢 + 5 個月」的錯誤公式（首次健檢無上一次
+    // 紀錄會整個漏掉，正是收到衛生局逾期公文的成因）；聘僱許可續聘為新增涵蓋。
+    (compliance?.alerts ?? []).forEach(a => {
+      const urgency: NotificationItem["urgency"] =
+        a.status === "overdue" ? "expired" : a.status === "due_now" ? "critical" : "warning";
+      const isHealth = a.kind === "health_check";
+      const label =
+        a.status === "overdue"
+          ? `逾期 ${Math.abs(a.daysToDeadline)} 天`
+          : isHealth
+            ? `應於 ${a.windowEnd} 前完成`
+            : `${a.daysToDeadline} 天後到期`;
+      // 排序用天數：逾期為負，越前面
+      const sortDays = a.daysToDeadline;
+      items.push({
+        id: isHealth ? `hc-${a.caseId}-${a.milestone}` : `ep-${a.caseId}`,
+        workerId: a.workerId,
+        name: a.workerName,
+        expiryDate: a.dueDate,
+        expiryType: "medical",
+        days: sortDays,
+        managerName: a.managerName,
+        urgency,
+        labelOverride: label,
+        detailText: isHealth
+          ? `${a.title}（基準日 ${a.dueDate}）`
+          : `聘僱許可到期：${a.dueDate}`,
+        href: `/cases/${a.caseId}`,
+      });
+    });
+
     return items.sort((a, b) => a.days - b.days);
-  }, [workers, managerMap]);
+  }, [workers, managerMap, compliance]);
 
   const expiredCount = notifications.filter(n => n.urgency === "expired").length;
   const criticalCount = notifications.filter(n => n.urgency === "critical").length;
@@ -107,7 +133,7 @@ export function NotificationBell() {
   // 點擊通知項目 → 導航至該名移工詳情頁，並醒目對應文件區塊
   const handleItemClick = (n: NotificationItem) => {
     setOpen(false);
-    setLocation(`/workers/${n.workerId}?highlight=${n.expiryType}`);
+    setLocation(n.href ?? `/workers/${n.workerId}?highlight=${n.expiryType}`);
   };
 
   // urgency 樣式
@@ -118,6 +144,7 @@ export function NotificationBell() {
   };
 
   const urgencyLabel = (n: NotificationItem) => {
+    if (n.labelOverride) return n.labelOverride;
     if (n.urgency === "expired") return `已過期 ${Math.abs(n.days)} 天`;
     return `${n.days} 天後到期`;
   };
@@ -199,7 +226,7 @@ export function NotificationBell() {
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-muted-foreground">
-                            {n.expiryType === "resident" ? "居留證" : n.expiryType === "passport" ? "護照" : "體檢"}到期：{n.expiryDate}
+                            {n.detailText ?? `${n.expiryType === "resident" ? "居留證" : n.expiryType === "passport" ? "護照" : "體檢"}到期：${n.expiryDate}`}
                           </span>
                           <span className="text-muted-foreground/40">·</span>
                           <span className="text-xs text-muted-foreground truncate">

@@ -25,7 +25,23 @@ vi.mock("./db", () => ({
   createCustomer: vi.fn().mockResolvedValue(301),
   updateCustomer: vi.fn().mockResolvedValue({}),
   deleteCustomer: vi.fn().mockResolvedValue({}),
+  getComplianceCandidates: vi.fn().mockResolvedValue([]),
 }));
+
+// 合規候選列的完整欄位骨架（未指定者一律 null），供測試逐案覆寫。
+function complianceCand(overrides: Record<string, unknown> = {}) {
+  return {
+    caseId: 9000, caseNo: "GVC25-20200101-000", caseName: "測試案",
+    caseStatus: "in_progress", managerId: 1, managerName: "Jacob",
+    workerId: 5, workerName: "Budi", workerNameCn: "布迪", workerNameEn: "Budi",
+    workerLifecycle: "employed",
+    workerLastMedicalExamDate: null,
+    approvedStartDate: null, continuousEmploymentDate: null,
+    approvedEndDate: null, employmentPeriodMonths: null, terminationDate: null,
+    exam6mDate: null, exam18mDate: null, exam30mDate: null,
+    ...overrides,
+  };
+}
 
 function createCtx(): TrpcContext {
   return {
@@ -257,5 +273,114 @@ describe("customers.create validation", () => {
       managerId: 1,
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe("dashboard.compliance（法定合規提醒）", () => {
+  async function setCandidates(rows: Record<string, unknown>[]) {
+    const db = await import("./db");
+    vi.mocked(db.getComplianceCandidates).mockResolvedValueOnce(rows as never);
+  }
+
+  it("健檢：起始日久遠且未登錄 → 6/18/30 三次逾期；已登錄者不出現", async () => {
+    await setCandidates([
+      complianceCand({ caseId: 9001, workerId: 5, workerNameCn: "布迪", approvedStartDate: "2020-01-01" }),
+      complianceCand({
+        caseId: 9002, workerId: 6, workerNameCn: "莎莉", approvedStartDate: "2020-01-01",
+        exam6mDate: "2020-07-01", exam18mDate: "2021-07-01", exam30mDate: "2022-07-01",
+      }),
+    ]);
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.dashboard.compliance();
+
+    const health = result.alerts.filter(a => a.kind === "health_check");
+    expect(health).toHaveLength(3);
+    expect(health.every(a => a.status === "overdue" && a.workerId === 5)).toBe(true);
+    expect(new Set(health.map(a => a.milestone))).toEqual(new Set([6, 18, 30]));
+    expect(result.countsByKind.healthCheck).toEqual({ overdue: 3, dueNow: 0, upcoming: 0 });
+
+    const m6 = health.find(a => a.milestone === 6)!;
+    expect(m6.workerName).toBe("布迪");
+    expect(m6.anchorSource).toBe("approved");
+    expect(m6.dueDate).toBe("2020-07-01");
+  });
+
+  it("健檢資料分兩處：移工檔體檢日落在窗口內 → 該次不再逾期", async () => {
+    await setCandidates([
+      complianceCand({
+        caseId: 9003, workerId: 7, workerNameCn: "阿里",
+        approvedStartDate: "2020-01-01",
+        workerLastMedicalExamDate: "2020-07-01", // 落在 6 個月窗口 → 補上
+      }),
+    ]);
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.dashboard.compliance();
+    const health = result.alerts.filter(a => a.kind === "health_check");
+    // 6m 由移工檔補上，只剩 18m / 30m 逾期
+    expect(health.map(a => a.milestone).sort((x, y) => x! - y!)).toEqual([18, 30]);
+  });
+
+  it("聘僱許可：核准聘僱截止日已過 → 逾期續聘提醒", async () => {
+    await setCandidates([
+      complianceCand({
+        caseId: 9004, workerId: 8, workerNameCn: "妮雅",
+        approvedStartDate: "2020-01-01", approvedEndDate: "2021-01-01",
+        exam6mDate: "2020-07-01", exam18mDate: "2021-07-01", exam30mDate: "2022-07-01",
+      }),
+    ]);
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.dashboard.compliance();
+    const permit = result.alerts.filter(a => a.kind === "employment_permit");
+    expect(permit).toHaveLength(1);
+    expect(permit[0].status).toBe("overdue");
+    expect(permit[0].dueDate).toBe("2021-01-01");
+    expect(permit[0].title).toBe("聘僱許可續聘");
+  });
+
+  it("聘僱許可：無截止日但有期間月數 → 由起始日推算截止日（computed）", async () => {
+    await setCandidates([
+      complianceCand({
+        caseId: 9006, workerId: 10, workerNameCn: "阿德",
+        approvedStartDate: "2020-01-01", employmentPeriodMonths: 12, // 推算截止 2021-01-01
+        exam6mDate: "2020-07-01", exam18mDate: "2021-07-01", exam30mDate: "2022-07-01",
+      }),
+    ]);
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.dashboard.compliance();
+    const permit = result.alerts.filter(a => a.kind === "employment_permit");
+    expect(permit).toHaveLength(1);
+    expect(permit[0].dueDate).toBe("2021-01-01");
+    expect(permit[0].endDateSource).toBe("computed");
+  });
+
+  it("聘僱許可：只有截止日、無起始日 → 仍提醒續聘（不漏接）", async () => {
+    await setCandidates([
+      complianceCand({
+        caseId: 9007, workerId: 11, workerNameCn: "無起始日",
+        approvedStartDate: null, continuousEmploymentDate: null,
+        approvedEndDate: "2021-01-01",
+      }),
+    ]);
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.dashboard.compliance();
+    const permit = result.alerts.filter(a => a.kind === "employment_permit");
+    expect(permit).toHaveLength(1);
+    expect(permit[0].status).toBe("overdue");
+    expect(permit[0].anchorSource).toBeNull();
+    // 沒有起始日就無法推算健檢，不應有健檢提醒
+    expect(result.alerts.filter(a => a.kind === "health_check")).toHaveLength(0);
+  });
+
+  it("聘僱許可：已終止（terminationDate 有值）不提醒續聘", async () => {
+    await setCandidates([
+      complianceCand({
+        caseId: 9005, workerId: 9, workerNameCn: "阿明",
+        approvedStartDate: "2020-01-01", approvedEndDate: "2021-01-01", terminationDate: "2020-12-01",
+        exam6mDate: "2020-07-01", exam18mDate: "2021-07-01", exam30mDate: "2022-07-01",
+      }),
+    ]);
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.dashboard.compliance();
+    expect(result.alerts.filter(a => a.kind === "employment_permit")).toHaveLength(0);
   });
 });

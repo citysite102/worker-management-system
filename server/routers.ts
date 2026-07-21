@@ -18,7 +18,12 @@ import {
   getCareReceiversByCustomerId, createCareReceiver, updateCareReceiver, deleteCareReceiver,
   getQualificationsByCustomerId, createCustomerQualification, updateCustomerQualification, deleteCustomerQualification,
   getDashboardCounts, getExpiryCandidateWorkers, upsertKpiSnapshot, getPreviousKpiSnapshot,
+  getComplianceCandidates,
 } from "./db";
+import {
+  evaluateHealthChecks, isActionableStatus, statusRank, milestoneLabel, classifyDeadline,
+  addMonthsYmd, type HealthCheckStatus,
+} from "@shared/healthCheck";
 import { storagePut } from "./storage";
 import {
   validateTwPhone, normalizePhone, validateResidentPermit, validatePassport, validateTaxId, validateNotFutureDate,
@@ -345,6 +350,156 @@ export const appRouter = router({
         casesByStatus,
         customersByType,
         expiringDocuments,
+        generatedAt: new Date().toISOString(),
+      };
+    }),
+
+    // ─── 法定合規提醒（同一套引擎）───────────────────────────────────────────
+    // 一次算出兩類會被主管機關裁處的到期義務，回傳需處理清單：
+    //   ① 定期健檢（工作滿 6/18/30 個月，前後 30 日窗口）——避免衛生局逾期移送
+    //   ② 聘僱許可續聘（核准聘僱截止日前須辦續聘/展延）——避免許可到期失效
+    // 居留證/護照到期已由 dashboard.summary 的證件到期提醒涵蓋，不在此重複。
+    compliance: publicProcedure.query(async () => {
+      const CLOSED_STATUSES = ["returned", "absconded"];
+      const todayStr = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Taipei",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date()); // YYYY-MM-DD（台北時區）
+
+      const candidates = await getComplianceCandidates(CLOSED_STATUSES);
+
+      type ComplianceAlert = {
+        kind: "health_check" | "employment_permit";
+        caseId: number;
+        caseNo: string;
+        caseName: string;
+        workerId: number;
+        workerName: string;
+        managerName: string;
+        title: string;
+        status: HealthCheckStatus;
+        anchorDate: string | null;
+        anchorSource: "approved" | "continuous" | null;
+        dueDate: string; // 關鍵到期日（健檢＝基準日；許可＝截止日）
+        deadlineDate: string; // 最後期限（健檢＝窗口迄日；許可＝截止日），逾期天數以此算
+        daysToDeadline: number; // 今天 → deadlineDate
+        // 健檢專屬
+        milestone?: 6 | 18 | 30;
+        windowStart?: string;
+        windowEnd?: string;
+        recordedSource?: "case" | "worker" | null;
+        // 許可專屬
+        endDateSource?: "approvedEndDate" | "computed";
+      };
+
+      const alerts = candidates.flatMap((c): ComplianceAlert[] => {
+        if (!c.workerId) return [];
+        const workerId = c.workerId;
+        // 基準日：優先雇主資格核准聘僱起始日，退而求其次案件接續聘僱日期
+        const anchorDate = c.approvedStartDate || c.continuousEmploymentDate || null;
+        const anchorSource: "approved" | "continuous" | null = c.approvedStartDate
+          ? "approved"
+          : c.continuousEmploymentDate
+            ? "continuous"
+            : null;
+        const displayName = c.workerNameCn || c.workerNameEn || c.workerName || "—";
+        const managerName = c.managerName ?? "—";
+        const base = {
+          caseId: c.caseId,
+          caseNo: c.caseNo ?? "",
+          caseName: c.caseName,
+          workerId,
+          workerName: displayName,
+          managerName,
+        };
+        const out: ComplianceAlert[] = [];
+
+        // ① 定期健檢（需要基準日才能推算）
+        if (anchorDate && anchorSource) {
+          const results = evaluateHealthChecks({
+            anchorDate,
+            today: todayStr,
+            recorded: { 6: c.exam6mDate, 18: c.exam18mDate, 30: c.exam30mDate },
+            // 健檢資料分兩處：移工檔的體檢日若落在窗口內也算完成
+            fallbackExamDates: [c.workerLastMedicalExamDate],
+          });
+          for (const r of results) {
+            if (!isActionableStatus(r.status)) continue;
+            out.push({
+              ...base,
+              kind: "health_check",
+              title: milestoneLabel(r.milestone),
+              status: r.status,
+              anchorDate,
+              anchorSource,
+              dueDate: r.dueDate,
+              deadlineDate: r.windowEnd,
+              daysToDeadline: r.daysToWindowEnd,
+              milestone: r.milestone,
+              windowStart: r.windowStart,
+              windowEnd: r.windowEnd,
+              recordedSource: r.recordedSource,
+            });
+          }
+        }
+
+        // ② 聘僱許可續聘（核准聘僱截止日；缺值時由起始日 + 期間月數推算）
+        if (!c.terminationDate) {
+          let endDate: string | null = c.approvedEndDate || null;
+          let endDateSource: "approvedEndDate" | "computed" = "approvedEndDate";
+          if (!endDate && anchorDate && c.employmentPeriodMonths) {
+            endDate = addMonthsYmd(anchorDate, c.employmentPeriodMonths);
+            endDateSource = "computed";
+          }
+          // 續聘提醒只需截止日即可；起始日缺漏也不該漏掉這個法定期限
+          if (endDate) {
+            const d = classifyDeadline(endDate, todayStr); // 預設提前 120 天、60 天內緊迫
+            if (d && isActionableStatus(d.status)) {
+              out.push({
+                ...base,
+                kind: "employment_permit",
+                title: "聘僱許可續聘",
+                status: d.status,
+                anchorDate,
+                anchorSource,
+                dueDate: endDate,
+                deadlineDate: endDate,
+                daysToDeadline: d.daysLeft,
+                endDateSource,
+              });
+            }
+          }
+        }
+
+        return out;
+      });
+
+      // 逾期最前，其次緊迫、提前提醒；同級以最後期限近者優先
+      alerts.sort((a, b) => {
+        const byStatus = statusRank(a.status) - statusRank(b.status);
+        if (byStatus !== 0) return byStatus;
+        return a.daysToDeadline - b.daysToDeadline;
+      });
+
+      const countBy = (kind: ComplianceAlert["kind"] | "all") => {
+        const pool = kind === "all" ? alerts : alerts.filter((a) => a.kind === kind);
+        return {
+          overdue: pool.filter((a) => a.status === "overdue").length,
+          dueNow: pool.filter((a) => a.status === "due_now").length,
+          upcoming: pool.filter((a) => a.status === "upcoming").length,
+        };
+      };
+
+      return {
+        alerts,
+        counts: countBy("all"),
+        countsByKind: {
+          healthCheck: countBy("health_check"),
+          employmentPermit: countBy("employment_permit"),
+        },
+        today: todayStr,
         generatedAt: new Date().toISOString(),
       };
     }),

@@ -309,10 +309,26 @@
 
 ## 即將到期文件視覺提醒（v5.16）
 
-- [ ] server-side：新增 workers.getExpiringDocuments procedure（查詢 90 天內到期的居留證/護照/體檢）
-- [ ] Dashboard：加入「即將到期文件」提醒區塊（紅/橙/黃三段顏色，依到期天數區分）
-- [ ] CaseDetail：加入案件關聯移工的到期文件提醒 Banner
-- [ ] 到期狀態色彩規則：已過期=紅、14 天內=橙紅、30 天內=橙、90 天內=黃
+- [x] ~~server-side：workers.getExpiringDocuments procedure~~（已由 dashboard.summary 的 expiringDocuments 內建取代，不另立 procedure）
+- [x] Dashboard：「證件到期提醒」區塊（居留證/護照，已過期或 60 天內）
+- [x] CaseDetail：加入案件的法定合規提醒 Banner（見「法定合規引擎」章節）
+- [x] 到期狀態色彩規則統一：已過期=紅、14 天內=橙紅、30 天內=橙、90 天內=黃（client/src/lib/expiry.ts）
+
+## 法定合規引擎（健檢 6/18/30 個月 + 聘僱許可續聘）
+
+背景：曾因「工作滿 6 個月定期健檢逾期」收到新北市衛生局移送公文。
+
+- [x] shared/healthCheck.ts：定期健檢窗口引擎（起始日 approvedStartDate + 6/18/30 個月，前後 30 日窗口，提前 45 天提醒）
+- [x] shared/healthCheck.ts：classifyDeadline 固定到期日分級器（聘僱許可續聘用，提前 120 天/60 天內緊迫）
+- [x] 健檢資料分兩處：移工檔 lastMedicalExamDate 落在窗口內即視為完成（recordedSource=worker），避免誤判逾期
+- [x] server：getComplianceCandidates 查詢 + dashboard.compliance procedure（合併健檢與聘僱許可，回傳分級清單）
+- [x] 聘僱許可續聘：以 approvedEndDate 為到期日，缺值時由起始日 + 期間月數推算；已終止案件不提醒
+- [x] NotificationBell + Dashboard：改吃 dashboard.compliance；移除錯誤的「上次體檢 + 5 個月」公式
+- [x] CaseDetail：頂部合規 Banner + 體檢卡片 6/18/30 列就地標示逾期/辦理中
+- [x] workers.nextMedicalExamType 標為 deprecated（改由引擎推算，欄位保留相容）
+- [x] 測試：引擎 25 個、路由 21 個
+- [ ] （未做）主動 email 排程通知負責人——真正「零漏接」的關鍵，不靠登入看鈴鐺
+- [ ] （未做）體檢日期欄位根本統一（移工層 vs 案件層），目前靠引擎 fallback 相容
 
 ## CSV 匯出功能（v5.17）
 

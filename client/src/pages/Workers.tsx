@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { WorkerModal } from "@/components/WorkerModal";
 import { ImportWorkerModal } from "@/components/ImportWorkerModal";
 import { getStatusLabel, LIFECYCLE_STATUS_OPTIONS, DOCUMENT_STATUS_OPTIONS, OCCUPATION_OPTIONS } from "@/lib/constants";
+import { expiryTier, EXPIRY_TEXT_CLASS, isExpiryUrgent } from "@/lib/expiry";
 import { exportToCsv } from "@/lib/exportToCsv";
 import { toast } from "sonner";
 import { Plus, Search, Pencil, Trash2, Users, Briefcase, FileWarning, UserSearch, X, CalendarClock, ExternalLink, Upload, Download } from "lucide-react";
@@ -28,7 +29,7 @@ function daysUntilExpiry(dateStr: string): number {
   return Math.round((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-/** 到期日標色與標籤 */
+/** 到期日標色與標籤（沿用全站統一的 4 段到期色彩規則） */
 function expiryInfo(dateStr: string | null | undefined): {
   label: string;
   className: string;
@@ -36,19 +37,10 @@ function expiryInfo(dateStr: string | null | undefined): {
 } {
   if (!dateStr) return { label: "—", className: "text-muted-foreground", urgent: false };
   const days = daysUntilExpiry(dateStr);
-  if (days < 0) {
-    return { label: `${dateStr}（已過期 ${Math.abs(days)} 天）`, className: "text-red-500 font-medium", urgent: true };
-  }
-  if (days === 0) {
-    return { label: `${dateStr}（今日到期）`, className: "text-red-500 font-medium", urgent: true };
-  }
-  if (days <= 30) {
-    return { label: `${dateStr}（剩 ${days} 天）`, className: "text-red-500 font-medium", urgent: true };
-  }
-  if (days <= 90) {
-    return { label: `${dateStr}（剩 ${days} 天）`, className: "text-amber-500 font-medium", urgent: false };
-  }
-  return { label: dateStr, className: "text-muted-foreground", urgent: false };
+  const tier = expiryTier(days);
+  if (tier === "ok") return { label: dateStr, className: EXPIRY_TEXT_CLASS.ok, urgent: false };
+  const suffix = days < 0 ? `已過期 ${Math.abs(days)} 天` : days === 0 ? "今日到期" : `剩 ${days} 天`;
+  return { label: `${dateStr}（${suffix}）`, className: EXPIRY_TEXT_CLASS[tier], urgent: isExpiryUrgent(days) };
 }
 
 // ─── 快速篩選標籤定義 ─────────────────────────────────────────────────────────

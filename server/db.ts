@@ -748,6 +748,54 @@ export async function getExpiryCandidateWorkers(cutoffDate: string, closedStatus
     );
 }
 
+/**
+ * 取得「法定合規」候選：以案件為單位，串起
+ *   案件 → 主要移工（誰）→ 雇主資格（基準日 approvedStartDate / 聘僱許可截止日 approvedEndDate）
+ *        → 案件上 6/18/30 個月體檢日（是否已辦）＋ 移工檔體檢日（資料分兩處的退路）。
+ * 只取非取消案件、且主要移工未結案（未回國/未逃跑）者。實際到期判定在 shared/healthCheck.ts。
+ */
+export async function getComplianceCandidates(closedStatuses: string[]) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      caseId: cases.id,
+      caseNo: cases.caseNo,
+      caseName: cases.name,
+      caseStatus: cases.status,
+      managerId: cases.managerId,
+      managerName: managers.name,
+      workerId: cases.primaryWorkerId,
+      workerName: workers.name,
+      workerNameCn: workers.nameCn,
+      workerNameEn: workers.nameEn,
+      workerLifecycle: workers.lifecycleStatus,
+      // 移工檔另記的體檢日（處理健檢資料分兩處）
+      workerLastMedicalExamDate: workers.lastMedicalExamDate,
+      // 基準日優先取雇主資格的核准聘僱起始日，退而求其次用案件的接續聘僱日期
+      approvedStartDate: customerQualifications.approvedStartDate,
+      continuousEmploymentDate: cases.continuousEmploymentDate,
+      // 聘僱許可（續聘）到期：核准聘僱截止日；缺值時可由起始日 + 期間月數推算
+      approvedEndDate: customerQualifications.approvedEndDate,
+      employmentPeriodMonths: cases.employmentPeriodMonths,
+      terminationDate: cases.terminationDate,
+      // 已登錄的定期體檢日期
+      exam6mDate: cases.exam6mDate,
+      exam18mDate: cases.exam18mDate,
+      exam30mDate: cases.exam30mDate,
+    })
+    .from(cases)
+    .innerJoin(workers, eq(cases.primaryWorkerId, workers.id))
+    .leftJoin(managers, eq(cases.managerId, managers.id))
+    .leftJoin(customerQualifications, eq(cases.customerQualificationId, customerQualifications.id))
+    .where(
+      and(
+        ne(cases.status, "cancelled"),
+        notInArray(workers.lifecycleStatus, closedStatuses as any),
+      ),
+    );
+}
+
 // ─── KPI 每日快照（趨勢比較）──────────────────────────────────────────────────
 
 /** Upsert 當日快照（snapshotDate 為主鍵）。 */

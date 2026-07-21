@@ -86,8 +86,15 @@ export const workers = mysqlTable("workers", {
   email: varchar("email", { length: 200 }),      // 電子信箱
 
   // ── 體檢資料 ──────────────────────────────────────────────────────────────
+  // lastMedicalExamDate 仍有用：作為健檢合規引擎的 fallback（案件層未登錄時，
+  // 若此日落在某里程碑窗口內即視為完成）。見 shared/healthCheck.ts。
   lastMedicalExamDate: varchar("lastMedicalExamDate", { length: 10 }), // 最近一次體檢日期
-  nextMedicalExamType: mysqlEnum("nextMedicalExamType", [              // 下次需要體檢類型
+  /**
+   * @deprecated 手動註記的「下次體檢類型」已被合規引擎取代——下一次應辦的
+   * 定期健檢（6/18/30 個月）由 dashboard.compliance 依聘僱起始日自動推算。
+   * 保留欄位以相容既有資料，不再作為提醒依據；請勿於新流程依賴此欄位。
+   */
+  nextMedicalExamType: mysqlEnum("nextMedicalExamType", [              // 下次需要體檢類型（已停用，改由引擎推算）
     "6_month",    // 6個月體檢
     "annual",     // 年度體檢
     "pre_entry",  // 入境前體檢

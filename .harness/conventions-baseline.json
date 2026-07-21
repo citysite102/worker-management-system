@@ -46,6 +46,7 @@
     "customers.qualifications.update",
     "customers.update",
     "customers.uploadFile",
+    "dashboard.compliance",
     "dashboard.summary",
     "managers.create",
     "managers.delete",

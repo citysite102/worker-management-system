@@ -14,6 +14,13 @@ import CaseQualificationsTab from "@/components/case/CaseQualificationsTab";
 import CaseMatchingTab from "@/components/case/CaseMatchingTab";
 import CaseEmploymentTab from "@/components/case/CaseEmploymentTab";
 
+/** 合規狀態 → 徽章樣式 */
+const COMPLIANCE_BADGE: Record<string, string> = {
+  overdue: "status-red",
+  due_now: "status-amber",
+  upcoming: "status-gray",
+};
+
 /** 小型附件預覽按鈕（內嵌於各卡片中） */
 function AttachmentLink({ label, fileKey, className }: { label: string; fileKey?: string | null; className?: string }) {
   const [open, setOpen] = React.useState(false);
@@ -39,6 +46,12 @@ export default function CaseDetail() {
   const [showEdit, setShowEdit] = useState(false);
 
   const utils = trpc.useUtils();
+  // 法定合規（健檢 6/18/30 個月 + 聘僱許可續聘）：與鈴鐺/儀表板同一來源，篩出本案
+  const { data: compliance } = trpc.dashboard.compliance.useQuery();
+  const caseAlerts = (compliance?.alerts ?? []).filter(a => a.caseId === caseId);
+  const examAlertByMilestone = new Map(
+    caseAlerts.filter(a => a.kind === "health_check").map(a => [a.milestone, a] as const),
+  );
   const { data: caseData, isLoading } = trpc.cases.getById.useQuery(
     { id: caseId },
     {
@@ -119,6 +132,50 @@ export default function CaseDetail() {
           <Pencil className="w-3.5 h-3.5" />編輯案件
         </Button>
       </div>
+
+      {/* 法定合規提醒 Banner（本案的健檢 / 聘僱許可到期） */}
+      {caseAlerts.length > 0 && (() => {
+        const hasOverdue = caseAlerts.some(a => a.status === "overdue");
+        return (
+          <div
+            data-testid="case-compliance-banner"
+            className={`rounded-lg border p-4 space-y-2 ${hasOverdue ? "border-red-200 bg-red-50/60" : "border-amber-200 bg-amber-50/60"}`}
+          >
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <AlertTriangle className={`w-4 h-4 ${hasOverdue ? "text-red-500" : "text-amber-500"}`} />
+              法定合規提醒
+              <span className="text-xs font-normal text-muted-foreground">（{caseAlerts.length} 項待處理）</span>
+            </div>
+            <ul className="space-y-1.5">
+              {caseAlerts.map(a => {
+                const isHealth = a.kind === "health_check";
+                const badgeText = a.status === "overdue"
+                  ? `逾期 ${Math.abs(a.daysToDeadline)} 天`
+                  : isHealth
+                    ? `應於 ${a.windowEnd} 前完成`
+                    : `${a.daysToDeadline} 天後到期`;
+                return (
+                  <li
+                    key={isHealth ? `hc-${a.milestone}` : "ep"}
+                    data-testid="case-compliance-item"
+                    data-kind={a.kind}
+                    data-status={a.status}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <span className="font-medium">{a.title}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {isHealth ? `基準日 ${a.dueDate}` : `截止日 ${a.dueDate}`}
+                    </span>
+                    <span className={`ml-auto inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${COMPLIANCE_BADGE[a.status] ?? "status-gray"}`}>
+                      {badgeText}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })()}
 
       {/* 三維度進度匯總 */}
       <div className="grid grid-cols-3 gap-3">
@@ -514,20 +571,32 @@ export default function CaseDetail() {
                 {/* 6/18/30 個月體檢 */}
                 {((caseData as any).exam6mDate || (caseData as any).exam18mDate || (caseData as any).exam30mDate) && (
                   <div className="grid grid-cols-3 gap-4 text-sm pt-2 border-t border-border/50">
-                    {[{label: "6 個月體檢", dateKey: "exam6mDate", reportKey: "exam6mReportKey"},
-                      {label: "18 個月體檢", dateKey: "exam18mDate", reportKey: "exam18mReportKey"},
-                      {label: "30 個月體檢", dateKey: "exam30mDate", reportKey: "exam30mReportKey"}]
-                      .map(({ label, dateKey, reportKey }) => (
+                    {[{label: "6 個月體檢", dateKey: "exam6mDate", reportKey: "exam6mReportKey", milestone: 6 as const},
+                      {label: "18 個月體檢", dateKey: "exam18mDate", reportKey: "exam18mReportKey", milestone: 18 as const},
+                      {label: "30 個月體檢", dateKey: "exam30mDate", reportKey: "exam30mReportKey", milestone: 30 as const}]
+                      .map(({ label, dateKey, reportKey, milestone }) => {
+                        const alert = examAlertByMilestone.get(milestone);
+                        return (
                         <div key={dateKey} className="space-y-0.5">
                           <p className="text-xs text-muted-foreground">{label}</p>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium">{(caseData as any)[dateKey] || "—"}</p>
                             {(caseData as any)[reportKey] && (
                               <AttachmentLink label="報告" fileKey={(caseData as any)[reportKey]} />
                             )}
+                            {alert && (
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${COMPLIANCE_BADGE[alert.status] ?? "status-gray"}`}>
+                                {alert.status === "overdue"
+                                  ? `逾期 ${Math.abs(alert.daysToDeadline)} 天`
+                                  : alert.status === "due_now"
+                                    ? "辦理中"
+                                    : `${alert.daysToDeadline} 天後屆滿`}
+                              </span>
+                            )}
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                   </div>
                 )}
               </div>

@@ -3,6 +3,12 @@ import { Link, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { Briefcase, ShieldCheck, Languages, Search } from "lucide-react";
 import { PublicHeader } from "@/components/public/PublicHeader";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import { TW_CITIES, type JobCategory } from "@/lib/marketplace";
 
 const CATEGORIES: JobCategory[] = ["caregiver", "domestic_helper", "other"];
@@ -150,6 +156,46 @@ export default function PublicHome() {
               <p className="mt-3 text-sm font-medium">{t(`home.${key}`)}</p>
             </div>
           ))}
+        </section>
+
+        {/* ── 常見問題（FAQ）── */}
+        <section id="faq" className="scroll-mt-20 border-t border-border py-16">
+          <div className="mx-auto max-w-3xl">
+            <div className="text-center">
+              <span className="text-xs font-semibold uppercase tracking-wide text-primary">
+                {t("home.faqEyebrow")}
+              </span>
+              <h2 className="mt-2 text-3xl font-bold tracking-tight">
+                {t("home.faqTitle")}
+              </h2>
+              <p className="mt-2 text-muted-foreground">
+                {t("home.faqSubtitle")}
+              </p>
+            </div>
+
+            <Accordion
+              type="single"
+              collapsible
+              className="mt-8"
+              data-testid="home-faq"
+            >
+              {(
+                t("home.faq", { returnObjects: true }) as Array<{
+                  q: string;
+                  a: string;
+                }>
+              ).map((item, i) => (
+                <AccordionItem key={i} value={`faq-${i}`}>
+                  <AccordionTrigger className="text-left text-base font-medium">
+                    {item.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-sm leading-relaxed text-muted-foreground">
+                    {item.a}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
         </section>
       </main>
     </div>

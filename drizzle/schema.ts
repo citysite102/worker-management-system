@@ -936,11 +936,18 @@ export const workerPublicProfiles = mysqlTable(
       "white_collar",
       "intermediate",
       "overseas_student",
-    ]), // 期望職類
+    ]), // 期望職類（主要／相容欄位；＝ jobTypes[0]）
+    jobTypes: text("jobTypes"), // JSON 陣列（期望職類，可多選）；jobType 存其首項供相容
     skills: text("skills"), // JSON 陣列（技能標籤）
     languages: text("languages"), // JSON 陣列（語言）
     availability: varchar("availability", { length: 100 }), // 可上工時間
-    selfIntro: text("selfIntro"), // 自我介紹
+    selfIntro: text("selfIntro"), // 自我介紹（登入後才下傳；未登入不外露）
+    // 真實照片（登入後才下傳的 S3 key；公開層一律用匿名頭像，維持去識別）
+    photoKey: varchar("photoKey", { length: 300 }),
+    // 評分聚合（真實評分流程之後再做；門檻 ratingCount ≥ 5 才對外顯示）。
+    // ratingAvg 存整數 = 平均分 ×10（如 47 表示 4.7 顆星），避免浮點。
+    ratingAvg: int("ratingAvg").notNull().default(0),
+    ratingCount: int("ratingCount").notNull().default(0),
     publishStatus: mysqlEnum("publishStatus", ["draft", "published"])
       .notNull()
       .default("draft"), // 移工是否想公開

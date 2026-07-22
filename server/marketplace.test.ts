@@ -487,7 +487,7 @@ describe("移工履歷（worker，P2）", () => {
     const res = await worker().worker.upsertProfile({
       alias: "小明",
       nationality: "印尼",
-      jobType: "caregiver",
+      jobTypes: ["caregiver", "intermediate"],
       skills: ["翻身", "備餐"],
       languages: ["中文", "印尼文"],
       submit: true,
@@ -557,7 +557,53 @@ describe("找移工（findWorkers，P2）權限、gating 與匿名", () => {
     expect(card.ageRange).toBeTruthy();
     expect(card.userId).toBeUndefined();
     expect(card.workerId).toBeUndefined();
-    expect(card.selfIntro).toBe("hi"); // 自我介紹屬公開子集
+    // 自我介紹改為受保護欄位 → 不在公開卡片視圖
+    expect(card.selfIntro).toBeUndefined();
+    // 公開層只給「有無照片」布林，不給實際照片；評分未達門檻不外露
+    expect(card.hasPhoto).toBe(false);
+    expect(card.rating).toBeNull();
+  });
+
+  it("期望職類多選：view 回傳 jobTypes 陣列；舊單值列回退為 [jobType]", async () => {
+    dbMock.listPublicProfiles.mockResolvedValueOnce([
+      {
+        id: 1,
+        alias: "多選",
+        jobTypes: JSON.stringify(["caregiver", "intermediate"]),
+      },
+      { id: 2, alias: "舊列", jobType: "manufacturing" }, // 無 jobTypes
+    ]);
+    const res = (await anon().findWorkers.list()) as Array<
+      Record<string, unknown>
+    >;
+    expect(res[0].jobTypes).toEqual(["caregiver", "intermediate"]);
+    expect(res[0].category).toBe("caregiver"); // 主要職類（首項）→ 三桶
+    expect(res[1].jobTypes).toEqual(["manufacturing"]); // 回退
+    expect(res[1].category).toBe("other");
+  });
+
+  it("評分：達門檻（≥5 則）才外露平均分與則數，未達則 rating=null", async () => {
+    dbMock.listPublicProfiles.mockResolvedValueOnce([
+      {
+        id: 1,
+        alias: "A",
+        jobType: "caregiver",
+        ratingAvg: 47,
+        ratingCount: 8,
+      },
+      {
+        id: 2,
+        alias: "B",
+        jobType: "caregiver",
+        ratingAvg: 50,
+        ratingCount: 3,
+      },
+    ]);
+    const res = (await anon().findWorkers.list()) as Array<
+      Record<string, unknown>
+    >;
+    expect(res[0].rating).toEqual({ avg: 4.7, count: 8 });
+    expect(res[1].rating).toBeNull(); // 3 < 5 → 不顯示
   });
 
   it("get：未公開/未通過的履歷 → NOT_FOUND", async () => {
@@ -570,6 +616,64 @@ describe("找移工（findWorkers，P2）權限、gating 與匿名", () => {
     await expect(employer().findWorkers.get({ id: 7 })).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
+  });
+
+  it("get（未登入）：受保護欄位不下傳——gated=true、selfIntro=null、經歷/紀錄為空", async () => {
+    dbMock.getProfileById.mockResolvedValueOnce({
+      id: 7,
+      userId: 10,
+      workerId: 55,
+      alias: "小明",
+      jobType: "caregiver",
+      selfIntro: "祕密自我介紹",
+      photoKey: "photos/7.jpg",
+      publishStatus: "published",
+      moderationStatus: "approved",
+    });
+    const res = (await anon().findWorkers.get({ id: 7 })) as Record<
+      string,
+      unknown
+    >;
+    expect(res.gated).toBe(true);
+    expect(res.selfIntro).toBeNull();
+    expect(res.photoUrl).toBeNull();
+    expect(res.experiences).toEqual([]);
+    expect(res.platformRecords).toEqual([]);
+    // 未登入時完全不查經歷/平台紀錄（避免任何洩漏）
+    expect(dbMock.getApprovedExperiencesByUserId).not.toHaveBeenCalled();
+    expect(dbMock.getEmploymentsByWorker).not.toHaveBeenCalled();
+  });
+
+  it("get（已登入）：gated=false，附上自我介紹、經歷與真實照片 URL", async () => {
+    dbMock.getProfileById.mockResolvedValueOnce({
+      id: 7,
+      userId: 10,
+      workerId: 55,
+      alias: "小明",
+      jobType: "caregiver",
+      selfIntro: "完整自我介紹",
+      photoKey: "photos/7.jpg",
+      publishStatus: "published",
+      moderationStatus: "approved",
+    });
+    dbMock.getApprovedExperiencesByUserId.mockResolvedValueOnce([
+      {
+        id: 1,
+        employerType: "family_care",
+        role: "看護",
+        startDate: "2020-01",
+        endDate: null,
+        description: "照顧長輩",
+      },
+    ]);
+    const res = (await worker().findWorkers.get({ id: 7 })) as Record<
+      string,
+      unknown
+    >;
+    expect(res.gated).toBe(false);
+    expect(res.selfIntro).toBe("完整自我介紹");
+    expect(res.photoUrl).toBe("/manus-storage/photos/7.jpg");
+    expect(res.experiences).toHaveLength(1);
   });
 
   it("expressInterest（雇主對移工）建立 match_request targetType=worker", async () => {

@@ -797,6 +797,9 @@ function parseJsonArray(raw: string | null | undefined): string[] {
  * 把履歷正本轉成「對外匿名視圖」：只露去識別子集，永不含 userId/workerId、
  * 真實姓名、證件、聯絡方式（規格 §11）。id 為 profile id，供詳情/送意向使用。
  */
+/** 評分達此則數才對外顯示（門檻；真實評分流程之後再做）。 */
+const RATING_MIN_COUNT = 5;
+
 function publicProfileView(p: {
   id: number;
   alias: string | null;
@@ -804,23 +807,40 @@ function publicProfileView(p: {
   nationality: string | null;
   yearOfBirth: number | null;
   jobType: string | null;
+  jobTypes?: string | null;
   skills: string | null;
   languages: string | null;
   availability: string | null;
-  selfIntro: string | null;
+  photoKey?: string | null;
+  ratingAvg?: number | null;
+  ratingCount?: number | null;
 }) {
+  const ratingCount = p.ratingCount ?? 0;
+  // 期望職類可多選：優先讀 jobTypes（JSON 陣列），無則回退到單值 jobType。
+  const parsedTypes = parseJsonArray(p.jobTypes);
+  const jobTypes =
+    parsedTypes.length > 0 ? parsedTypes : p.jobType ? [p.jobType] : [];
   return {
     id: p.id,
-    alias: p.alias || `移工 #${p.id}`,
+    alias: p.alias || `外籍工作者 #${p.id}`,
     headline: p.headline,
     nationality: p.nationality,
     ageRange: ageRangeFromYear(p.yearOfBirth),
-    jobType: p.jobType,
-    category: p.jobType ? jobCategory(p.jobType as MarketplaceQualType) : null,
+    jobType: jobTypes[0] ?? null, // 主要職類（供頭像/相容）
+    jobTypes, // 全部期望職類（多選）
+    category: jobTypes[0]
+      ? jobCategory(jobTypes[0] as MarketplaceQualType)
+      : null,
     skills: parseJsonArray(p.skills),
     languages: parseJsonArray(p.languages),
     availability: p.availability,
-    selfIntro: p.selfIntro,
+    // 公開層只給「有無真實照片」布林，實際照片一律登入後才下傳（維持去識別）。
+    hasPhoto: !!p.photoKey,
+    // 未達門檻不外露任何評分數字；達門檻才給平均分（×1/10 還原）與則數。
+    rating:
+      ratingCount >= RATING_MIN_COUNT
+        ? { avg: (p.ratingAvg ?? 0) / 10, count: ratingCount }
+        : null,
   };
 }
 
@@ -845,17 +865,21 @@ const workerProfileInput = z.object({
     .optional()
     .transform(s => s?.trim() || undefined),
   yearOfBirth: z.number().int().min(1900).max(2020).optional(),
-  jobType: z
-    .enum([
-      "caregiver",
-      "domestic_helper",
-      "manufacturing",
-      "agriculture",
-      "construction",
-      "white_collar",
-      "intermediate",
-      "overseas_student",
-    ])
+  // 期望職類可多選（1~3 個）；後端另存首項到 jobType 供既有查詢相容。
+  jobTypes: z
+    .array(
+      z.enum([
+        "caregiver",
+        "domestic_helper",
+        "manufacturing",
+        "agriculture",
+        "construction",
+        "white_collar",
+        "intermediate",
+        "overseas_student",
+      ])
+    )
+    .max(3)
     .optional(),
   skills: z.array(z.string().trim().max(30)).max(20).optional(),
   languages: z.array(z.string().trim().max(30)).max(10).optional(),
@@ -3826,10 +3850,13 @@ export const appRouter = router({
     myProfile: workerProcedure.query(async ({ ctx }) => {
       const p = await getProfileByUserId(ctx.user.id);
       if (!p) return null;
+      const jobTypes = parseJsonArray(p.jobTypes);
       return {
         ...p,
         skills: parseJsonArray(p.skills),
         languages: parseJsonArray(p.languages),
+        // 多選職類：回陣列；無 jobTypes 的舊列回退成 [jobType]。
+        jobTypes: jobTypes.length > 0 ? jobTypes : p.jobType ? [p.jobType] : [],
         createdAt: p.createdAt?.toISOString() ?? null,
         updatedAt: p.updatedAt?.toISOString() ?? null,
       };
@@ -3838,12 +3865,15 @@ export const appRouter = router({
     upsertProfile: workerProcedure
       .input(workerProfileInput.extend({ submit: z.boolean().default(false) }))
       .mutation(async ({ ctx, input }) => {
-        const { submit, skills, languages, ...rest } = input;
+        const { submit, skills, languages, jobTypes, ...rest } = input;
         const existing = await getProfileByUserId(ctx.user.id);
         const data = {
           ...rest,
           skills: skills ? JSON.stringify(skills) : undefined,
           languages: languages ? JSON.stringify(languages) : undefined,
+          // 多選職類：存 JSON 陣列；jobType 存首項供既有查詢/顯示相容。
+          jobTypes: jobTypes ? JSON.stringify(jobTypes) : undefined,
+          jobType: jobTypes?.[0] ?? null,
           // 任何內容編輯都必須重新審核 —— 否則已通過的履歷可透過「存草稿」把
           // 真實姓名/電話塞進 selfIntro 而不經審核就對雇主公開（Code Review #2）。
           // 已公開者一旦編輯即退回 pending，於重新通過前不再出現在找移工。
@@ -3966,7 +3996,7 @@ export const appRouter = router({
       }),
     get: publicProcedure
       .input(z.object({ id: z.number().int().positive() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
         const p = await getProfileById(input.id);
         if (
           !p ||
@@ -3974,17 +4004,41 @@ export const appRouter = router({
           p.moderationStatus !== "approved"
         )
           throw new TRPCError({ code: "NOT_FOUND", message: "找不到此履歷" });
-        // 平台可信工作紀錄（僅在客服已勾稽 workerId 時有；去識別）
+        const base = publicProfileView(p);
+        // 受保護欄位一律「登入後才下傳」——未登入時完全不放進回應（前端顯示模糊
+        // 佔位，且無法從 HTML/DevTools 反查真實資料）。gated 供前端判斷是否上鎖。
+        const locked = {
+          gated: true as const,
+          selfIntro: null,
+          photoUrl: null as string | null,
+          platformRecords: [] as Awaited<
+            ReturnType<typeof getEmploymentsByWorker>
+          >,
+          experiences: [] as Array<{
+            id: number;
+            employerType: string;
+            role: string;
+            startDate: string | null;
+            endDate: string | null;
+            description: string | null;
+          }>,
+        };
+        if (!ctx.user) return { ...base, ...locked };
+
+        // 已登入：附上完整履歷（自我介紹、自填經歷、平台紀錄、真實照片）。
         const platformRecords = p.workerId
           ? await getEmploymentsByWorker(p.workerId)
           : [];
         const experiences = await getApprovedExperiencesByUserId(p.userId);
         return {
-          ...publicProfileView(p),
+          ...base,
+          gated: false as const,
+          selfIntro: p.selfIntro,
+          photoUrl: p.photoKey ? `/manus-storage/${p.photoKey}` : null,
           platformRecords,
           experiences: experiences.map(e => ({
             id: e.id,
-            employerType: e.employerType,
+            employerType: e.employerType as string,
             role: e.role,
             startDate: e.startDate,
             endDate: e.endDate,

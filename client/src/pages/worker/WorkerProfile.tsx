@@ -10,6 +10,7 @@ import {
   StatusPill,
 } from "@/components/marketplace/ui";
 import { JOB_TYPE_VALUES, type JobTypeValue } from "@/lib/marketplace";
+import { categoryIcon } from "@/components/marketplace/worker";
 
 const EMPLOYER_TYPES = [
   "family_care",
@@ -36,14 +37,24 @@ export default function WorkerProfile() {
     headline: "",
     nationality: "",
     yearOfBirth: "",
-    jobType: "" as JobTypeValue | "",
     skills: "",
     languages: "",
     availability: "",
     selfIntro: "",
   });
+  const [jobTypes, setJobTypes] = useState<JobTypeValue[]>([]);
   const set = (k: keyof typeof form, v: string) =>
     setForm(f => ({ ...f, [k]: v }));
+
+  // 期望職類多選：最多 3 個，切換選取。
+  const toggleJobType = (v: JobTypeValue) =>
+    setJobTypes(prev =>
+      prev.includes(v)
+        ? prev.filter(x => x !== v)
+        : prev.length >= 3
+          ? prev
+          : [...prev, v]
+    );
 
   useEffect(() => {
     const p = profileQ.data;
@@ -53,12 +64,12 @@ export default function WorkerProfile() {
         headline: p.headline ?? "",
         nationality: p.nationality ?? "",
         yearOfBirth: p.yearOfBirth != null ? String(p.yearOfBirth) : "",
-        jobType: (p.jobType as JobTypeValue) ?? "",
         skills: (p.skills ?? []).join(", "),
         languages: (p.languages ?? []).join(", "),
         availability: p.availability ?? "",
         selfIntro: p.selfIntro ?? "",
       });
+      setJobTypes((p.jobTypes ?? []) as JobTypeValue[]);
     }
   }, [profileQ.data]);
 
@@ -82,7 +93,7 @@ export default function WorkerProfile() {
       headline: form.headline || undefined,
       nationality: form.nationality || undefined,
       yearOfBirth: form.yearOfBirth ? Number(form.yearOfBirth) : undefined,
-      jobType: form.jobType || undefined,
+      jobTypes: jobTypes.length ? jobTypes : undefined,
       skills: toList(form.skills),
       languages: toList(form.languages),
       availability: form.availability || undefined,
@@ -160,32 +171,44 @@ export default function WorkerProfile() {
                 data-testid="profile-headline"
               />
             </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label={t("worker.yearOfBirth")}>
-                <input
-                  type="number"
-                  value={form.yearOfBirth}
-                  onChange={e => set("yearOfBirth", e.target.value)}
-                  className={inputCls}
-                  data-testid="profile-year"
-                />
-              </Field>
-              <Field label={t("worker.jobType")}>
-                <select
-                  value={form.jobType}
-                  onChange={e => set("jobType", e.target.value)}
-                  className={inputCls}
-                  data-testid="profile-jobType"
-                >
-                  <option value="">—</option>
-                  {JOB_TYPE_VALUES.map(v => (
-                    <option key={v} value={v}>
+            <Field label={t("worker.yearOfBirth")}>
+              <input
+                type="number"
+                value={form.yearOfBirth}
+                onChange={e => set("yearOfBirth", e.target.value)}
+                className={inputCls}
+                data-testid="profile-year"
+              />
+            </Field>
+            {/* 期望職類：可多選（最多 3 個），切換膠囊 */}
+            <Field label={t("worker.jobTypeMulti")}>
+              <div
+                className="flex flex-wrap gap-1.5"
+                data-testid="profile-jobTypes"
+              >
+                {JOB_TYPE_VALUES.map(v => {
+                  const active = jobTypes.includes(v);
+                  const Icon = categoryIcon(v);
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => toggleJobType(v)}
+                      aria-pressed={active}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                        active
+                          ? "border-primary bg-accent text-accent-foreground"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted"
+                      }`}
+                      data-testid={`profile-jobType-${v}`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
                       {t(`jobs.jobType.${v}`)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
             <Field label={t("worker.skills")}>
               <input
                 value={form.skills}

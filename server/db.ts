@@ -1567,7 +1567,17 @@ export async function listPublicProfiles(filters?: {
     )
     .orderBy(desc(workerPublicProfiles.updatedAt));
   return rows.filter(r => {
-    if (filters?.jobType && r.jobType !== filters.jobType) return false;
+    if (filters?.jobType) {
+      // 多選職類：jobTypes 陣列含篩選值即命中；無 jobTypes 的舊列回退比對 jobType。
+      let types: string[] = [];
+      try {
+        types = r.jobTypes ? (JSON.parse(r.jobTypes) as string[]) : [];
+      } catch {
+        types = [];
+      }
+      if (types.length === 0 && r.jobType) types = [r.jobType];
+      if (!types.includes(filters.jobType)) return false;
+    }
     if (filters?.nationality && r.nationality !== filters.nationality)
       return false;
     return true;

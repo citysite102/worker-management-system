@@ -1,20 +1,12 @@
 import { useState } from "react";
-import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Globe, CalendarClock } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public/PublicHeader";
-import {
-  PageHeader,
-  SurfaceCard,
-  CategoryChip,
-  MetaItem,
-  MetaRow,
-  FilterChip,
-} from "@/components/marketplace/ui";
+import { PageHeader, FilterChip } from "@/components/marketplace/ui";
+import { WorkerCard, categoryIcon } from "@/components/marketplace/worker";
 import { JOB_TYPE_VALUES, type JobTypeValue } from "@/lib/marketplace";
 
-/** 找移工列表（開放匿名瀏覽去識別履歷；送出意向才需雇主登入）。 */
+/** 找外籍工作者列表（開放匿名瀏覽去識別履歷；送出意向才需雇主登入）。 */
 export default function FindWorkers() {
   const { t } = useTranslation();
   const [jobType, setJobType] = useState<JobTypeValue | undefined>();
@@ -29,97 +21,53 @@ export default function FindWorkers() {
           subtitle={t("findWorkers.subtitle")}
         />
 
-        <>
-          <div className="flex flex-wrap gap-1.5 mb-6">
-            <FilterChip
-              active={jobType === undefined}
-              onClick={() => setJobType(undefined)}
-              data-testid="fw-filter-all"
-            >
-              {t("jobs.any")}
-            </FilterChip>
-            {JOB_TYPE_VALUES.map(v => (
+        {/* 分類篩選：每個職類帶專屬 icon 做視覺區隔 */}
+        <div className="mb-6 flex flex-wrap gap-1.5">
+          <FilterChip
+            active={jobType === undefined}
+            onClick={() => setJobType(undefined)}
+            data-testid="fw-filter-all"
+          >
+            {t("jobs.any")}
+          </FilterChip>
+          {JOB_TYPE_VALUES.map(v => {
+            const Icon = categoryIcon(v);
+            return (
               <FilterChip
                 key={v}
                 active={jobType === v}
                 onClick={() => setJobType(v)}
                 data-testid={`fw-filter-${v}`}
+                className="inline-flex items-center gap-1.5"
               >
+                <Icon className="h-3.5 w-3.5" />
                 {t(`jobs.jobType.${v}`)}
               </FilterChip>
+            );
+          })}
+        </div>
+
+        {q.isLoading ? (
+          <div className="py-16 text-center text-sm text-muted-foreground">
+            …
+          </div>
+        ) : !q.data || q.data.length === 0 ? (
+          <div
+            className="py-16 text-center text-sm text-muted-foreground"
+            data-testid="find-workers-empty"
+          >
+            {t("findWorkers.empty")}
+          </div>
+        ) : (
+          <div
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            data-testid="find-workers-list"
+          >
+            {q.data.map(p => (
+              <WorkerCard key={p.id} p={p} />
             ))}
           </div>
-
-          {q.isLoading ? (
-            <div className="py-16 text-center text-sm text-muted-foreground">
-              …
-            </div>
-          ) : !q.data || q.data.length === 0 ? (
-            <div
-              className="py-16 text-center text-sm text-muted-foreground"
-              data-testid="find-workers-empty"
-            >
-              {t("findWorkers.empty")}
-            </div>
-          ) : (
-            <div
-              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-              data-testid="find-workers-list"
-            >
-              {q.data.map(p => (
-                <Link
-                  key={p.id}
-                  href={`/find-workers/${p.id}`}
-                  className="block"
-                  data-testid="worker-card"
-                >
-                  <SurfaceCard interactive className="h-full">
-                    <div className="flex items-center justify-between gap-2">
-                      {p.category && (
-                        <CategoryChip>
-                          {t(`jobs.category.${p.category}`)}
-                        </CategoryChip>
-                      )}
-                      {p.ageRange && (
-                        <span className="text-xs text-muted-foreground">
-                          {t("findWorkers.ageRange")} {p.ageRange}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="mt-3 font-semibold">{p.alias}</h3>
-                    {p.headline && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {p.headline}
-                      </p>
-                    )}
-                    <MetaRow>
-                      {p.nationality && (
-                        <MetaItem icon={Globe}>{p.nationality}</MetaItem>
-                      )}
-                      {p.availability && (
-                        <MetaItem icon={CalendarClock}>
-                          {p.availability}
-                        </MetaItem>
-                      )}
-                    </MetaRow>
-                    {p.skills.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-1">
-                        {p.skills.slice(0, 4).map(s => (
-                          <span
-                            key={s}
-                            className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                          >
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </SurfaceCard>
-                </Link>
-              ))}
-            </div>
-          )}
-        </>
+        )}
       </main>
     </div>
   );

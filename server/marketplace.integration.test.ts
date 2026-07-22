@@ -176,7 +176,7 @@ describe("移工履歷 + 找移工（P2）", () => {
       alias: "阿明",
       nationality: "印尼",
       yearOfBirth: 1996,
-      jobType: "caregiver",
+      jobTypes: ["caregiver"],
       skills: ["翻身", "備餐"],
       languages: ["中文", "印尼文"],
       availability: "即刻",
@@ -249,7 +249,7 @@ describe("帳號勾稽 → 平台工作紀錄（P2 收尾）", () => {
     // 自助履歷送審 + 通過
     await caller.worker.upsertProfile({
       alias: "連結測試",
-      jobType: "caregiver",
+      jobTypes: ["caregiver"],
       submit: true,
     });
     const prof = await caller.worker.myProfile();

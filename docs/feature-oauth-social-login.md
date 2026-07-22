@@ -99,12 +99,17 @@ FACEBOOK_GRAPH_VERSION=v25.0
 
 ## Scaffold 完成度（本批次）
 
-- [ ] `oauth_identities` 表 + migration
-- [ ] `server/_core/auth/oauthProviders.ts`（registry；讀 env，缺憑證即停用）
-- [ ] `/auth/oauth/:provider/start|callback` 路由 + state/PKCE/nonce cookie
-- [ ] 回呼解析 → `issueSession` 復用
-- [ ] 前端：`Login.tsx` 依「已啟用 provider」渲染按鈕
-- [ ] 單元測試（state 驗證、身分解析、帳號連結分支）；回呼 e2e 待有沙箱憑證再補
+- [x] `server/_core/auth/oauthProviders.ts`（registry；讀 env，缺憑證即停用；純函式 enabledProviders/buildAuthorizationUrl/toIdentity/PKCE）
+- [x] `server/_core/auth/oauthSocial.ts`：`/auth/oauth/:provider/start|callback` 路由 + state/nonce/PKCE cookie，註冊於 `server/_core/index.ts`
+- [x] 回呼：換 token（fetch）→ OIDC 用 `jose` 驗 id_token（Google/LINE）/ FB graph profile → `upsertUser` → `issueSession` 復用
+- [x] tRPC `auth.oauthProviders`（public）回已啟用清單；前端 `Login.tsx` 依此渲染社群鈕（未設憑證 → 空 → 不顯示）
+- [x] 測試：`server/oauthProviders.test.ts`（7，registry/URL/身分/PKCE + query）、`client/.../Login.oauth.test.tsx`（2，按鈕渲染）
+- [ ] **待你提供憑證後**：貼進 `.env`（§6 變數）→ 做一次 live 冒煙測試（沙箱無憑證，provider 端 HTTP 交握無法端對端自動測）
+- **決策 C（帳號合併）**：目前預設 openId=`provider_<sub>` 各自成帳號、**不以 email 自動合併**（安全）。多 provider 綁同一本地帳號的「設定頁連結」流程為後續（會用到 `oauth_identities` 表）。
+
+### 帳號連結的安全預設（重要）
+
+本批次**未**實作「以 email 自動合併既有帳號」。原因：LINE/FB 的 email 未必經驗證，自動合併會有帳號接管風險（見 §5）。因此每個社群身分預設是獨立帳號。若你要「同一人用 Google 和 LINE 都連到同一帳號」，需另做登入後的手動連結頁 + `oauth_identities` 表——早上可討論是否要納入。
 
 ## 版本敏感備註
 

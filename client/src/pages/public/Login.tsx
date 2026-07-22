@@ -10,6 +10,13 @@ import { Logo } from "@/components/brand/Logo";
 
 type Mode = "login" | "register";
 
+/** 社群 provider 的品牌顯示名（品牌名不翻譯）。 */
+const OAUTH_LABEL: Record<string, string> = {
+  google: "Google",
+  line: "LINE",
+  facebook: "Facebook",
+};
+
 /** 登入後導回的目的地：只接受站內相對路徑（避免 open redirect）。 */
 function safeNext(search: string): string {
   const raw = new URLSearchParams(search).get("next");
@@ -31,6 +38,8 @@ export default function Login() {
   const search = useSearch();
   const next = safeNext(search);
   const utils = trpc.useUtils();
+  // 已啟用的社群登入（未設憑證時為空陣列 → 不顯示任何社群鈕）。
+  const oauthProviders = trpc.auth.oauthProviders.useQuery().data ?? [];
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -204,6 +213,31 @@ export default function Login() {
               {isRegister ? t("login.toLogin") : t("login.toRegister")}
             </button>
           </form>
+
+          {/* 社群登入（Google/LINE/Facebook）；未設憑證 → oauthProviders 為空 → 不顯示 */}
+          {oauthProviders.length > 0 && (
+            <div className="mt-5" data-testid="oauth-providers">
+              <div className="relative mb-4 text-center">
+                <span className="relative z-10 bg-card px-2 text-xs text-muted-foreground">
+                  {t("login.orContinueWith")}
+                </span>
+                <div className="absolute inset-x-0 top-1/2 border-t border-border" />
+              </div>
+              <div className="space-y-2">
+                {oauthProviders.map(p => (
+                  <a
+                    key={p}
+                    href={`/auth/oauth/${p}/start`}
+                    className="flex w-full items-center justify-center rounded-md border border-border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+                    data-testid={`oauth-${p}`}
+                  >
+                    {t("login.continueWith", { provider: OAUTH_LABEL[p] ?? p })}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="mt-4 text-center">
             <a
               href={getLoginUrl()}

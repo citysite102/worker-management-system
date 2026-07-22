@@ -4,6 +4,7 @@
     "auth.login",
     "auth.logout",
     "auth.me",
+    "auth.oauthProviders",
     "auth.register",
     "findWorkers.get",
     "findWorkers.list",

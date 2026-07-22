@@ -137,6 +137,7 @@ import { logAudit } from "./_core/audit";
 import { getUserByEmail, createUser } from "./db";
 import { hashPassword, verifyPassword } from "./_core/auth/password";
 import { issueSession, newLocalOpenId } from "./_core/auth/session";
+import { enabledProviders } from "./_core/auth/oauthProviders";
 import {
   validateTwPhone,
   normalizePhone,
@@ -1009,6 +1010,8 @@ export const appRouter = router({
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+    // 已啟用的社群登入 provider（憑證設定與否決定）；登入頁未登入即需，故 public。
+    oauthProviders: publicProcedure.query(() => enabledProviders()),
     logout: publicProcedure.mutation(async ({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

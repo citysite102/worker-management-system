@@ -4,6 +4,7 @@ import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
+import { registerSocialOAuthRoutes } from "./auth/oauthSocial";
 import { registerStorageProxy } from "./storageProxy";
 import { registerUploadRoute } from "../uploadRoute";
 import { appRouter } from "../routers";
@@ -38,6 +39,7 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  registerSocialOAuthRoutes(app); // 社群登入（Google/LINE/FB）；未設憑證即 inert
   registerUploadRoute(app);
   // 本地開發：一鍵清掉登出抑制旗標，回到自動注入的假 admin（僅非 production）。
   if (process.env.NODE_ENV !== "production") {

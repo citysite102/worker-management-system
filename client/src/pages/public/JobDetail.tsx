@@ -1,8 +1,9 @@
-import { Link, useParams } from "wouter";
+import { Link, useParams, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { MapPin, Users, Calendar, ShieldCheck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { formatSalary } from "@/lib/marketplace";
 import {
@@ -11,21 +12,25 @@ import {
   SurfaceCard,
 } from "@/components/marketplace/ui";
 
-/** 公開站職缺詳情（需登入）。「我有興趣」→ 建立媒合意向交客服居中（P3）。 */
+/** 公開站職缺詳情（開放匿名瀏覽）。「我有興趣」需登入 → 建立媒合意向交客服居中（P3）。 */
 export default function JobDetail() {
   const { t } = useTranslation();
   const params = useParams<{ source: string; id: string }>();
   const source = params.source === "demand" ? "demand" : "posting";
   const id = Number(params.id);
   const utils = trpc.useUtils();
+  const { isAuthenticated } = useAuth();
+  const [location, navigate] = useLocation();
 
   const jobQuery = trpc.publicJobs.get.useQuery(
     { source, id },
     { enabled: Number.isFinite(id) && id > 0, retry: false }
   );
 
-  // 已送出過的意向 → 反映「已送出」狀態，避免重複點。
-  const myInterests = trpc.publicJobs.myInterests.useQuery();
+  // 已送出過的意向 → 反映「已送出」狀態，避免重複點（僅登入者查）。
+  const myInterests = trpc.publicJobs.myInterests.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
   const targetType = source === "posting" ? "job_posting" : "case_demand";
   const alreadySent = (myInterests.data ?? []).some(
     m => m.targetType === targetType && m.targetId === id
@@ -129,7 +134,13 @@ export default function JobDetail() {
               <button
                 type="button"
                 disabled={interestMut.isPending || alreadySent}
-                onClick={() => interestMut.mutate({ source, id })}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    navigate(`/login?next=${encodeURIComponent(location)}`);
+                    return;
+                  }
+                  interestMut.mutate({ source, id });
+                }}
                 className="inline-flex items-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-60"
                 data-testid="express-interest"
               >

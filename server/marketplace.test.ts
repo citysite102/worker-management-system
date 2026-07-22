@@ -117,11 +117,10 @@ beforeEach(() => {
   });
 });
 
-describe("找工作（publicJobs，需登入）", () => {
-  it("未登入呼叫 list 會被擋（UNAUTHORIZED）", async () => {
-    await expect(anon().publicJobs.list()).rejects.toMatchObject({
-      code: "UNAUTHORIZED",
-    });
+describe("找工作（publicJobs，開放匿名瀏覽）", () => {
+  it("未登入即可呼叫 list，回傳陣列", async () => {
+    const res = await anon().publicJobs.list();
+    expect(Array.isArray(res)).toBe(true);
   });
 
   it("登入者（移工）可瀏覽，回傳陣列", async () => {
@@ -522,21 +521,19 @@ describe("移工履歷（worker，P2）", () => {
 });
 
 describe("找移工（findWorkers，P2）權限、gating 與匿名", () => {
-  it("移工帳號 → FORBIDDEN（限雇主）", async () => {
-    await expect(worker().findWorkers.list()).rejects.toMatchObject({
-      code: "FORBIDDEN",
-    });
+  it("未登入即可瀏覽 list（開放匿名，回陣列）", async () => {
+    dbMock.listPublicProfiles.mockResolvedValueOnce([]);
+    const res = await anon().findWorkers.list();
+    expect(Array.isArray(res)).toBe(true);
   });
 
-  it("雇主無通過需求單 → FORBIDDEN gating", async () => {
-    dbMock.countApprovedPostingsByEmployer.mockResolvedValueOnce(0);
-    await expect(employer().findWorkers.list()).rejects.toMatchObject({
-      code: "FORBIDDEN",
-    });
+  it("移工帳號也可瀏覽 list（瀏覽不限身分）", async () => {
+    dbMock.listPublicProfiles.mockResolvedValueOnce([]);
+    const res = await worker().findWorkers.list();
+    expect(Array.isArray(res)).toBe(true);
   });
 
-  it("雇主有通過需求單 → 回匿名視圖，不含 userId/workerId/PII", async () => {
-    dbMock.countApprovedPostingsByEmployer.mockResolvedValueOnce(1);
+  it("瀏覽 list 不再需要通過的需求單（去識別，回匿名視圖）", async () => {
     dbMock.listPublicProfiles.mockResolvedValueOnce([
       {
         id: 7,

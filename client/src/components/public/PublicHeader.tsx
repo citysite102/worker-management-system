@@ -31,6 +31,14 @@ export function PublicHeader() {
           >
             {t("nav.findJobs")}
           </Link>
+          {/* 找移工：開放匿名瀏覽（去識別履歷），故對所有人顯示 */}
+          <Link
+            href="/find-workers"
+            className="hover:text-foreground transition-colors"
+            data-testid="nav-find-workers"
+          >
+            {t("findWorkers.nav")}
+          </Link>
           {isAuthenticated && (
             <Link
               href="/my-interests"
@@ -47,15 +55,6 @@ export function PublicHeader() {
               data-testid="nav-employer"
             >
               {t("employer.title")}
-            </Link>
-          )}
-          {isEmployer && (
-            <Link
-              href="/find-workers"
-              className="hover:text-foreground transition-colors"
-              data-testid="nav-find-workers"
-            >
-              {t("findWorkers.nav")}
             </Link>
           )}
           {isWorker && (

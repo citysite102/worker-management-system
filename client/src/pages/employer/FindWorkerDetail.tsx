@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Link, useParams } from "wouter";
+import { Link, useParams, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Globe, CalendarClock, ShieldCheck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import {
   SurfaceCard,
@@ -13,12 +14,14 @@ import {
   MetaRow,
 } from "@/components/marketplace/ui";
 
-/** 找移工詳情（雇主）：匿名履歷 + 平台驗證紀錄 + 自填經歷 + 送出媒合意向。 */
+/** 找移工詳情（開放匿名瀏覽）：匿名履歷 + 平台驗證紀錄 + 自填經歷；送出意向需雇主登入。 */
 export default function FindWorkerDetail() {
   const { t } = useTranslation();
   const params = useParams<{ id: string }>();
   const id = Number(params.id);
   const [sent, setSent] = useState(false);
+  const { isAuthenticated } = useAuth();
+  const [location, navigate] = useLocation();
 
   const q = trpc.findWorkers.get.useQuery(
     { id },
@@ -114,7 +117,13 @@ export default function FindWorkerDetail() {
                 <button
                   type="button"
                   disabled={interestMut.isPending || sent}
-                  onClick={() => interestMut.mutate({ id })}
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      navigate(`/login?next=${encodeURIComponent(location)}`);
+                      return;
+                    }
+                    interestMut.mutate({ id });
+                  }}
                   className="inline-flex items-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-60"
                   data-testid="fw-express-interest"
                 >

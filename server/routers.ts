@@ -874,8 +874,8 @@ const workerProfileInput = z.object({
 });
 
 /**
- * 找移工 gating（§15-1）：雇主需至少一張通過審核的需求單才能瀏覽/聯繫移工履歷；
- * staff/admin 免限制。list / get / expressInterest 一律先過此關，避免其中一支漏擋。
+ * 找移工 gating（§15-1）：瀏覽（list/get）已開放匿名；此關僅擋「送出媒合意向」——
+ * 雇主需至少一張通過審核的需求單才能聯繫移工；staff/admin 免限制。
  */
 async function assertCanBrowseWorkers(user: {
   id: number;
@@ -3581,11 +3581,12 @@ export const appRouter = router({
   }),
 
   // ─── 公開站：找工作（P1）──────────────────────────────────────────────────
-  // 規格 §15-1 定案「找工作也需登入」→ protectedProcedure（任何登入者可瀏覽）。
-  // 統一呈現兩個來源：① 審核通過的公開需求單；② 既有內部需求單中尚未媒合成功
-  // 且未被隱藏者。皆去識別，不外露任何雇主 PII。
+  // 瀏覽（list/get）開放匿名 → publicProcedure：職缺卡片已去識別，不含任何雇主
+  // PII，開放瀏覽利於引流／SEO 且不損隱私。表達興趣（expressInterest）與「我的
+  // 意向」仍需登入。統一呈現兩個來源：① 審核通過的公開需求單；② 既有內部需求單中
+  // 尚未媒合成功且未被隱藏者。
   publicJobs: router({
-    list: protectedProcedure
+    list: publicProcedure
       .input(
         z
           .object({
@@ -3666,8 +3667,8 @@ export const appRouter = router({
         );
         return filtered;
       }),
-    // 單筆職缺詳情（登入可見；仍不外露雇主 PII）
-    get: protectedProcedure
+    // 單筆職缺詳情（開放匿名瀏覽；仍不外露雇主 PII）
+    get: publicProcedure
       .input(
         z.object({
           source: z.enum(["posting", "demand"]),
@@ -3933,11 +3934,13 @@ export const appRouter = router({
       }),
   }),
 
-  // ─── 找移工（雇主，需有通過的需求單，P2）─────────────────────────────────
-  // 規格 §15-1：雇主需登入 **且** 至少一張通過的需求單，才能瀏覽匿名履歷。
-  // 一律回去識別視圖，永不外露移工真實姓名/證件/聯絡方式（§11）。
+  // ─── 找移工（P2）─────────────────────────────────────────────────────────
+  // 瀏覽（list/get）開放匿名 → publicProcedure：一律回去識別視圖，永不外露移工
+  // 真實姓名/證件/聯絡方式（§11），故匿名瀏覽不損隱私。送出媒合意向
+  // （expressInterest）仍需雇主登入 **且** 至少一張通過審核的需求單（§15-1，
+  // 見 assertCanBrowseWorkers）。
   findWorkers: router({
-    list: employerProcedure
+    list: publicProcedure
       .input(
         z
           .object({
@@ -3957,15 +3960,13 @@ export const appRouter = router({
           })
           .optional()
       )
-      .query(async ({ ctx, input }) => {
-        await assertCanBrowseWorkers(ctx.user);
+      .query(async ({ input }) => {
         const rows = await listPublicProfiles(input);
         return rows.map(publicProfileView);
       }),
-    get: employerProcedure
+    get: publicProcedure
       .input(z.object({ id: z.number().int().positive() }))
-      .query(async ({ ctx, input }) => {
-        await assertCanBrowseWorkers(ctx.user);
+      .query(async ({ input }) => {
         const p = await getProfileById(input.id);
         if (
           !p ||
@@ -4005,7 +4006,7 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ ctx, input }) => {
-        await assertCanBrowseWorkers(ctx.user); // 與 list/get 同一道 §15-1 gate
+        await assertCanBrowseWorkers(ctx.user); // §15-1：送出意向前仍需通過的需求單
         const p = await getProfileById(input.id);
         if (
           !p ||

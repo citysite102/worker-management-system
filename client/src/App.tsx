@@ -69,17 +69,9 @@ function Router() {
       </Route>
       {/* 公開站 */}
       <Route path="/login" component={Login} />
-      {/* 找工作（需登入，§15-1）*/}
-      <Route path="/jobs">
-        <RequireAuth>
-          <Jobs />
-        </RequireAuth>
-      </Route>
-      <Route path="/jobs/:source/:id">
-        <RequireAuth>
-          <JobDetail />
-        </RequireAuth>
-      </Route>
+      {/* 找工作（開放匿名瀏覽；「我有興趣」時才需登入）*/}
+      <Route path="/jobs" component={Jobs} />
+      <Route path="/jobs/:source/:id" component={JobDetail} />
       {/* 我的媒合意向（需登入）*/}
       <Route path="/my-interests">
         <RequireAuth>
@@ -92,17 +84,9 @@ function Router() {
           <WorkerProfile />
         </RequireAuth>
       </Route>
-      {/* 找移工（雇主，需通過的需求單；後端再 gate）*/}
-      <Route path="/find-workers">
-        <RequireAuth accountType="employer">
-          <FindWorkers />
-        </RequireAuth>
-      </Route>
-      <Route path="/find-workers/:id">
-        <RequireAuth accountType="employer">
-          <FindWorkerDetail />
-        </RequireAuth>
-      </Route>
+      {/* 找移工（開放匿名瀏覽去識別履歷；送出意向時才需雇主登入＋通過的需求單，後端 gate）*/}
+      <Route path="/find-workers" component={FindWorkers} />
+      <Route path="/find-workers/:id" component={FindWorkerDetail} />
       {/* 雇主專區（需登入且為雇主帳號）*/}
       <Route path="/employer">
         <RequireAuth accountType="employer">

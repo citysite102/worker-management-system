@@ -5,10 +5,12 @@ import { trpc } from "@/lib/trpc";
 import {
   PageHeader,
   SurfaceCard,
+  SkeletonList,
   StatusPill,
   MetaItem,
   MetaRow,
   FilterChip,
+  inputCls,
   matchStatusTone,
 } from "@/components/marketplace/ui";
 
@@ -84,9 +86,7 @@ export default function MatchRequests() {
       </div>
 
       {q.isLoading ? (
-        <div className="py-16 text-center text-sm text-muted-foreground">
-          載入中…
-        </div>
+        <SkeletonList />
       ) : rows.length === 0 ? (
         <div
           className="py-16 text-center text-sm text-muted-foreground"
@@ -134,6 +134,26 @@ export default function MatchRequests() {
                       留言：{m.note}
                     </p>
                   )}
+                  {(m.staffNote || m.closeReason) && (
+                    <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+                      {m.staffNote && <p>內部備註：{m.staffNote}</p>}
+                      {m.closeReason && <p>關閉原因：{m.closeReason}</p>}
+                    </div>
+                  )}
+                  <RequestNotes
+                    id={m.id}
+                    staffNote={m.staffNote}
+                    closeReason={m.closeReason}
+                    pending={statusMut.isPending}
+                    onSave={(staffNote, closeReason) =>
+                      statusMut.mutate({
+                        id: m.id,
+                        status: m.status as Status,
+                        staffNote,
+                        closeReason,
+                      })
+                    }
+                  />
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
                   <select
@@ -168,6 +188,89 @@ export default function MatchRequests() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** 內部備註 / 關閉原因編輯器（沿用 updateStatus 既有欄位；關閉原因僅在狀態為已關閉時保留）。 */
+function RequestNotes({
+  id,
+  staffNote,
+  closeReason,
+  pending,
+  onSave,
+}: {
+  id: number;
+  staffNote: string | null;
+  closeReason: string | null;
+  pending: boolean;
+  onSave: (staffNote?: string, closeReason?: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState(staffNote ?? "");
+  const [reason, setReason] = useState(closeReason ?? "");
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-2 text-xs font-medium text-primary hover:underline"
+        data-testid={`match-notes-toggle-${id}`}
+      >
+        編輯備註 / 關閉原因
+      </button>
+    );
+  }
+  return (
+    <div
+      className="mt-3 space-y-2 rounded-md border border-border bg-muted/30 p-3"
+      data-testid={`match-notes-${id}`}
+    >
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">
+          內部備註（僅客服可見）
+        </span>
+        <textarea
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          rows={2}
+          className={inputCls}
+          data-testid={`match-staffNote-${id}`}
+        />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">
+          關閉原因（狀態為「已關閉」時保留）
+        </span>
+        <input
+          value={reason}
+          onChange={e => setReason(e.target.value)}
+          className={inputCls}
+          data-testid={`match-closeReason-${id}`}
+        />
+      </label>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            onSave(note.trim() || undefined, reason.trim() || undefined);
+            setOpen(false);
+          }}
+          className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+          data-testid={`match-notes-save-${id}`}
+        >
+          儲存
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+        >
+          取消
+        </button>
+      </div>
     </div>
   );
 }

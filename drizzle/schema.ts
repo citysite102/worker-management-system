@@ -938,6 +938,7 @@ export const workerPublicProfiles = mysqlTable(
       "overseas_student",
     ]), // 期望職類（主要／相容欄位；＝ jobTypes[0]）
     jobTypes: text("jobTypes"), // JSON 陣列（期望職類，可多選）；jobType 存其首項供相容
+    preferredCities: text("preferredCities"), // JSON 陣列（期望工作地區，可多選）
     skills: text("skills"), // JSON 陣列（技能標籤）
     languages: text("languages"), // JSON 陣列（語言）
     availability: varchar("availability", { length: 100 }), // 可上工時間

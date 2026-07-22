@@ -119,7 +119,10 @@ export function resetTrpcMock() {
 /** 元件會把 onSuccess 傳進 useMutation，這裡存起來供 mutate 觸發。 */
 const mutationCallbacks = new Map<
   string,
-  { onSuccess?: (data: unknown) => void; onError?: (e: unknown) => void }
+  {
+    onSuccess?: (data: unknown, variables?: unknown) => void;
+    onError?: (e: unknown, variables?: unknown) => void;
+  }
 >();
 
 function useQueryImpl(
@@ -142,20 +145,28 @@ function useQueryImpl(
 
 function useMutationImpl(
   path: string,
-  opts?: { onSuccess?: (data: unknown) => void; onError?: (e: unknown) => void }
+  opts?: {
+    onSuccess?: (data: unknown, variables?: unknown) => void;
+    onError?: (e: unknown, variables?: unknown) => void;
+  }
 ) {
   if (opts) mutationCallbacks.set(path, opts);
 
   const existing = mutationResults.get(path);
   if (existing) return existing;
 
+  // 與 react-query 相同：onSuccess/onError 皆會拿到第二參數 variables（mutate 的輸入），
+  // 元件常用 (data, vars) => vars.xxx，故一律帶上。
   const trigger = (variables: unknown) => {
     const cb = mutationCallbacks.get(path);
     if (mutationErrors.has(path)) {
-      cb?.onError?.(mutationErrors.get(path));
+      cb?.onError?.(mutationErrors.get(path), variables);
       return variables;
     }
-    cb?.onSuccess?.(mutationSuccessData.get(path) ?? { success: true });
+    cb?.onSuccess?.(
+      mutationSuccessData.get(path) ?? { success: true },
+      variables
+    );
     return variables;
   };
 

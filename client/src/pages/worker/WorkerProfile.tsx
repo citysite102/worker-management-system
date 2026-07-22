@@ -11,7 +11,11 @@ import {
   Field,
   inputCls,
 } from "@/components/marketplace/ui";
-import { JOB_TYPE_VALUES, type JobTypeValue } from "@/lib/marketplace";
+import {
+  JOB_TYPE_VALUES,
+  TW_CITIES,
+  type JobTypeValue,
+} from "@/lib/marketplace";
 import { categoryIcon } from "@/components/marketplace/worker";
 
 const EMPLOYER_TYPES = [
@@ -42,6 +46,7 @@ export default function WorkerProfile() {
     selfIntro: "",
   });
   const [jobTypes, setJobTypes] = useState<JobTypeValue[]>([]);
+  const [preferredCities, setPreferredCities] = useState<string[]>([]);
   const set = (k: keyof typeof form, v: string) =>
     setForm(f => ({ ...f, [k]: v }));
 
@@ -53,6 +58,12 @@ export default function WorkerProfile() {
         : prev.length >= 3
           ? prev
           : [...prev, v]
+    );
+
+  // 期望工作地區多選：切換選取（縣市）。
+  const toggleCity = (c: string) =>
+    setPreferredCities(prev =>
+      prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]
     );
 
   useEffect(() => {
@@ -69,6 +80,7 @@ export default function WorkerProfile() {
         selfIntro: p.selfIntro ?? "",
       });
       setJobTypes((p.jobTypes ?? []) as JobTypeValue[]);
+      setPreferredCities((p.preferredCities ?? []) as string[]);
     }
   }, [profileQ.data]);
 
@@ -93,6 +105,7 @@ export default function WorkerProfile() {
       nationality: form.nationality || undefined,
       yearOfBirth: form.yearOfBirth ? Number(form.yearOfBirth) : undefined,
       jobTypes: jobTypes.length ? jobTypes : undefined,
+      preferredCities: preferredCities.length ? preferredCities : undefined,
       skills: toList(form.skills),
       languages: toList(form.languages),
       availability: form.availability || undefined,
@@ -203,6 +216,33 @@ export default function WorkerProfile() {
                     >
                       <Icon className="h-3.5 w-3.5" />
                       {t(`jobs.jobType.${v}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+            {/* 期望工作地區：可多選（縣市），無需打字，點選即可 */}
+            <Field label={t("worker.preferredCities")}>
+              <div
+                className="flex flex-wrap gap-1.5"
+                data-testid="profile-preferredCities"
+              >
+                {TW_CITIES.map(c => {
+                  const active = preferredCities.includes(c);
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => toggleCity(c)}
+                      aria-pressed={active}
+                      className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                        active
+                          ? "border-primary bg-accent text-accent-foreground"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted"
+                      }`}
+                      data-testid={`profile-city-${c}`}
+                    >
+                      {c}
                     </button>
                   );
                 })}

@@ -54,6 +54,10 @@ export default function FindWorkerDetail() {
           label: t("findWorkers.availability"),
           value: p.availability,
         },
+        p.preferredCities.length > 0 && {
+          label: t("findWorkers.preferredCities"),
+          value: p.preferredCities.join("、"),
+        },
         p.languages.length > 0 && {
           label: t("findWorkers.languages"),
           value: p.languages.join("、"),

@@ -814,6 +814,7 @@ function publicProfileView(p: {
   yearOfBirth: number | null;
   jobType: string | null;
   jobTypes?: string | null;
+  preferredCities?: string | null;
   skills: string | null;
   languages: string | null;
   availability: string | null;
@@ -839,6 +840,7 @@ function publicProfileView(p: {
       : null,
     skills: parseJsonArray(p.skills),
     languages: parseJsonArray(p.languages),
+    preferredCities: parseJsonArray(p.preferredCities),
     availability: p.availability,
     // 公開層只給「有無真實照片」布林，實際照片一律登入後才下傳（維持去識別）。
     hasPhoto: !!p.photoKey,
@@ -887,6 +889,8 @@ const workerProfileInput = z.object({
     )
     .max(3)
     .optional(),
+  // 期望工作地區（可多選；縣市字串）。
+  preferredCities: z.array(z.string().trim().max(20)).max(15).optional(),
   skills: z.array(z.string().trim().max(30)).max(20).optional(),
   languages: z.array(z.string().trim().max(30)).max(10).optional(),
   availability: z
@@ -3918,6 +3922,7 @@ export const appRouter = router({
         ...p,
         skills: parseJsonArray(p.skills),
         languages: parseJsonArray(p.languages),
+        preferredCities: parseJsonArray(p.preferredCities),
         // 多選職類：回陣列；無 jobTypes 的舊列回退成 [jobType]。
         jobTypes: jobTypes.length > 0 ? jobTypes : p.jobType ? [p.jobType] : [],
         createdAt: p.createdAt?.toISOString() ?? null,
@@ -3928,7 +3933,14 @@ export const appRouter = router({
     upsertProfile: workerProcedure
       .input(workerProfileInput.extend({ submit: z.boolean().default(false) }))
       .mutation(async ({ ctx, input }) => {
-        const { submit, skills, languages, jobTypes, ...rest } = input;
+        const {
+          submit,
+          skills,
+          languages,
+          jobTypes,
+          preferredCities,
+          ...rest
+        } = input;
         const existing = await getProfileByUserId(ctx.user.id);
         const data = {
           ...rest,
@@ -3937,6 +3949,10 @@ export const appRouter = router({
           // 多選職類：存 JSON 陣列；jobType 存首項供既有查詢/顯示相容。
           jobTypes: jobTypes ? JSON.stringify(jobTypes) : undefined,
           jobType: jobTypes?.[0] ?? null,
+          // 期望工作地區：存 JSON 陣列。
+          preferredCities: preferredCities
+            ? JSON.stringify(preferredCities)
+            : undefined,
           // 任何內容編輯都必須重新審核 —— 否則已通過的履歷可透過「存草稿」把
           // 真實姓名/電話塞進 selfIntro 而不經審核就對雇主公開（Code Review #2）。
           // 已公開者一旦編輯即退回 pending，於重新通過前不再出現在找移工。

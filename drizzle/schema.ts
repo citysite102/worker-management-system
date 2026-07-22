@@ -1005,3 +1005,26 @@ export const workerExperiences = mysqlTable(
 );
 export type WorkerExperience = typeof workerExperiences.$inferSelect;
 export type InsertWorkerExperience = typeof workerExperiences.$inferInsert;
+
+// ─── Ratings（評分：只限已完成的聘僱，P3）──────────────────────────────────────
+// 評分綁在一筆「已完成」的 case_employments 上（status terminated/expired 或 contractEnd 已過），
+// 天然滿足「評分只能用在已完成工作」：一段聘僱只能評一次（employmentId UNIQUE）。
+// 顯示端沿用 worker_public_profiles.ratingAvg(平均×10)/ratingCount 聚合與 ≥5 門檻。
+export const ratings = mysqlTable(
+  "ratings",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    employmentId: int("employmentId").notNull(), // → case_employments.id（一段聘僱一則）
+    workerId: int("workerId").notNull(), // → workers.id（＝ employment.workerId，冗餘存便於彙總）
+    raterUserId: int("raterUserId").notNull(), // → users.id（雇主帳號或代填 staff）
+    score: int("score").notNull(), // 1..5（於 procedure 驗證範圍）
+    comment: varchar("comment", { length: 500 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => ({
+    employmentIdx: uniqueIndex("ratings_employmentId_idx").on(t.employmentId),
+    workerIdx: index("ratings_workerId_idx").on(t.workerId),
+  })
+);
+export type Rating = typeof ratings.$inferSelect;
+export type InsertRating = typeof ratings.$inferInsert;

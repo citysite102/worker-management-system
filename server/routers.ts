@@ -117,6 +117,11 @@ import {
   getAllProfiles,
   searchWorkersForReconcile,
   setProfileWorkerLink,
+  getEmploymentById,
+  getRatingByEmployment,
+  createRating,
+  getRatingsByWorker,
+  recomputeWorkerRating,
 } from "./db";
 import {
   evaluateHealthChecks,
@@ -912,6 +917,29 @@ async function assertCanBrowseWorkers(user: {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "需先有一張通過審核的需求單才能瀏覽移工履歷",
+    });
+}
+
+/**
+ * 評分授權門檻（單一可調點；見 docs/feature-ratings.md 決策 A）：
+ * staff/admin 可代任何聘僱評分（仲介居中模式）；一般帳號需為該聘僱案件的雇主
+ * ——users.customerId === case.customerId（employer 帳號經 P2 勾稽後才有 customerId）。
+ * 刻意不放寬到「線上媒合成交」，因為那不代表工作已完成，會違反「只評已完成工作」。
+ */
+async function assertRatingEligible(
+  user: {
+    id: number;
+    role: string;
+    customerId: number | null | undefined;
+  },
+  caseId: number
+): Promise<void> {
+  if (user.role === "staff" || user.role === "admin") return;
+  const c = await getCaseById(caseId);
+  if (!c || !user.customerId || c.customerId !== user.customerId)
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "只有該工作的雇主可評價",
     });
 }
 
@@ -4233,6 +4261,83 @@ export const appRouter = router({
           meta: { assignedStaffId: ctx.user.id },
         });
         return { success: true } as const;
+      }),
+  }),
+
+  // ─── 評分（只限已完成聘僱，P3）─────────────────────────────────────────────
+  ratings: router({
+    // 建立評分：綁在一筆「已完成」的聘僱上；一段聘僱只能評一次。
+    create: protectedProcedure
+      .input(
+        z.object({
+          employmentId: z.number().int().positive(),
+          score: z.number().int().min(1).max(5),
+          comment: z
+            .string()
+            .trim()
+            .max(500)
+            .optional()
+            .transform(s => s?.trim() || undefined),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const emp = await getEmploymentById(input.employmentId);
+        if (!emp)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "找不到此聘僱紀錄",
+          });
+        // 完成判定：已終止/到期，或合約結束日已過（台北時區；YYYY-MM-DD 可字串比較）。
+        const today = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Taipei",
+        }).format(new Date());
+        const finished =
+          emp.status === "terminated" ||
+          emp.status === "expired" ||
+          (!!emp.contractEnd && emp.contractEnd < today);
+        if (!finished)
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "只能評價已完成的工作",
+          });
+        // 授權門檻（單一可調點）。
+        await assertRatingEligible(ctx.user, emp.caseId);
+        // 防重複：一段聘僱一則。
+        const existing = await getRatingByEmployment(input.employmentId);
+        if (existing)
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "此聘僱已評價過",
+          });
+        await createRating({
+          employmentId: input.employmentId,
+          workerId: emp.workerId,
+          raterUserId: ctx.user.id,
+          score: input.score,
+          comment: input.comment ?? null,
+        });
+        // 重算聚合寫回連結的公開履歷（無連結則僅存 rating，不對外顯示）。
+        await recomputeWorkerRating(emp.workerId);
+        await logAudit(ctx, {
+          action: "rating.create",
+          entityType: "ratings",
+          entityId: input.employmentId,
+          meta: { workerId: emp.workerId, score: input.score },
+        });
+        return { success: true } as const;
+      }),
+    // 某移工的評分清單（去識別：不含評分者身分）；供詳情頁「評價」區塊。
+    // 登入後才可讀個別評論（與完整履歷一致的登入門檻）；公開層只露星等聚合。
+    forWorker: protectedProcedure
+      .input(z.object({ workerId: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const rows = await getRatingsByWorker(input.workerId);
+        return rows.map(r => ({
+          id: r.id,
+          score: r.score,
+          comment: r.comment,
+          createdAt: r.createdAt?.toISOString() ?? null,
+        }));
       }),
   }),
 

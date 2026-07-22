@@ -51,6 +51,8 @@ import {
   InsertWorkerPublicProfile,
   workerExperiences,
   InsertWorkerExperience,
+  ratings,
+  InsertRating,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1692,4 +1694,83 @@ export async function countApprovedPostingsByEmployer(
       )
     );
   return Number(rows[0]?.count ?? 0);
+}
+
+// ─── Ratings（評分：只限已完成聘僱，P3）───────────────────────────────────────
+/** 取單筆聘僱（供評分完成判定與授權）。 */
+export async function getEmploymentById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(caseEmployments)
+    .where(eq(caseEmployments.id, id))
+    .limit(1);
+  return rows[0];
+}
+
+/** 某聘僱是否已有評分（一段聘僱一則）。 */
+export async function getRatingByEmployment(employmentId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(ratings)
+    .where(eq(ratings.employmentId, employmentId))
+    .limit(1);
+  return rows[0];
+}
+
+/** 建立評分。 */
+export async function createRating(data: InsertRating): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return insertedId(await db.insert(ratings).values(data));
+}
+
+/** 某 workers.id 的評分清單（去識別：不含評分者身分）。 */
+export async function getRatingsByWorker(workerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: ratings.id,
+      score: ratings.score,
+      comment: ratings.comment,
+      createdAt: ratings.createdAt,
+    })
+    .from(ratings)
+    .where(eq(ratings.workerId, workerId))
+    .orderBy(desc(ratings.createdAt));
+}
+
+/** 依 workers.id 找連結的公開履歷（客服勾稽後 workerId 相符；一般 ≤1 筆）。 */
+export async function getProfilesByWorkerId(workerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(workerPublicProfiles)
+    .where(eq(workerPublicProfiles.workerId, workerId));
+}
+
+/**
+ * 依評分清單重算某 worker 的聚合，寫回其連結的公開履歷。
+ * ratingAvg 存平均×10 的整數（沿用既有慣例，避免浮點）；無連結履歷則不寫。
+ */
+export async function recomputeWorkerRating(workerId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const rows = await db
+    .select({ score: ratings.score })
+    .from(ratings)
+    .where(eq(ratings.workerId, workerId));
+  const count = rows.length;
+  const avgTimes10 = count
+    ? Math.round((rows.reduce((s, r) => s + r.score, 0) / count) * 10)
+    : 0;
+  await db
+    .update(workerPublicProfiles)
+    .set({ ratingAvg: avgTimes10, ratingCount: count })
+    .where(eq(workerPublicProfiles.workerId, workerId));
 }

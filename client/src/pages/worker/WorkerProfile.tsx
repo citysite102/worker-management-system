@@ -8,6 +8,8 @@ import {
   PageHeader,
   SurfaceCard,
   StatusPill,
+  Field,
+  inputCls,
 } from "@/components/marketplace/ui";
 import { JOB_TYPE_VALUES, type JobTypeValue } from "@/lib/marketplace";
 import { categoryIcon } from "@/components/marketplace/worker";
@@ -21,9 +23,6 @@ const EMPLOYER_TYPES = [
   "other",
 ] as const;
 type EmployerType = (typeof EMPLOYER_TYPES)[number];
-
-const inputCls =
-  "w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent";
 
 /** 移工自助：公開履歷 + 自填經歷。 */
 export default function WorkerProfile() {
@@ -530,20 +529,5 @@ function ExperienceForm({
         </button>
       </div>
     </SurfaceCard>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="block text-sm font-medium mb-1.5">{label}</span>
-      {children}
-    </label>
   );
 }

@@ -5,6 +5,12 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import {
+  PageHeader,
+  SurfaceCard,
+  Field,
+  inputCls,
+} from "@/components/marketplace/ui";
+import {
   TW_CITIES,
   JOB_TYPE_VALUES,
   EMPLOYMENT_TYPE_VALUES,
@@ -141,181 +147,169 @@ export default function PostingForm() {
         >
           {t("employer.backToList")}
         </Link>
-        <h1 className="mt-3 mb-6 text-2xl font-bold tracking-tight">
-          {isEdit ? t("employer.editPosting") : t("employer.newPosting")}
-        </h1>
+        <div className="mt-3">
+          <PageHeader
+            title={
+              isEdit ? t("employer.editPosting") : t("employer.newPosting")
+            }
+          />
+        </div>
 
-        <form
-          onSubmit={e => {
-            e.preventDefault();
-            submit(true);
-          }}
-          className="space-y-4 rounded-lg border border-border bg-card p-6"
-        >
-          <Field label={`${t("employer.form.jobType")} *`}>
-            <select
-              value={form.jobType}
-              onChange={e => set("jobType", e.target.value as JobTypeValue)}
-              className={inputCls}
-              data-testid="form-jobType"
-            >
-              {JOB_TYPE_VALUES.map(v => (
-                <option key={v} value={v}>
-                  {t(`jobs.jobType.${v}`)}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={`${t("employer.form.city")} *`}>
+        <SurfaceCard>
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              submit(true);
+            }}
+            className="space-y-4"
+          >
+            <Field label={`${t("employer.form.jobType")} *`}>
               <select
-                value={form.city}
-                onChange={e => set("city", e.target.value)}
+                value={form.jobType}
+                onChange={e => set("jobType", e.target.value as JobTypeValue)}
                 className={inputCls}
-                required
-                data-testid="form-city"
+                data-testid="form-jobType"
               >
-                <option value="">{t("employer.form.selectCity")}</option>
-                {TW_CITIES.map(c => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label={t("employer.form.district")}>
-              <input
-                value={form.district}
-                onChange={e => set("district", e.target.value)}
-                className={inputCls}
-                data-testid="form-district"
-              />
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={`${t("employer.form.headcount")} *`}>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={form.headcount}
-                onChange={e => set("headcount", Number(e.target.value))}
-                className={inputCls}
-                data-testid="form-headcount"
-              />
-            </Field>
-            <Field label={`${t("employer.form.employmentType")} *`}>
-              <select
-                value={form.employmentType}
-                onChange={e =>
-                  set("employmentType", e.target.value as EmploymentTypeValue)
-                }
-                className={inputCls}
-                data-testid="form-employmentType"
-              >
-                {EMPLOYMENT_TYPE_VALUES.map(v => (
+                {JOB_TYPE_VALUES.map(v => (
                   <option key={v} value={v}>
-                    {t(`jobs.employmentType.${v}`)}
+                    {t(`jobs.jobType.${v}`)}
                   </option>
                 ))}
               </select>
             </Field>
-          </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("employer.form.salaryMin")}>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={`${t("employer.form.city")} *`}>
+                <select
+                  value={form.city}
+                  onChange={e => set("city", e.target.value)}
+                  className={inputCls}
+                  required
+                  data-testid="form-city"
+                >
+                  <option value="">{t("employer.form.selectCity")}</option>
+                  {TW_CITIES.map(c => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={t("employer.form.district")}>
+                <input
+                  value={form.district}
+                  onChange={e => set("district", e.target.value)}
+                  className={inputCls}
+                  data-testid="form-district"
+                />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={`${t("employer.form.headcount")} *`}>
+                <input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={form.headcount}
+                  onChange={e => set("headcount", Number(e.target.value))}
+                  className={inputCls}
+                  data-testid="form-headcount"
+                />
+              </Field>
+              <Field label={`${t("employer.form.employmentType")} *`}>
+                <select
+                  value={form.employmentType}
+                  onChange={e =>
+                    set("employmentType", e.target.value as EmploymentTypeValue)
+                  }
+                  className={inputCls}
+                  data-testid="form-employmentType"
+                >
+                  {EMPLOYMENT_TYPE_VALUES.map(v => (
+                    <option key={v} value={v}>
+                      {t(`jobs.employmentType.${v}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("employer.form.salaryMin")}>
+                <input
+                  type="number"
+                  min={0}
+                  value={form.salaryMin}
+                  onChange={e => set("salaryMin", e.target.value)}
+                  className={inputCls}
+                  data-testid="form-salaryMin"
+                />
+              </Field>
+              <Field label={t("employer.form.salaryMax")}>
+                <input
+                  type="number"
+                  min={0}
+                  value={form.salaryMax}
+                  onChange={e => set("salaryMax", e.target.value)}
+                  className={inputCls}
+                  data-testid="form-salaryMax"
+                />
+              </Field>
+            </div>
+
+            <Field label={t("employer.form.expectedStart")}>
               <input
-                type="number"
-                min={0}
-                value={form.salaryMin}
-                onChange={e => set("salaryMin", e.target.value)}
+                type="date"
+                value={form.expectedStartDate}
+                onChange={e => set("expectedStartDate", e.target.value)}
                 className={inputCls}
-                data-testid="form-salaryMin"
+                data-testid="form-expectedStart"
               />
             </Field>
-            <Field label={t("employer.form.salaryMax")}>
-              <input
-                type="number"
-                min={0}
-                value={form.salaryMax}
-                onChange={e => set("salaryMax", e.target.value)}
+
+            <Field label={t("employer.form.requirements")}>
+              <textarea
+                value={form.requirements}
+                onChange={e => set("requirements", e.target.value)}
+                rows={2}
                 className={inputCls}
-                data-testid="form-salaryMax"
+                data-testid="form-requirements"
               />
             </Field>
-          </div>
 
-          <Field label={t("employer.form.expectedStart")}>
-            <input
-              type="date"
-              value={form.expectedStartDate}
-              onChange={e => set("expectedStartDate", e.target.value)}
-              className={inputCls}
-              data-testid="form-expectedStart"
-            />
-          </Field>
+            <Field label={t("employer.form.description")}>
+              <textarea
+                value={form.publicDescription}
+                onChange={e => set("publicDescription", e.target.value)}
+                rows={3}
+                className={inputCls}
+                data-testid="form-description"
+              />
+            </Field>
 
-          <Field label={t("employer.form.requirements")}>
-            <textarea
-              value={form.requirements}
-              onChange={e => set("requirements", e.target.value)}
-              rows={2}
-              className={inputCls}
-              data-testid="form-requirements"
-            />
-          </Field>
-
-          <Field label={t("employer.form.description")}>
-            <textarea
-              value={form.publicDescription}
-              onChange={e => set("publicDescription", e.target.value)}
-              rows={3}
-              className={inputCls}
-              data-testid="form-description"
-            />
-          </Field>
-
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={pending}
-              className="flex-1 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-              data-testid="form-submit"
-            >
-              {t("employer.form.submit")}
-            </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => submit(false)}
-              className="rounded-md border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
-              data-testid="form-save-draft"
-            >
-              {t("employer.form.saveDraft")}
-            </button>
-          </div>
-        </form>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={pending}
+                className="flex-1 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                data-testid="form-submit"
+              >
+                {t("employer.form.submit")}
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => submit(false)}
+                className="rounded-md border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
+                data-testid="form-save-draft"
+              >
+                {t("employer.form.saveDraft")}
+              </button>
+            </div>
+          </form>
+        </SurfaceCard>
       </main>
     </div>
-  );
-}
-
-const inputCls =
-  "w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent";
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="block text-sm font-medium mb-1.5">{label}</span>
-      {children}
-    </label>
   );
 }

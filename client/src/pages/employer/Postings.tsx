@@ -7,6 +7,7 @@ import { formatSalary } from "@/lib/marketplace";
 import {
   PageHeader,
   SurfaceCard,
+  SkeletonList,
   StatusPill,
   MetaItem,
   MetaRow,
@@ -21,7 +22,7 @@ export default function EmployerPostings() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <PublicHeader />
-      <main className="max-w-4xl mx-auto px-6 py-8">
+      <main className="max-w-3xl mx-auto px-6 py-8">
         <PageHeader
           title={t("employer.myPostings")}
           action={
@@ -37,9 +38,7 @@ export default function EmployerPostings() {
         />
 
         {postingsQuery.isLoading ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">
-            …
-          </div>
+          <SkeletonList />
         ) : !postingsQuery.data || postingsQuery.data.length === 0 ? (
           <div
             className="py-16 text-center text-sm text-muted-foreground"

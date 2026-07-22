@@ -274,13 +274,24 @@ export function SkeletonCard() {
   );
 }
 
-/** 一格骨架網格（列表載入用）。 */
+/** 一格骨架網格（多欄列表載入用）。 */
 export function SkeletonGrid({ count = 6 }: { count?: number }) {
   return (
     <div
       className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
       data-testid="skeleton-grid"
     >
+      {Array.from({ length: count }).map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </div>
+  );
+}
+
+/** 單欄清單載入骨架（我的意向／雇主需求單等單欄頁）；取代臨時的「…」佔位。 */
+export function SkeletonList({ count = 4 }: { count?: number }) {
+  return (
+    <div className="space-y-3" data-testid="skeleton-list">
       {Array.from({ length: count }).map((_, i) => (
         <SkeletonCard key={i} />
       ))}
@@ -316,6 +327,26 @@ export function MetaRow({
     <div className={`flex flex-wrap gap-x-4 gap-y-1 ${className}`}>
       {children}
     </div>
+  );
+}
+
+/** 表單輸入框共用樣式（input/select/textarea 一致的邊框、內距、focus 藍環）。 */
+export const inputCls =
+  "w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent";
+
+/** 表單欄位：label 在上、控制項在下（各表單頁一致的欄位節奏）。 */
+export function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium">{label}</span>
+      {children}
+    </label>
   );
 }
 

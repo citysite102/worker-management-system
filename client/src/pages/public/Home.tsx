@@ -19,15 +19,14 @@ import { TW_CITIES, type JobCategory } from "@/lib/marketplace";
 
 const CATEGORIES: JobCategory[] = ["caregiver", "domestic_helper", "other"];
 
-// Hero 背景：品牌深藍漸層（含柔光），文字用白色；顏色一律走 token（見 index.css @theme）。
-// 白/黑 rgba 為柔光與陰影，非品牌色。要換成實拍大圖時，把 linear-gradient 換成
-// `linear-gradient(暗遮罩), url('/hero.jpg')` 即可（圖片放 public/）。
+// Hero 背景：沉穩深藏青（navy）。刻意避開飽和藍→藍紫的 135° 大漸層（那是「AI 模板感」的來源），
+// 改用近乎單色的深 navy + 極淡的右上柔光，色階都走 token。文字白色。品牌亮藍只留給 CTA/搜尋鈕。
+// 換成情境大圖：把已授權／去識別的照片放 client/public/hero.jpg，右欄會自動顯示（缺圖時收合為單欄）。
 const HERO_BG: React.CSSProperties = {
-  backgroundColor: "var(--color-primary)",
+  backgroundColor: "var(--color-brand-darker)",
   backgroundImage:
-    "radial-gradient(1200px 500px at 15% -10%, rgba(255,255,255,0.22), transparent 60%)," +
-    "radial-gradient(900px 500px at 100% 120%, rgba(0,0,0,0.35), transparent 55%)," +
-    "linear-gradient(135deg, var(--color-primary) 0%, var(--color-brand-dark) 55%, var(--color-brand-darker) 100%)",
+    "radial-gradient(1100px 600px at 85% -30%, rgba(255,255,255,0.07), transparent 60%)," +
+    "linear-gradient(180deg, var(--color-brand-dark) 0%, var(--color-brand-darker) 100%)",
 };
 
 /** 公開站首頁：大圖 hero + 蓋在上面的職缺搜尋框（WS4 分流 + WS5 i18n 落點）。 */
@@ -37,6 +36,8 @@ export default function PublicHome() {
   const display = useDisplay(); // 襯線大標：拉丁語系用 Fraunces，中文維持粗黑
   const [category, setCategory] = useState<JobCategory | "">("");
   const [city, setCity] = useState("");
+  // 情境照片：/hero.jpg 存在→雙欄帶圖；缺圖(404)→收合為單欄，不留空框。
+  const [heroImgFailed, setHeroImgFailed] = useState(false);
 
   const search = () => {
     const params = new URLSearchParams();
@@ -53,46 +54,45 @@ export default function PublicHome() {
     <div className="min-h-screen bg-background text-foreground">
       <PublicHeader />
 
-      <main className="max-w-6xl mx-auto px-6">
-        {/* ── Hero（大圖背景 + 蓋在上面的搜尋框）── */}
-        <section className="pt-6">
-          <div
-            className="relative overflow-hidden rounded-3xl px-6 py-16 sm:px-12 sm:py-24"
-            style={HERO_BG}
-          >
-            <div className="relative max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                {t("home.eyebrow")}
-              </span>
-              <h1
-                className={`mt-5 text-4xl font-bold tracking-tight text-balance text-white sm:text-6xl ${display}`}
+      {/* ── Hero（深藏青滿版 + 情境照片版位）── */}
+      <section style={HERO_BG} className="text-white">
+        <div
+          className={`mx-auto grid max-w-6xl items-center gap-10 px-6 py-16 sm:py-24 ${
+            heroImgFailed ? "" : "lg:grid-cols-[1.05fr_0.95fr]"
+          }`}
+        >
+          <div className="max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              {t("home.eyebrow")}
+            </span>
+            <h1
+              className={`mt-5 text-4xl font-bold tracking-tight text-balance text-white sm:text-5xl ${display}`}
+            >
+              {t("home.heroTitle")}
+            </h1>
+            <p className="mt-4 max-w-xl text-white/85">
+              {t("home.heroSubtitle")}
+            </p>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Link
+                href="/jobs"
+                className="inline-flex items-center rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-primary hover:bg-white/90 transition-colors"
+                data-testid="cta-find-jobs"
               >
-                {t("home.heroTitle")}
-              </h1>
-              <p className="mt-4 max-w-xl text-white/85">
-                {t("home.heroSubtitle")}
-              </p>
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <Link
-                  href="/jobs"
-                  className="inline-flex items-center rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-primary hover:bg-white/90 transition-colors"
-                  data-testid="cta-find-jobs"
-                >
-                  {t("home.ctaFindJobs")} →
-                </Link>
-                <Link
-                  href="/employer"
-                  className="inline-flex items-center rounded-md border border-white/40 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
-                  data-testid="cta-post-job"
-                >
-                  {t("home.ctaPostJob")}
-                </Link>
-              </div>
+                {t("home.ctaFindJobs")} →
+              </Link>
+              <Link
+                href="/employer"
+                className="inline-flex items-center rounded-md border border-white/40 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
+                data-testid="cta-post-job"
+              >
+                {t("home.ctaPostJob")}
+              </Link>
             </div>
 
-            {/* 蓋在 hero 上的搜尋框 */}
-            <div className="relative mt-10 max-w-3xl rounded-2xl border border-white/60 bg-card/95 p-3 shadow-lg backdrop-blur sm:mt-12">
+            {/* 搜尋框：白卡浮在 navy 上，藍色只出現在搜尋鈕 */}
+            <div className="mt-8 rounded-2xl border border-white/60 bg-card/95 p-3 shadow-lg backdrop-blur">
               <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                 <label className="sr-only" htmlFor="hero-category">
                   {t("jobs.filterCategory")}
@@ -149,8 +149,22 @@ export default function PublicHome() {
               </p>
             </div>
           </div>
-        </section>
 
+          {/* 情境照片版位（照片就緒）：放 client/public/hero.jpg 即顯示；缺圖時自動收合，不留空框。 */}
+          {!heroImgFailed && (
+            <div className="hidden lg:block animate-in fade-in duration-1000">
+              <img
+                src="/hero.jpg"
+                alt=""
+                onError={() => setHeroImgFailed(true)}
+                className="aspect-[4/5] w-full rounded-2xl border border-white/10 object-cover shadow-2xl"
+              />
+            </div>
+          )}
+        </div>
+      </section>
+
+      <main className="max-w-6xl mx-auto px-6">
         {/* ── 如何運作（editorial：左標題欄 + 右側細線分隔步驟）── */}
         <Section className="grid gap-10 md:grid-cols-[300px_1fr]">
           <div className="md:sticky md:top-24 md:self-start">

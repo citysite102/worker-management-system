@@ -6,6 +6,7 @@ import { PublicHeader } from "@/components/public/PublicHeader";
 import {
   PageHeader,
   SurfaceCard,
+  SkeletonList,
   StatusPill,
   CategoryChip,
   MetaItem,
@@ -24,9 +25,7 @@ export default function MyInterests() {
         <PageHeader title={t("jobs.myTitle")} />
 
         {q.isLoading ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">
-            …
-          </div>
+          <SkeletonList />
         ) : !q.data || q.data.length === 0 ? (
           <div
             className="py-16 text-center text-sm text-muted-foreground"

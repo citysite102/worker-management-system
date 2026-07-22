@@ -9,7 +9,7 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
-import { Eyebrow } from "@/components/marketplace/ui";
+import { Eyebrow, Section, useDisplay } from "@/components/marketplace/ui";
 import { TW_CITIES, type JobCategory } from "@/lib/marketplace";
 
 const CATEGORIES: JobCategory[] = ["caregiver", "domestic_helper", "other"];
@@ -27,10 +27,9 @@ const HERO_BG: React.CSSProperties = {
 
 /** 公開站首頁：大圖 hero + 蓋在上面的職缺搜尋框（WS4 分流 + WS5 i18n 落點）。 */
 export default function PublicHome() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [, navigate] = useLocation();
-  // 行銷大標的襯線字（Fraunces）只給拉丁語系；中文維持粗黑（設計系統 §3）。
-  const display = i18n.language.startsWith("zh") ? "" : "font-display";
+  const display = useDisplay(); // 襯線大標：拉丁語系用 Fraunces，中文維持粗黑
   const [category, setCategory] = useState<JobCategory | "">("");
   const [city, setCity] = useState("");
 
@@ -147,26 +146,73 @@ export default function PublicHome() {
           </div>
         </section>
 
-        {/* ── Trust ── */}
-        <section className="grid gap-4 sm:grid-cols-3 py-16">
-          {[
-            { icon: ShieldCheck, key: "trustVerified" },
-            { icon: Briefcase, key: "trustAgency" },
-            { icon: Languages, key: "trustMultilang" },
-          ].map(({ icon: Icon, key }, i) => (
-            <div
-              key={key}
-              style={{ animationDelay: `${i * 90}ms` }}
-              className="rounded-lg border border-border bg-card p-5 shadow-xs transition-all duration-200 ease-out animate-in fade-in slide-in-from-bottom-2 fill-mode-both hover:-translate-y-0.5 hover:shadow-sm"
+        {/* ── 如何運作（editorial：左標題欄 + 右側細線分隔步驟）── */}
+        <Section className="grid gap-10 md:grid-cols-[300px_1fr]">
+          <div className="md:sticky md:top-24 md:self-start">
+            <Eyebrow>{t("home.how.eyebrow")}</Eyebrow>
+            <h2
+              className={`mt-3 text-3xl font-bold tracking-tight text-balance sm:text-4xl ${display}`}
             >
-              <Icon className="w-5 h-5 text-primary" />
-              <p className="mt-3 text-sm font-medium">{t(`home.${key}`)}</p>
-            </div>
-          ))}
-        </section>
+              {t("home.how.title")}
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              {t("home.how.subtitle")}
+            </p>
+            <Link
+              href="/jobs"
+              className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+            >
+              {t("home.how.cta")} →
+            </Link>
+          </div>
+          <div className="divide-y divide-border">
+            {(
+              t("home.how.steps", { returnObjects: true }) as Array<{
+                title: string;
+                desc: string;
+              }>
+            ).map((step, i) => (
+              <div
+                key={i}
+                className="flex gap-5 py-6 first:pt-0 last:pb-0 animate-in fade-in slide-in-from-bottom-2 fill-mode-both"
+                style={{ animationDelay: `${i * 90}ms` }}
+              >
+                <span
+                  className={`shrink-0 text-2xl font-bold tabular-nums text-primary/35 ${display}`}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <h3 className="text-lg font-semibold">{step.title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                    {step.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        {/* ── 信任訴求（緊湊橫列，細線分隔）── */}
+        <Section divider className="!py-10">
+          <div className="grid gap-6 sm:grid-cols-3">
+            {[
+              { icon: ShieldCheck, key: "trustVerified" },
+              { icon: Briefcase, key: "trustAgency" },
+              { icon: Languages, key: "trustMultilang" },
+            ].map(({ icon: Icon, key }) => (
+              <div key={key} className="flex items-center gap-3">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <p className="text-sm font-medium">{t(`home.${key}`)}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
 
         {/* ── 常見問題（FAQ）── */}
-        <section id="faq" className="scroll-mt-20 border-t border-border py-16">
+        <Section id="faq" divider className="scroll-mt-20">
           <div className="mx-auto max-w-3xl">
             <div className="text-center">
               <Eyebrow>{t("home.faqEyebrow")}</Eyebrow>
@@ -203,7 +249,7 @@ export default function PublicHome() {
               ))}
             </Accordion>
           </div>
-        </section>
+        </Section>
       </main>
     </div>
   );

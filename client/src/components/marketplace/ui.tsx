@@ -123,6 +123,61 @@ export function SurfaceCard({
   );
 }
 
+/** 行銷大標的襯線字（Fraunces）只給拉丁語系；中文維持粗黑（設計系統 §3）。 */
+export function useDisplay(): string {
+  const { i18n } = useTranslation();
+  return i18n.language.startsWith("zh") ? "" : "font-display";
+}
+
+/** 區塊節奏容器（A8）：一致的縱向留白 + 可選頂部 hairline 分隔，讓各段落有呼吸感。 */
+export function Section({
+  children,
+  divider = false,
+  className = "",
+  ...rest
+}: {
+  children: ReactNode;
+  divider?: boolean;
+  className?: string;
+} & React.HTMLAttributes<HTMLElement>) {
+  return (
+    <section
+      className={`py-16 sm:py-20 ${divider ? "border-t border-border" : ""} ${className}`}
+      {...rest}
+    >
+      {children}
+    </section>
+  );
+}
+
+/** 公開頁行銷式頁首（A9）：eyebrow + 襯線大標(拉丁) + 副標，取代後台風 PageHeader。 */
+export function PageHero({
+  eyebrow,
+  title,
+  subtitle,
+  className = "",
+}: {
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  className?: string;
+}) {
+  const display = useDisplay();
+  return (
+    <div className={`mb-8 border-b border-border pb-8 ${className}`}>
+      {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
+      <h1
+        className={`mt-2 text-3xl font-bold tracking-tight text-balance sm:text-4xl ${display}`}
+      >
+        {title}
+      </h1>
+      {subtitle && (
+        <p className="mt-3 max-w-2xl text-muted-foreground">{subtitle}</p>
+      )}
+    </div>
+  );
+}
+
 /** 區塊小標（eyebrow）：品牌藍、小字；uppercase/tracking 只對拉丁語系有意義。 */
 export function Eyebrow({
   children,

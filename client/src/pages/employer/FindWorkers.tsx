@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import {
-  PageHeader,
+  PageHero,
   FilterChip,
   SkeletonGrid,
 } from "@/components/marketplace/ui";
@@ -20,7 +20,7 @@ export default function FindWorkers() {
     <div className="min-h-screen bg-background text-foreground">
       <PublicHeader />
       <main className="max-w-6xl mx-auto px-6 py-8">
-        <PageHeader
+        <PageHero
           title={t("findWorkers.title")}
           subtitle={t("findWorkers.subtitle")}
         />

@@ -5,7 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { JobCard } from "@/components/marketplace/JobCard";
 import {
-  PageHeader,
+  PageHero,
   FilterChip,
   SkeletonGrid,
 } from "@/components/marketplace/ui";
@@ -51,7 +51,7 @@ export default function Jobs() {
     <div className="min-h-screen bg-background text-foreground">
       <PublicHeader />
       <main className="max-w-6xl mx-auto px-6 py-8">
-        <PageHeader title={t("jobs.title")} subtitle={t("jobs.subtitle")} />
+        <PageHero title={t("jobs.title")} subtitle={t("jobs.subtitle")} />
 
         {/* Filters */}
         <div className="flex flex-wrap items-end gap-3 mb-6">

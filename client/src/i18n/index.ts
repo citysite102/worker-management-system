@@ -40,6 +40,26 @@ const resources = {
         trustVerified: "平台驗證的工作紀錄",
         trustAgency: "仲介居中，安心媒合",
         trustMultilang: "母語履歷 · 多語支援",
+        how: {
+          eyebrow: "如何運作",
+          title: "三步驟，專人把關",
+          subtitle: "從瀏覽到媒合，全程由客服居中；成交前保護雙方隱私。",
+          cta: "開始瀏覽職缺",
+          steps: [
+            {
+              title: "免費瀏覽，不需登入",
+              desc: "找工作與找外籍工作者都能匿名瀏覽，看得到去識別履歷與平台驗證的工作紀錄。",
+            },
+            {
+              title: "表達興趣，登入即可",
+              desc: "對合適的職缺或人選送出媒合意向，全程不需自己聯繫對方。",
+            },
+            {
+              title: "專人居中媒合",
+              desc: "客服審核把關、安排面談與後續文件，成交前一切聯繫都經我方安排。",
+            },
+          ],
+        },
         faqEyebrow: "常見問題",
         faqTitle: "還有疑問嗎？",
         faqSubtitle: "關於帳號、費用、媒合流程與隱私，最常被問到的問題。",
@@ -273,6 +293,27 @@ const resources = {
         trustVerified: "Platform-verified work records",
         trustAgency: "Agency-mediated, worry-free matching",
         trustMultilang: "Native-language résumé · multilingual",
+        how: {
+          eyebrow: "How it works",
+          title: "Three steps, vetted by our team",
+          subtitle:
+            "From browsing to matching, our staff mediate throughout — privacy protected until a deal.",
+          cta: "Start browsing jobs",
+          steps: [
+            {
+              title: "Browse free, no login",
+              desc: "Jobs and worker profiles are browsable anonymously — de-identified résumés and platform-verified work records included.",
+            },
+            {
+              title: "Express interest once logged in",
+              desc: "Send a match request on a job or candidate; you never contact the other side yourself.",
+            },
+            {
+              title: "We mediate the match",
+              desc: "Staff vet, arrange interviews and paperwork, and keep all contact routed through us before a deal.",
+            },
+          ],
+        },
         faqEyebrow: "FAQ",
         faqTitle: "Still have questions?",
         faqSubtitle:
@@ -514,6 +555,27 @@ const resources = {
         trustVerified: "Hồ sơ công việc được nền tảng xác minh",
         trustAgency: "Môi giới trung gian, kết nối an tâm",
         trustMultilang: "Hồ sơ bằng tiếng mẹ đẻ · đa ngôn ngữ",
+        how: {
+          eyebrow: "Cách hoạt động",
+          title: "Ba bước, có nhân viên kiểm duyệt",
+          subtitle:
+            "Từ xem đến kết nối, nhân viên của chúng tôi luôn trung gian — bảo vệ quyền riêng tư đến khi chốt.",
+          cta: "Bắt đầu xem việc",
+          steps: [
+            {
+              title: "Xem miễn phí, không cần đăng nhập",
+              desc: "Việc làm và hồ sơ lao động đều xem được ẩn danh — gồm hồ sơ ẩn danh và hồ sơ công việc được nền tảng xác minh.",
+            },
+            {
+              title: "Bày tỏ quan tâm sau khi đăng nhập",
+              desc: "Gửi yêu cầu kết nối cho một việc làm hoặc ứng viên; bạn không tự liên hệ bên kia.",
+            },
+            {
+              title: "Chúng tôi trung gian kết nối",
+              desc: "Nhân viên kiểm duyệt, sắp xếp phỏng vấn và giấy tờ, mọi liên hệ đều qua chúng tôi trước khi chốt.",
+            },
+          ],
+        },
         faqEyebrow: "Câu hỏi thường gặp",
         faqTitle: "Vẫn còn thắc mắc?",
         faqSubtitle:
@@ -756,6 +818,27 @@ const resources = {
         trustVerified: "Rekam kerja terverifikasi platform",
         trustAgency: "Dimediasi agen, pencocokan tenang",
         trustMultilang: "Resume bahasa ibu · multibahasa",
+        how: {
+          eyebrow: "Cara kerja",
+          title: "Tiga langkah, ditinjau tim kami",
+          subtitle:
+            "Dari menelusuri hingga mencocokkan, staf kami memediasi sepanjang proses — privasi terjaga sampai kesepakatan.",
+          cta: "Mulai telusuri lowongan",
+          steps: [
+            {
+              title: "Telusuri gratis, tanpa masuk",
+              desc: "Lowongan dan profil pekerja bisa ditelusuri anonim — termasuk resume anonim dan rekam kerja terverifikasi platform.",
+            },
+            {
+              title: "Nyatakan minat setelah masuk",
+              desc: "Kirim permintaan pencocokan untuk lowongan atau kandidat; Anda tak menghubungi pihak lain sendiri.",
+            },
+            {
+              title: "Kami memediasi pencocokan",
+              desc: "Staf meninjau, mengatur wawancara dan dokumen, semua kontak lewat kami sebelum kesepakatan.",
+            },
+          ],
+        },
         faqEyebrow: "Tanya Jawab",
         faqTitle: "Masih ada pertanyaan?",
         faqSubtitle:

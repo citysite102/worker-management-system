@@ -915,6 +915,18 @@ async function assertCanBrowseWorkers(user: {
     });
 }
 
+/**
+ * 公開職缺可露的「去識別雇主線索」：只回「個人/公司」類型，永不外露雇主名稱、
+ * 地址、聯絡方式（§11；仲介居中，雇主身分成交前不揭露）。
+ */
+async function publicEmployerType(
+  customerId: number | null | undefined
+): Promise<"individual" | "company" | null> {
+  if (!customerId) return null;
+  const cust = await getCustomerById(customerId);
+  return (cust?.employerType as "individual" | "company") ?? null;
+}
+
 /** 自填經歷輸入。 */
 const workerExperienceInput = z.object({
   employerType: z.enum([
@@ -3732,6 +3744,8 @@ export const appRouter = router({
             city: p.city,
             district: p.district,
             employmentType: p.employmentType,
+            // 去識別雇主線索：只給「個人/公司」類型，永不外露名稱/地址/聯絡（§11）。
+            employerType: await publicEmployerType(p.customerId),
             headcount: p.headcount,
             requirements: p.requirements,
             publicDescription: p.publicDescription,
@@ -3757,6 +3771,7 @@ export const appRouter = router({
           city: c?.publicCity ?? null,
           district: null,
           employmentType: null,
+          employerType: await publicEmployerType(c?.customerId),
           headcount: d.neededCount,
           requirements: null,
           publicDescription: null,

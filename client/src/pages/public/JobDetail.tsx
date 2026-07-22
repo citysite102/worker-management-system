@@ -1,21 +1,22 @@
 import { Link, useParams, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { MapPin, Users, Calendar, ShieldCheck } from "lucide-react";
+import { MapPin, ShieldCheck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { formatSalary } from "@/lib/marketplace";
 import {
   CategoryChip,
-  MetaItem,
   SurfaceCard,
   SkeletonCard,
+  useDisplay,
 } from "@/components/marketplace/ui";
 
 /** 公開站職缺詳情（開放匿名瀏覽）。「我有興趣」需登入 → 建立媒合意向交客服居中（P3）。 */
 export default function JobDetail() {
   const { t } = useTranslation();
+  const display = useDisplay();
   const params = useParams<{ source: string; id: string }>();
   const source = params.source === "demand" ? "demand" : "posting";
   const id = Number(params.id);
@@ -45,10 +46,43 @@ export default function JobDetail() {
     onError: e => toast.error(e.message),
   });
 
+  const d = jobQuery.data;
+
+  // 右側應徵卡的「關鍵事實」鍵值列（薪資另置頂）。
+  const facts = d
+    ? ([
+        {
+          label: t("jobs.filterCity"),
+          value: d.city
+            ? `${d.city}${d.district ? `・${d.district}` : ""}`
+            : t("jobs.cityNegotiable"),
+        },
+        {
+          label: t("jobs.headcount"),
+          value: `${d.headcount} ${t("jobs.people")}`,
+        },
+        d.employmentType && {
+          label: t("jobs.filterEmployment"),
+          value: t(`jobs.employmentType.${d.employmentType}`),
+        },
+        d.employerType && {
+          label: t("jobs.employerLabel"),
+          value:
+            d.employerType === "individual"
+              ? t("jobs.employerIndividual")
+              : t("jobs.employerCompany"),
+        },
+        d.expectedStartDate && {
+          label: t("jobs.expectedStart"),
+          value: d.expectedStartDate,
+        },
+      ].filter(Boolean) as Array<{ label: string; value: string }>)
+    : [];
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <PublicHeader />
-      <main className="max-w-3xl mx-auto px-6 py-8">
+      <main className="mx-auto max-w-5xl px-6 py-8">
         <Link
           href="/jobs"
           className="text-sm text-muted-foreground hover:text-foreground"
@@ -61,7 +95,7 @@ export default function JobDetail() {
           <div className="mt-4">
             <SkeletonCard />
           </div>
-        ) : jobQuery.error || !jobQuery.data ? (
+        ) : jobQuery.error || !d ? (
           <div
             className="py-16 text-center text-sm text-muted-foreground"
             data-testid="detail-notfound"
@@ -69,69 +103,73 @@ export default function JobDetail() {
             {t("jobs.empty")}
           </div>
         ) : (
-          <SurfaceCard className="mt-4" data-testid="job-detail">
-            <div className="flex items-center gap-2">
-              <CategoryChip>
-                {t(`jobs.category.${jobQuery.data.category}`)}
-              </CategoryChip>
-              {jobQuery.data.source === "demand" && (
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-                  {t("jobs.internalTag")}
-                </span>
+          <div
+            className="mt-4 grid gap-6 lg:grid-cols-[1fr_340px] lg:items-start"
+            data-testid="job-detail"
+          >
+            {/* ── 左：職缺內容 ── */}
+            <SurfaceCard>
+              <div className="flex flex-wrap items-center gap-2">
+                <CategoryChip>{t(`jobs.category.${d.category}`)}</CategoryChip>
+                {d.source === "demand" && (
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                    {t("jobs.internalTag")}
+                  </span>
+                )}
+              </div>
+              <h1
+                className={`mt-3 text-3xl font-bold tracking-tight text-balance ${display}`}
+              >
+                {t(`jobs.jobType.${d.jobType}`)}
+              </h1>
+              <p className="mt-2 flex items-center gap-1.5 text-muted-foreground">
+                <MapPin className="h-4 w-4 shrink-0" />
+                {d.city || t("jobs.cityNegotiable")}
+                {d.district ? `・${d.district}` : ""}
+              </p>
+
+              {d.publicDescription && (
+                <section className="mt-6 border-t border-border pt-6">
+                  <h2 className="text-sm font-semibold">
+                    {t("jobs.detailDesc")}
+                  </h2>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                    {d.publicDescription}
+                  </p>
+                </section>
               )}
-            </div>
-            <h1 className="mt-3 text-2xl font-bold tracking-tight">
-              {t(`jobs.jobType.${jobQuery.data.jobType}`)}
-            </h1>
-
-            <div className="mt-4 grid gap-2">
-              <MetaItem icon={MapPin}>
-                {jobQuery.data.city || t("jobs.cityNegotiable")}
-                {jobQuery.data.district ? `・${jobQuery.data.district}` : ""}
-              </MetaItem>
-              <MetaItem icon={Users}>
-                {t("jobs.headcount")}：{jobQuery.data.headcount}{" "}
-                {t("jobs.people")}
-              </MetaItem>
-              {jobQuery.data.employmentType && (
-                <p className="text-sm text-muted-foreground">
-                  {t("jobs.filterEmployment")}：
-                  {t(`jobs.employmentType.${jobQuery.data.employmentType}`)}
-                </p>
+              {d.requirements && (
+                <section className="mt-6 border-t border-border pt-6">
+                  <h2 className="text-sm font-semibold">
+                    {t("jobs.detailReq")}
+                  </h2>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                    {d.requirements}
+                  </p>
+                </section>
               )}
-              {jobQuery.data.expectedStartDate && (
-                <MetaItem icon={Calendar}>
-                  {t("jobs.expectedStart")}：{jobQuery.data.expectedStartDate}
-                </MetaItem>
-              )}
-            </div>
+            </SurfaceCard>
 
-            <p className="mt-4 text-lg font-semibold">
-              {formatSalary(jobQuery.data.salaryMin, jobQuery.data.salaryMax) ??
-                t("jobs.salaryNegotiable")}
-            </p>
-
-            {jobQuery.data.publicDescription && (
-              <section className="mt-6">
-                <h2 className="text-sm font-semibold">
-                  {t("jobs.detailDesc")}
-                </h2>
-                <p className="mt-1.5 text-sm whitespace-pre-wrap text-muted-foreground">
-                  {jobQuery.data.publicDescription}
-                </p>
-              </section>
-            )}
-            {jobQuery.data.requirements && (
-              <section className="mt-4">
-                <h2 className="text-sm font-semibold">{t("jobs.detailReq")}</h2>
-                <p className="mt-1.5 text-sm whitespace-pre-wrap text-muted-foreground">
-                  {jobQuery.data.requirements}
-                </p>
-              </section>
-            )}
-
-            <div className="mt-6 flex items-center gap-3">
+            {/* ── 右：應徵卡（薪資置頂 + 關鍵事實 + CTA），桌機 sticky ── */}
+            <SurfaceCard className="lg:sticky lg:top-24">
+              <p className="text-2xl font-bold tracking-tight tabular-nums">
+                {formatSalary(d.salaryMin, d.salaryMax) ??
+                  t("jobs.salaryNegotiable")}
+              </p>
+              <dl className="mt-4 space-y-3 border-t border-border pt-4 text-sm">
+                {facts.map(f => (
+                  <div
+                    key={f.label}
+                    className="flex items-start justify-between gap-4"
+                  >
+                    <dt className="shrink-0 text-muted-foreground">
+                      {f.label}
+                    </dt>
+                    <dd className="text-right font-medium">{f.value}</dd>
+                  </div>
+                ))}
+              </dl>
               <button
                 type="button"
                 disabled={interestMut.isPending || alreadySent}
@@ -142,18 +180,18 @@ export default function JobDetail() {
                   }
                   interestMut.mutate({ source, id });
                 }}
-                className="inline-flex items-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-60"
+                className="mt-5 w-full rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
                 data-testid="express-interest"
               >
                 {alreadySent
                   ? t("jobs.alreadyInterested")
                   : t("jobs.interested")}
               </button>
-              <span className="text-xs text-muted-foreground">
+              <p className="mt-2 text-center text-xs text-muted-foreground">
                 {t("jobs.viaAgency")}
-              </span>
-            </div>
-          </SurfaceCard>
+              </p>
+            </SurfaceCard>
+          </div>
         )}
       </main>
     </div>

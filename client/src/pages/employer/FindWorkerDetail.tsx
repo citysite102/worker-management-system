@@ -2,14 +2,7 @@ import { useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import {
-  Globe,
-  CalendarClock,
-  ShieldCheck,
-  Languages,
-  Lock,
-  Sparkles,
-} from "lucide-react";
+import { CalendarClock, ShieldCheck, Lock, Sparkles } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { PublicHeader } from "@/components/public/PublicHeader";
@@ -49,10 +42,29 @@ export default function FindWorkerDetail() {
   const p = q.data;
   const goLogin = () => navigate(`/login?next=${encodeURIComponent(location)}`);
 
+  // 右側個人卡的「關鍵事實」鍵值列。
+  const facts = p
+    ? ([
+        p.nationality && {
+          label: t("findWorkers.filterNationality"),
+          value: p.nationality,
+        },
+        p.ageRange && { label: t("findWorkers.ageRange"), value: p.ageRange },
+        p.availability && {
+          label: t("findWorkers.availability"),
+          value: p.availability,
+        },
+        p.languages.length > 0 && {
+          label: t("findWorkers.languages"),
+          value: p.languages.join("、"),
+        },
+      ].filter(Boolean) as Array<{ label: string; value: string }>)
+    : [];
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <PublicHeader />
-      <main className="mx-auto max-w-3xl px-6 py-8">
+      <main className="mx-auto max-w-5xl px-6 py-8">
         <Link
           href="/find-workers"
           className="text-sm text-muted-foreground hover:text-foreground"
@@ -73,79 +85,23 @@ export default function FindWorkerDetail() {
             {t("findWorkers.empty")}
           </div>
         ) : (
-          <div className="mt-4 space-y-6" data-testid="worker-detail">
-            {/* ── 履歷頁首（公開摘要）── */}
-            <SurfaceCard className="overflow-hidden p-0">
-              <div className="bg-accent/40 px-6 py-6">
-                <div className="flex items-start gap-4">
-                  {/* 登入後若有真實照片就顯示（後端只在登入時下傳 photoUrl）；否則匿名頭像 */}
-                  {p.photoUrl ? (
-                    <img
-                      src={p.photoUrl}
-                      alt={p.alias}
-                      loading="lazy"
-                      className="h-20 w-20 shrink-0 rounded-full border border-border object-cover"
-                    />
-                  ) : (
-                    <AnonAvatar
-                      jobType={p.jobType}
-                      size="lg"
-                      locked={p.gated}
-                    />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {p.jobTypes.map(jt => (
-                        <CategoryTag
-                          key={jt}
-                          jobType={jt}
-                          label={t(`jobs.jobType.${jt}`)}
-                        />
-                      ))}
-                      {p.ageRange && (
-                        <span className="text-xs text-muted-foreground">
-                          {t("findWorkers.ageRange")} {p.ageRange}
-                        </span>
-                      )}
-                    </div>
-                    <h1 className="mt-2 text-2xl font-bold tracking-tight">
-                      {p.alias}
-                    </h1>
-                    {p.headline && (
-                      <p className="mt-1 text-muted-foreground">{p.headline}</p>
-                    )}
-                    {p.rating && (
-                      <div className="mt-2">
-                        <RatingStars
-                          avg={p.rating.avg}
-                          count={p.rating.count}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+          <div
+            className="mt-4 grid gap-6 lg:grid-cols-[1fr_340px] lg:items-start"
+            data-testid="worker-detail"
+          >
+            {/* ── 左：履歷內容（技能為公開，完整履歷登入後才有）── */}
+            <div className="order-2 space-y-6 lg:order-1">
+              {p.headline && (
+                <p className="text-lg leading-relaxed text-muted-foreground">
+                  {p.headline}
+                </p>
+              )}
 
-              <div className="space-y-4 px-6 py-5">
-                <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-                  {p.nationality && (
-                    <span className="flex items-center gap-1.5">
-                      <Globe className="h-4 w-4" /> {p.nationality}
-                    </span>
-                  )}
-                  {p.availability && (
-                    <span className="flex items-center gap-1.5">
-                      <CalendarClock className="h-4 w-4" /> {p.availability}
-                    </span>
-                  )}
-                  {p.languages.length > 0 && (
-                    <span className="flex items-center gap-1.5">
-                      <Languages className="h-4 w-4" /> {p.languages.join("、")}
-                    </span>
-                  )}
-                </div>
-
-                {p.skills.length > 0 && (
+              {p.skills.length > 0 && (
+                <section>
+                  <h2 className="mb-2 text-sm font-semibold">
+                    {t("findWorkers.skills")}
+                  </h2>
                   <div className="flex flex-wrap gap-1.5">
                     {p.skills.map(s => (
                       <span
@@ -156,119 +112,166 @@ export default function FindWorkerDetail() {
                       </span>
                     ))}
                   </div>
-                )}
+                </section>
+              )}
 
-                <div className="flex items-center gap-3 pt-1">
-                  <button
-                    type="button"
-                    disabled={interestMut.isPending || sent}
-                    onClick={() => {
-                      if (!isAuthenticated) return goLogin();
-                      interestMut.mutate({ id });
-                    }}
-                    className="inline-flex items-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-                    data-testid="fw-express-interest"
-                  >
-                    {sent
-                      ? t("findWorkers.alreadyInterested")
-                      : t("findWorkers.interested")}
-                  </button>
-                  <span className="text-xs text-muted-foreground">
-                    {t("findWorkers.viaAgency")}
-                  </span>
-                </div>
-              </div>
-            </SurfaceCard>
-
-            {/* ── 完整履歷：登入後由後端下傳；未登入顯示模糊佔位（資料不在 HTML）── */}
-            {p.gated ? (
-              <LockedResume onLogin={goLogin} />
-            ) : (
-              <div className="space-y-6" data-testid="fw-full-resume">
-                {/* 自我介紹 */}
-                {p.selfIntro && (
-                  <ResumeSection
-                    icon={<Sparkles className="h-4 w-4 text-primary" />}
-                    title={t("findWorkers.aboutMe")}
-                  >
-                    <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                      {p.selfIntro}
-                    </p>
-                  </ResumeSection>
-                )}
-
-                {/* 平台驗證工作紀錄 */}
-                <ResumeSection
-                  icon={<ShieldCheck className="h-4 w-4 text-primary" />}
-                  title={t("findWorkers.verifiedRecords")}
-                >
-                  {p.platformRecords.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      {t("findWorkers.noRecords")}
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {p.platformRecords.map(r => (
-                        <div
-                          key={r.id}
-                          className="rounded-md border border-border px-3 py-2"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-medium">
-                              {r.position || "—"}
-                            </span>
-                            <StatusPill
-                              tone={r.status === "active" ? "green" : "gray"}
-                            >
-                              {r.status}
-                            </StatusPill>
-                          </div>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {r.contractStart || "?"} –{" "}
-                            {r.contractEnd || t("findWorkers.present")}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+              {/* 完整履歷：登入後由後端下傳；未登入顯示模糊佔位（資料不在 HTML）*/}
+              {p.gated ? (
+                <LockedResume onLogin={goLogin} />
+              ) : (
+                <div className="space-y-6" data-testid="fw-full-resume">
+                  {p.selfIntro && (
+                    <ResumeSection
+                      icon={<Sparkles className="h-4 w-4 text-primary" />}
+                      title={t("findWorkers.aboutMe")}
+                    >
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                        {p.selfIntro}
+                      </p>
+                    </ResumeSection>
                   )}
-                </ResumeSection>
 
-                {/* 自填經歷 */}
-                {p.experiences.length > 0 && (
                   <ResumeSection
-                    title={t("findWorkers.selfReported")}
-                    icon={<CalendarClock className="h-4 w-4 text-primary" />}
+                    icon={<ShieldCheck className="h-4 w-4 text-primary" />}
+                    title={t("findWorkers.verifiedRecords")}
                   >
-                    <div className="space-y-2">
-                      {p.experiences.map(e => (
-                        <div
-                          key={e.id}
-                          className="rounded-md border border-border px-3 py-2"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">
-                              {e.role}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {t(`worker.employerType.${e.employerType}`)}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {e.startDate || "?"} –{" "}
-                            {e.endDate || t("findWorkers.present")}
-                          </p>
-                          {e.description && (
-                            <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
-                              {e.description}
+                    {p.platformRecords.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        {t("findWorkers.noRecords")}
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {p.platformRecords.map(r => (
+                          <div
+                            key={r.id}
+                            className="rounded-md border border-border px-3 py-2"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium">
+                                {r.position || "—"}
+                              </span>
+                              <StatusPill
+                                tone={r.status === "active" ? "green" : "gray"}
+                              >
+                                {r.status}
+                              </StatusPill>
+                            </div>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {r.contractStart || "?"} –{" "}
+                              {r.contractEnd || t("findWorkers.present")}
                             </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </ResumeSection>
+
+                  {p.experiences.length > 0 && (
+                    <ResumeSection
+                      title={t("findWorkers.selfReported")}
+                      icon={<CalendarClock className="h-4 w-4 text-primary" />}
+                    >
+                      <div className="space-y-2">
+                        {p.experiences.map(e => (
+                          <div
+                            key={e.id}
+                            className="rounded-md border border-border px-3 py-2"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">
+                                {e.role}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {t(`worker.employerType.${e.employerType}`)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {e.startDate || "?"} –{" "}
+                              {e.endDate || t("findWorkers.present")}
+                            </p>
+                            {e.description && (
+                              <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+                                {e.description}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </ResumeSection>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── 右：個人卡（頭像+姓名+分類+評分+事實+CTA），桌機 sticky ── */}
+            <SurfaceCard className="order-1 lg:order-2 lg:sticky lg:top-24">
+              <div className="flex flex-col items-center text-center">
+                {/* 登入後若有真實照片就顯示（後端只在登入時下傳 photoUrl）；否則匿名頭像 */}
+                {p.photoUrl ? (
+                  <img
+                    src={p.photoUrl}
+                    alt={p.alias}
+                    loading="lazy"
+                    className="h-20 w-20 rounded-full border border-border object-cover"
+                  />
+                ) : (
+                  <AnonAvatar jobType={p.jobType} size="lg" locked={p.gated} />
+                )}
+                <h1 className="mt-3 text-xl font-bold tracking-tight">
+                  {p.alias}
+                </h1>
+                {p.jobTypes.length > 0 && (
+                  <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+                    {p.jobTypes.map(jt => (
+                      <CategoryTag
+                        key={jt}
+                        jobType={jt}
+                        label={t(`jobs.jobType.${jt}`)}
+                      />
+                    ))}
+                  </div>
+                )}
+                {p.rating && (
+                  <div className="mt-2">
+                    <RatingStars avg={p.rating.avg} count={p.rating.count} />
+                  </div>
                 )}
               </div>
-            )}
+
+              {facts.length > 0 && (
+                <dl className="mt-4 space-y-3 border-t border-border pt-4 text-sm">
+                  {facts.map(f => (
+                    <div
+                      key={f.label}
+                      className="flex items-start justify-between gap-4"
+                    >
+                      <dt className="shrink-0 text-muted-foreground">
+                        {f.label}
+                      </dt>
+                      <dd className="text-right font-medium">{f.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+
+              <button
+                type="button"
+                disabled={interestMut.isPending || sent}
+                onClick={() => {
+                  if (!isAuthenticated) return goLogin();
+                  interestMut.mutate({ id });
+                }}
+                className="mt-5 w-full rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+                data-testid="fw-express-interest"
+              >
+                {sent
+                  ? t("findWorkers.alreadyInterested")
+                  : t("findWorkers.interested")}
+              </button>
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                {t("findWorkers.viaAgency")}
+              </p>
+            </SurfaceCard>
           </div>
         )}
       </main>

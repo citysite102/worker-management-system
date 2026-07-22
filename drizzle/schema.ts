@@ -866,3 +866,47 @@ export const moderationEvents = mysqlTable(
 );
 export type ModerationEvent = typeof moderationEvents.$inferSelect;
 export type InsertModerationEvent = typeof moderationEvents.$inferInsert;
+
+// ─── Match Requests（媒合意向 / 仲介居中，P3）──────────────────────────────────
+// 任一方對職缺/移工表達「我有興趣」即建立一筆；雙方看不到彼此私密聯絡資訊，
+// 一律由 staff 居中處理、必要時線下揭露（規格 §7.5、§10）。
+export const matchRequests = mysqlTable(
+  "match_requests",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    // 發起者（登入使用者）→ users.id；型別依 accountType 帶入
+    initiatorUserId: int("initiatorUserId").notNull(),
+    initiatorType: mysqlEnum("initiatorType", ["worker", "employer", "other"])
+      .notNull()
+      .default("other"),
+    // 標的：公開需求單 / 既有內部需求 / 移工（找移工 P2 用）
+    targetType: mysqlEnum("targetType", [
+      "job_posting",
+      "case_demand",
+      "worker",
+    ]).notNull(),
+    targetId: int("targetId").notNull(),
+    status: mysqlEnum("status", [
+      "new", // 新進
+      "staff_handling", // 客服處理中
+      "introduced", // 已引介
+      "matched", // 成交
+      "closed", // 關閉（不成/取消）
+    ])
+      .notNull()
+      .default("new"),
+    assignedStaffId: int("assignedStaffId"), // 承辦客服 → users.id
+    note: text("note"), // 發起者留言（選填）
+    staffNote: text("staffNote"), // 客服內部備註
+    closeReason: varchar("closeReason", { length: 200 }), // 關閉原因（選填）
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  t => ({
+    initiatorIdx: index("match_requests_initiator_idx").on(t.initiatorUserId),
+    targetIdx: index("match_requests_target_idx").on(t.targetType, t.targetId),
+    statusIdx: index("match_requests_status_idx").on(t.status),
+  })
+);
+export type MatchRequest = typeof matchRequests.$inferSelect;
+export type InsertMatchRequest = typeof matchRequests.$inferInsert;

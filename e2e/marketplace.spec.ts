@@ -93,3 +93,27 @@ test.describe("審核 → 轉 case → 找工作上架", () => {
     await expect(page.getByTestId("job-card").first()).toBeVisible();
   });
 });
+
+test.describe("媒合意向（我有興趣 → 客服佇列）", () => {
+  test("worker 表達興趣後，我的意向與客服佇列都看得到", async ({ page }) => {
+    // worker 進第一個職缺表達興趣
+    await loginAs(page, "worker@test.local");
+    await page.goto("/jobs");
+    await expect(page.getByTestId("job-card").first()).toBeVisible();
+    await page.getByTestId("job-card").first().click();
+    await expect(page.getByTestId("job-detail")).toBeVisible();
+    await page.getByTestId("express-interest").click();
+    // 送出成功後按鈕轉為「已送出意向」並停用（myInterests 反映）
+    await expect(page.getByTestId("express-interest")).toBeDisabled();
+
+    // 我的意向頁看得到
+    await page.goto("/my-interests");
+    await expect(page.getByTestId("my-interest-row").first()).toBeVisible();
+
+    // 換 staff → 媒合意向佇列看得到
+    await loginAs(page, "staff@test.local");
+    await page.goto("/admin/match-requests");
+    await expect(page.getByTestId("match-list")).toBeVisible();
+    await expect(page.getByTestId("match-row").first()).toBeVisible();
+  });
+});

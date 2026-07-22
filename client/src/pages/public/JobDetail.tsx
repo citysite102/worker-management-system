@@ -6,20 +6,31 @@ import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { formatSalary } from "@/lib/marketplace";
 
-/** 公開站職缺詳情（需登入）。「我有興趣」→ 生成媒合意向給客服（P1 先記錄意向）。 */
+/** 公開站職缺詳情（需登入）。「我有興趣」→ 建立媒合意向交客服居中（P3）。 */
 export default function JobDetail() {
   const { t } = useTranslation();
   const params = useParams<{ source: string; id: string }>();
   const source = params.source === "demand" ? "demand" : "posting";
   const id = Number(params.id);
+  const utils = trpc.useUtils();
 
   const jobQuery = trpc.publicJobs.get.useQuery(
     { source, id },
     { enabled: Number.isFinite(id) && id > 0, retry: false }
   );
 
+  // 已送出過的意向 → 反映「已送出」狀態，避免重複點。
+  const myInterests = trpc.publicJobs.myInterests.useQuery();
+  const targetType = source === "posting" ? "job_posting" : "case_demand";
+  const alreadySent = (myInterests.data ?? []).some(
+    m => m.targetType === targetType && m.targetId === id
+  );
+
   const interestMut = trpc.publicJobs.expressInterest.useMutation({
-    onSuccess: () => toast.success(t("jobs.interestedSent")),
+    onSuccess: async () => {
+      toast.success(t("jobs.interestedSent"));
+      await utils.publicJobs.myInterests.invalidate();
+    },
     onError: e => toast.error(e.message),
   });
 
@@ -118,12 +129,14 @@ export default function JobDetail() {
             <div className="mt-6 flex items-center gap-3">
               <button
                 type="button"
-                disabled={interestMut.isPending}
+                disabled={interestMut.isPending || alreadySent}
                 onClick={() => interestMut.mutate({ source, id })}
-                className="inline-flex items-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="inline-flex items-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-60"
                 data-testid="express-interest"
               >
-                {t("jobs.interested")}
+                {alreadySent
+                  ? t("jobs.alreadyInterested")
+                  : t("jobs.interested")}
               </button>
               <span className="text-xs text-muted-foreground">
                 {t("jobs.viaAgency")}

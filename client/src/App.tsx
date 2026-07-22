@@ -23,6 +23,8 @@ import JobDetail from "./pages/public/JobDetail";
 import EmployerPostings from "./pages/employer/Postings";
 import PostingForm from "./pages/employer/PostingForm";
 import Moderation from "./pages/Moderation";
+import MatchRequests from "./pages/MatchRequests";
+import MyInterests from "./pages/public/MyInterests";
 import "./i18n";
 
 /** 內部後台（既有頁面）。掛在 /admin 之下，路徑維持相對。 */
@@ -39,6 +41,7 @@ function AdminApp() {
         <Route path="/workers/:id" component={WorkerDetail} />
         <Route path="/customers/:id" component={CustomerDetail} />
         <Route path="/moderation" component={Moderation} />
+        <Route path="/match-requests" component={MatchRequests} />
         <Route path="/settings" component={Settings} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
@@ -70,6 +73,12 @@ function Router() {
       <Route path="/jobs/:source/:id">
         <RequireAuth>
           <JobDetail />
+        </RequireAuth>
+      </Route>
+      {/* 我的媒合意向（需登入）*/}
+      <Route path="/my-interests">
+        <RequireAuth>
+          <MyInterests />
         </RequireAuth>
       </Route>
       {/* 雇主專區（需登入且為雇主帳號）*/}

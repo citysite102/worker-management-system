@@ -32,6 +32,15 @@ export function PublicHeader() {
           >
             {t("nav.findJobs")}
           </Link>
+          {isAuthenticated && (
+            <Link
+              href="/my-interests"
+              className="hover:text-foreground transition-colors"
+              data-testid="nav-my-interests"
+            >
+              {t("jobs.myNav")}
+            </Link>
+          )}
           {isEmployer && (
             <Link
               href="/employer"

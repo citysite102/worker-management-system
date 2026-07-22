@@ -44,6 +44,8 @@ import {
   InsertJobPosting,
   moderationEvents,
   InsertModerationEvent,
+  matchRequests,
+  InsertMatchRequest,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1349,4 +1351,85 @@ export async function insertModerationEvent(
   } catch (error) {
     console.error("[moderation] 稽核事件寫入失敗（不影響主流程）：", error);
   }
+}
+
+// ─── Match Requests（媒合意向，P3）────────────────────────────────────────────
+export async function createMatchRequest(
+  data: InsertMatchRequest
+): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return insertedId(await db.insert(matchRequests).values(data));
+}
+
+/**
+ * 找同一發起者對同一標的「仍在進行中」的意向（去重用）。
+ * 已成交/已關閉者不算，允許重新表達興趣。
+ */
+export async function getOpenMatchRequest(
+  initiatorUserId: number,
+  targetType: "job_posting" | "case_demand" | "worker",
+  targetId: number
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(matchRequests)
+    .where(
+      and(
+        eq(matchRequests.initiatorUserId, initiatorUserId),
+        eq(matchRequests.targetType, targetType),
+        eq(matchRequests.targetId, targetId),
+        notInArray(matchRequests.status, ["matched", "closed"])
+      )
+    )
+    .limit(1);
+  return rows[0];
+}
+
+/** 客服媒合意向佇列（可依狀態過濾；狀態條件下推 SQL 走索引）。 */
+export async function getAllMatchRequests(
+  status?: "new" | "staff_handling" | "introduced" | "matched" | "closed"
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const q = db.select().from(matchRequests);
+  const rows = status
+    ? await q
+        .where(eq(matchRequests.status, status))
+        .orderBy(desc(matchRequests.createdAt))
+    : await q.orderBy(desc(matchRequests.createdAt));
+  return rows;
+}
+
+export async function getMatchRequestById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(matchRequests)
+    .where(eq(matchRequests.id, id))
+    .limit(1);
+  return rows[0];
+}
+
+export async function updateMatchRequest(
+  id: number,
+  data: Partial<InsertMatchRequest>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.update(matchRequests).set(data).where(eq(matchRequests.id, id));
+}
+
+/** 發起者自己送出過的意向（「我的意向」）。 */
+export async function getMatchRequestsByInitiator(initiatorUserId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(matchRequests)
+    .where(eq(matchRequests.initiatorUserId, initiatorUserId))
+    .orderBy(desc(matchRequests.createdAt));
 }

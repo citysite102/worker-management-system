@@ -27,6 +27,13 @@ const dbMock = vi.hoisted(() => ({
   createCase: vi.fn().mockResolvedValue(401),
   createQualification: vi.fn().mockResolvedValue(501),
   createDemand: vi.fn().mockResolvedValue(601),
+  // match requests (P3)
+  createMatchRequest: vi.fn().mockResolvedValue(801),
+  getOpenMatchRequest: vi.fn().mockResolvedValue(undefined),
+  getAllMatchRequests: vi.fn().mockResolvedValue([]),
+  getMatchRequestById: vi.fn().mockResolvedValue(undefined),
+  updateMatchRequest: vi.fn().mockResolvedValue({}),
+  getMatchRequestsByInitiator: vi.fn().mockResolvedValue([]),
   // hardening 用
   getAllWorkers: vi.fn().mockResolvedValue([]),
 }));
@@ -182,12 +189,114 @@ describe("找工作（publicJobs，需登入）", () => {
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
-  it("expressInterest：登入者可送出意向", async () => {
+  it("expressInterest：登入者送出意向會建立 match_request", async () => {
+    dbMock.getJobPostingById.mockResolvedValueOnce({
+      id: 1,
+      status: "approved",
+      jobType: "caregiver",
+      city: "臺北市",
+    });
     const res = await worker().publicJobs.expressInterest({
       source: "posting",
       id: 1,
     });
-    expect(res.success).toBe(true);
+    expect(res).toMatchObject({ success: true, alreadySent: false });
+    expect(dbMock.createMatchRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initiatorUserId: 10,
+        initiatorType: "worker",
+        targetType: "job_posting",
+        targetId: 1,
+        status: "new",
+      })
+    );
+  });
+
+  it("expressInterest：已有進行中的意向 → 不重複建立", async () => {
+    dbMock.getJobPostingById.mockResolvedValueOnce({
+      id: 1,
+      status: "approved",
+      jobType: "caregiver",
+      city: "臺北市",
+    });
+    dbMock.getOpenMatchRequest.mockResolvedValueOnce({
+      id: 999,
+      status: "new",
+    });
+    const res = await worker().publicJobs.expressInterest({
+      source: "posting",
+      id: 1,
+    });
+    expect(res).toMatchObject({ success: true, alreadySent: true });
+    expect(dbMock.createMatchRequest).not.toHaveBeenCalled();
+  });
+
+  it("expressInterest：標的不存在 → NOT_FOUND", async () => {
+    dbMock.getJobPostingById.mockResolvedValueOnce(undefined);
+    await expect(
+      worker().publicJobs.expressInterest({ source: "posting", id: 1 })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("expressInterest：非公開需求單（draft/rejected）→ NOT_FOUND，不建立", async () => {
+    dbMock.getJobPostingById.mockResolvedValueOnce({ id: 1, status: "draft" });
+    await expect(
+      worker().publicJobs.expressInterest({ source: "posting", id: 1 })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(dbMock.createMatchRequest).not.toHaveBeenCalled();
+  });
+
+  it("expressInterest：已隱藏的既有需求 → NOT_FOUND", async () => {
+    dbMock.getDemandById.mockResolvedValueOnce({
+      id: 3,
+      status: "open",
+      publicHidden: 1,
+      caseId: 401,
+    });
+    await expect(
+      worker().publicJobs.expressInterest({ source: "demand", id: 3 })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("myInterests：登入者可查自己的意向", async () => {
+    const res = await worker().publicJobs.myInterests();
+    expect(Array.isArray(res)).toBe(true);
+  });
+});
+
+describe("媒合意向佇列（matchRequests，客服）權限與操作", () => {
+  it("queue：未登入 → UNAUTHORIZED；移工 → FORBIDDEN；staff → 可用", async () => {
+    await expect(anon().matchRequests.queue()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    await expect(worker().matchRequests.queue()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    const res = await staff().matchRequests.queue();
+    expect(Array.isArray(res)).toBe(true);
+  });
+
+  it("updateStatus：staff 可更新狀態", async () => {
+    dbMock.getMatchRequestById.mockResolvedValueOnce({
+      id: 5,
+      status: "new",
+      staffNote: null,
+      closeReason: null,
+    });
+    await staff().matchRequests.updateStatus({ id: 5, status: "introduced" });
+    expect(dbMock.updateMatchRequest).toHaveBeenCalledWith(
+      5,
+      expect.objectContaining({ status: "introduced" })
+    );
+  });
+
+  it("assign：未指定 staffId 則指派給自己，並把 new → staff_handling", async () => {
+    dbMock.getMatchRequestById.mockResolvedValueOnce({ id: 5, status: "new" });
+    await staff().matchRequests.assign({ id: 5 });
+    expect(dbMock.updateMatchRequest).toHaveBeenCalledWith(
+      5,
+      expect.objectContaining({ assignedStaffId: 2, status: "staff_handling" })
+    );
   });
 });
 

@@ -112,3 +112,56 @@ describe("既有內部需求單也要在找工作曝光", () => {
     );
   });
 });
+
+describe("媒合意向（match_requests，P3）", () => {
+  it("表達興趣建立意向；重複不重複建立；客服可推進狀態", async () => {
+    const caller = createCaller(); // admin：可代發起 + 客服操作
+    const managerId = await makeManager(caller);
+    const created = await caller.employer.createPosting({
+      jobType: "caregiver",
+      city: "臺北市",
+      headcount: 1,
+      employmentType: "live_in",
+      submit: true,
+    });
+    await caller.moderation.approvePosting({ id: created.id, managerId });
+
+    // 表達興趣 → 建立
+    const r1 = await caller.publicJobs.expressInterest({
+      source: "posting",
+      id: created.id,
+    });
+    expect(r1.alreadySent).toBe(false);
+
+    // 重複 → 去重
+    const r2 = await caller.publicJobs.expressInterest({
+      source: "posting",
+      id: created.id,
+    });
+    expect(r2.alreadySent).toBe(true);
+
+    // 客服佇列看得到，且「我的意向」也看得到
+    const queue = await caller.matchRequests.queue();
+    const mine = queue.find(
+      m => m.targetType === "job_posting" && m.targetId === created.id
+    );
+    expect(mine).toBeTruthy();
+    const myInterests = await caller.publicJobs.myInterests();
+    expect(
+      myInterests.some(
+        x => x.targetId === created.id && x.jobType === "caregiver"
+      )
+    ).toBe(true);
+
+    // 推進到成交後，去重解除（可再次表達）
+    await caller.matchRequests.updateStatus({
+      id: mine!.id,
+      status: "matched",
+    });
+    const r3 = await caller.publicJobs.expressInterest({
+      source: "posting",
+      id: created.id,
+    });
+    expect(r3.alreadySent).toBe(false);
+  });
+});

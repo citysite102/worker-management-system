@@ -91,6 +91,12 @@ import {
   setDemandPublicHidden,
   setCasePublicCity,
   insertModerationEvent,
+  createMatchRequest,
+  getOpenMatchRequest,
+  getAllMatchRequests,
+  getMatchRequestById,
+  updateMatchRequest,
+  getMatchRequestsByInitiator,
 } from "./db";
 import {
   evaluateHealthChecks,
@@ -706,6 +712,36 @@ const jobPostingInput = z.object({
     .optional()
     .transform(s => s?.trim() || undefined),
 });
+
+/**
+ * 解析媒合意向標的的「去識別摘要」（職缺類 / 縣市），供客服佇列與「我的意向」共用。
+ * 只回結構化欄位，不含任何雇主 PII。worker 標的（找移工 P2）尚未建，先回 null。
+ */
+async function resolveMatchTargetSummary(
+  targetType: "job_posting" | "case_demand" | "worker",
+  targetId: number
+): Promise<{
+  jobType: string | null;
+  city: string | null;
+  label: string;
+} | null> {
+  if (targetType === "job_posting") {
+    const p = await getJobPostingById(targetId);
+    if (!p) return null;
+    return { jobType: p.jobType, city: p.city, label: "公開需求單" };
+  }
+  if (targetType === "case_demand") {
+    const d = await getDemandById(targetId);
+    if (!d) return null;
+    const c = await getCaseById(d.caseId);
+    return {
+      jobType: d.qualType,
+      city: c?.publicCity ?? null,
+      label: "既有需求單",
+    };
+  }
+  return null;
+}
 
 // ─── Routers ──────────────────────────────────────────────────────────────────
 /**
@@ -3374,20 +3410,206 @@ export const appRouter = router({
         };
       }),
     // 「我有興趣」：P1 先記錄意向（稽核）；仲介居中的完整媒合流程於 P3。
+    // 「我有興趣」→ 建立一筆媒合意向（match_request），交客服居中處理（P3）。
+    // 雙方看不到彼此私密聯絡資訊；同一使用者對同一標的若已有進行中的意向則不重複建立。
     expressInterest: protectedProcedure
       .input(
         z.object({
           source: z.enum(["posting", "demand"]),
           id: z.number().int().positive(),
+          note: z
+            .string()
+            .trim()
+            .max(500)
+            .optional()
+            .transform(s => s?.trim() || undefined),
         })
       )
       .mutation(async ({ ctx, input }) => {
+        const targetType =
+          input.source === "posting" ? "job_posting" : "case_demand";
+
+        // 標的必須「目前正對外公開」才可送意向 —— 用與找工作列表相同的可見度條件，
+        // 否則使用者可對 draft/rejected 需求單或已隱藏/已滿的需求送意向，並透過
+        // 「我的意向」反推非公開標的的資訊，或當成存在性探測（enumeration）。
+        let visible = false;
+        if (targetType === "job_posting") {
+          const p = await getJobPostingById(input.id);
+          visible = !!p && p.status === "approved";
+        } else {
+          const d = await getDemandById(input.id);
+          visible =
+            !!d &&
+            d.publicHidden === 0 &&
+            (d.status === "open" || d.status === "filling");
+        }
+        if (!visible)
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此職缺" });
+
+        // 去重：同一人對同一標的已有進行中的意向就不再建立
+        const existing = await getOpenMatchRequest(
+          ctx.user.id,
+          targetType,
+          input.id
+        );
+        if (existing) {
+          return { success: true, alreadySent: true } as const;
+        }
+
+        const initiatorType =
+          ctx.user.accountType === "worker"
+            ? "worker"
+            : ctx.user.accountType === "employer"
+              ? "employer"
+              : "other";
+        const matchId = await createMatchRequest({
+          initiatorUserId: ctx.user.id,
+          initiatorType,
+          targetType,
+          targetId: input.id,
+          status: "new",
+          note: input.note ?? null,
+        });
         await logAudit(ctx, {
-          action: "public.job.interest",
-          entityType:
-            input.source === "posting" ? "job_postings" : "case_demands",
+          action: "match.request.create",
+          entityType: "match_requests",
+          entityId: matchId,
+          meta: { targetType, targetId: input.id },
+        });
+        return { success: true, alreadySent: false } as const;
+      }),
+
+    // 「我的意向」：發起者看自己送出過的媒合意向與目前狀態。
+    myInterests: protectedProcedure.query(async ({ ctx }) => {
+      const rows = await getMatchRequestsByInitiator(ctx.user.id);
+      return Promise.all(
+        rows.map(async r => {
+          const summary = await resolveMatchTargetSummary(
+            r.targetType,
+            r.targetId
+          );
+          return {
+            id: r.id,
+            status: r.status,
+            note: r.note,
+            createdAt: r.createdAt?.toISOString() ?? null,
+            targetType: r.targetType,
+            targetId: r.targetId,
+            jobType: summary?.jobType ?? null,
+            city: summary?.city ?? null,
+            category: summary?.jobType
+              ? jobCategory(summary.jobType as MarketplaceQualType)
+              : null,
+          };
+        })
+      );
+    }),
+  }),
+
+  // ─── 客服：媒合意向佇列（仲介居中，P3）───────────────────────────────────
+  matchRequests: router({
+    // 佇列：可依狀態過濾；附發起者聯絡資訊（客服可見）與標的去識別摘要。
+    queue: staffProcedure
+      .input(
+        z
+          .object({
+            status: z
+              .enum([
+                "new",
+                "staff_handling",
+                "introduced",
+                "matched",
+                "closed",
+              ])
+              .optional(),
+          })
+          .optional()
+      )
+      .query(async ({ input }) => {
+        const rows = await getAllMatchRequests(input?.status);
+        return Promise.all(
+          rows.map(async r => {
+            const [initiator, summary] = await Promise.all([
+              getUserById(r.initiatorUserId),
+              resolveMatchTargetSummary(r.targetType, r.targetId),
+            ]);
+            return {
+              ...r,
+              createdAt: r.createdAt?.toISOString() ?? null,
+              updatedAt: r.updatedAt?.toISOString() ?? null,
+              initiatorName: initiator?.name ?? null,
+              initiatorEmail: initiator?.email ?? null,
+              initiatorPhone: initiator?.phone ?? null,
+              targetJobType: summary?.jobType ?? null,
+              targetCity: summary?.city ?? null,
+              targetLabel: summary?.label ?? null,
+            };
+          })
+        );
+      }),
+    // 更新狀態 / 內部備註 / 關閉原因（狀態轉移寫入稽核）
+    updateStatus: staffProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          status: z.enum([
+            "new",
+            "staff_handling",
+            "introduced",
+            "matched",
+            "closed",
+          ]),
+          staffNote: z
+            .string()
+            .trim()
+            .max(1000)
+            .optional()
+            .transform(s => s?.trim() || undefined),
+          closeReason: z
+            .string()
+            .trim()
+            .max(200)
+            .optional()
+            .transform(s => s?.trim() || undefined),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const mr = await getMatchRequestById(input.id);
+        if (!mr)
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此意向" });
+        await updateMatchRequest(input.id, {
+          status: input.status,
+          staffNote: input.staffNote ?? mr.staffNote,
+          // 只有 closed 才保留/更新關閉原因；離開 closed 時清掉，避免留下過時說明
+          closeReason:
+            input.status === "closed"
+              ? (input.closeReason ?? mr.closeReason)
+              : null,
+        });
+        await logAudit(ctx, {
+          action: "match.request.update",
+          entityType: "match_requests",
           entityId: input.id,
-          meta: { source: input.source },
+          meta: { status: input.status },
+        });
+        return { success: true } as const;
+      }),
+    // 接手：指派給自己（承辦客服一律是操作者，避免把意向指派給非 staff 的 user id）
+    assign: staffProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        const mr = await getMatchRequestById(input.id);
+        if (!mr)
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此意向" });
+        await updateMatchRequest(input.id, {
+          assignedStaffId: ctx.user.id,
+          status: mr.status === "new" ? "staff_handling" : mr.status,
+        });
+        await logAudit(ctx, {
+          action: "match.request.assign",
+          entityType: "match_requests",
+          entityId: input.id,
+          meta: { assignedStaffId: ctx.user.id },
         });
         return { success: true } as const;
       }),

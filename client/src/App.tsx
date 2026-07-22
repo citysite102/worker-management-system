@@ -25,6 +25,9 @@ import PostingForm from "./pages/employer/PostingForm";
 import Moderation from "./pages/Moderation";
 import MatchRequests from "./pages/MatchRequests";
 import MyInterests from "./pages/public/MyInterests";
+import WorkerProfile from "./pages/worker/WorkerProfile";
+import FindWorkers from "./pages/employer/FindWorkers";
+import FindWorkerDetail from "./pages/employer/FindWorkerDetail";
 import "./i18n";
 
 /** 內部後台（既有頁面）。掛在 /admin 之下，路徑維持相對。 */
@@ -79,6 +82,23 @@ function Router() {
       <Route path="/my-interests">
         <RequireAuth>
           <MyInterests />
+        </RequireAuth>
+      </Route>
+      {/* 移工專區：我的履歷（需登入且為移工帳號）*/}
+      <Route path="/worker/profile">
+        <RequireAuth accountType="worker">
+          <WorkerProfile />
+        </RequireAuth>
+      </Route>
+      {/* 找移工（雇主，需通過的需求單；後端再 gate）*/}
+      <Route path="/find-workers">
+        <RequireAuth accountType="employer">
+          <FindWorkers />
+        </RequireAuth>
+      </Route>
+      <Route path="/find-workers/:id">
+        <RequireAuth accountType="employer">
+          <FindWorkerDetail />
         </RequireAuth>
       </Route>
       {/* 雇主專區（需登入且為雇主帳號）*/}

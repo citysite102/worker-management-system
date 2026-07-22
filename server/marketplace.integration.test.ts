@@ -165,3 +165,65 @@ describe("媒合意向（match_requests，P3）", () => {
     expect(r3.alreadySent).toBe(false);
   });
 });
+
+describe("移工履歷 + 找移工（P2）", () => {
+  it("履歷送審→通過→找移工看得到；經歷審核；雇主送意向", async () => {
+    const caller = createCaller(); // admin：可代移工自填、亦可審核、亦可雇主瀏覽
+
+    // 1) 自填履歷並送審
+    await caller.worker.upsertProfile({
+      alias: "阿明",
+      nationality: "印尼",
+      yearOfBirth: 1996,
+      jobType: "caregiver",
+      skills: ["翻身", "備餐"],
+      languages: ["中文", "印尼文"],
+      availability: "即刻",
+      selfIntro: "細心可靠",
+      submit: true,
+    });
+    const profile = await caller.worker.myProfile();
+    expect(profile?.moderationStatus).toBe("pending");
+    expect(profile?.skills).toEqual(["翻身", "備餐"]);
+
+    // 2) 自填一段經歷（待審）
+    const exp = await caller.worker.addExperience({
+      employerType: "family_care",
+      role: "家庭看護",
+      startDate: "2022-01",
+    });
+
+    // 3) 未通過前，找移工看不到
+    let list = await caller.findWorkers.list();
+    expect(list.some(p => p.alias === "阿明")).toBe(false);
+
+    // 4) 客服審核佇列可見並通過
+    const pendingProfiles = await caller.moderation.pendingProfiles();
+    const mine = pendingProfiles.find(p => p.alias === "阿明");
+    expect(mine).toBeTruthy();
+    await caller.moderation.approveProfile({ id: mine!.id });
+    await caller.moderation.reviewExperience({ id: exp.id, approve: true });
+
+    // 5) 通過後找移工看得到，且為匿名視圖（不含 userId/workerId）
+    list = await caller.findWorkers.list();
+    const card = list.find(p => p.alias === "阿明") as Record<string, unknown>;
+    expect(card).toBeTruthy();
+    expect(card.userId).toBeUndefined();
+    expect(card.workerId).toBeUndefined();
+    expect(card.ageRange).toBeTruthy();
+
+    // 6) 詳情含已通過的自填經歷
+    const detail = await caller.findWorkers.get({ id: card.id as number });
+    expect(detail.experiences.some(e => e.role === "家庭看護")).toBe(true);
+
+    // 7) 雇主送出媒合意向（targetType=worker）
+    const r = await caller.findWorkers.expressInterest({
+      id: card.id as number,
+    });
+    expect(r.alreadySent).toBe(false);
+    const queue = await caller.matchRequests.queue();
+    expect(
+      queue.some(m => m.targetType === "worker" && m.targetId === card.id)
+    ).toBe(true);
+  });
+});

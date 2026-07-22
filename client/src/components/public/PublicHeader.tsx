@@ -8,10 +8,9 @@ import { useAuth } from "@/_core/hooks/useAuth";
 export function PublicHeader() {
   const { t } = useTranslation();
   const { user, isAuthenticated, logout } = useAuth();
-  const isEmployer =
-    user?.accountType === "employer" ||
-    user?.role === "staff" ||
-    user?.role === "admin";
+  const isStaff = user?.role === "staff" || user?.role === "admin";
+  const isEmployer = user?.accountType === "employer" || isStaff;
+  const isWorker = user?.accountType === "worker" || isStaff;
 
   return (
     <header className="border-b border-border bg-card">
@@ -48,6 +47,24 @@ export function PublicHeader() {
               data-testid="nav-employer"
             >
               {t("employer.title")}
+            </Link>
+          )}
+          {isEmployer && (
+            <Link
+              href="/find-workers"
+              className="hover:text-foreground transition-colors"
+              data-testid="nav-find-workers"
+            >
+              {t("findWorkers.nav")}
+            </Link>
+          )}
+          {isWorker && (
+            <Link
+              href="/worker/profile"
+              className="hover:text-foreground transition-colors"
+              data-testid="nav-worker-profile"
+            >
+              {t("worker.nav")}
             </Link>
           )}
         </nav>

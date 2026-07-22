@@ -5,6 +5,7 @@ import {
   mysqlTable,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/mysql-core";
 
@@ -910,3 +911,90 @@ export const matchRequests = mysqlTable(
 );
 export type MatchRequest = typeof matchRequests.$inferSelect;
 export type InsertMatchRequest = typeof matchRequests.$inferInsert;
+
+// ─── Worker Public Profiles（移工匿名公開履歷，P2）────────────────────────────
+// 對外只露去識別子集（代號/國籍/年齡區間/職類/技能/語言/可上工/自我介紹）；
+// 真實姓名、證件、電話、精確地址、照片原圖一律不在此表、也永不對外（規格 §7.2、§11）。
+// 以 userId（自助帳號）為主鍵關聯；workerId 由客服勾稽既有名冊後填入，用來帶出
+// 平台可信工作紀錄。managerId 為內部正本 workers 的必填欄位，故此處不自動建 workers。
+export const workerPublicProfiles = mysqlTable(
+  "worker_public_profiles",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(), // → users.id（移工帳號）
+    workerId: int("workerId"), // → workers.id（客服勾稽後填；帶出平台紀錄）
+    alias: varchar("alias", { length: 50 }), // 代號/暱稱（對外顯示名）
+    headline: varchar("headline", { length: 120 }), // 一句話標題
+    nationality: varchar("nationality", { length: 50 }), // 國籍
+    yearOfBirth: int("yearOfBirth"), // 出生年（顯示為年齡區間，不露精確生日）
+    jobType: mysqlEnum("jobType", [
+      "caregiver",
+      "domestic_helper",
+      "manufacturing",
+      "agriculture",
+      "construction",
+      "white_collar",
+      "intermediate",
+      "overseas_student",
+    ]), // 期望職類
+    skills: text("skills"), // JSON 陣列（技能標籤）
+    languages: text("languages"), // JSON 陣列（語言）
+    availability: varchar("availability", { length: 100 }), // 可上工時間
+    selfIntro: text("selfIntro"), // 自我介紹
+    publishStatus: mysqlEnum("publishStatus", ["draft", "published"])
+      .notNull()
+      .default("draft"), // 移工是否想公開
+    moderationStatus: mysqlEnum("moderationStatus", [
+      "pending",
+      "approved",
+      "rejected",
+    ])
+      .notNull()
+      .default("pending"),
+    rejectReason: varchar("rejectReason", { length: 300 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  t => ({
+    userIdx: uniqueIndex("worker_public_profiles_userId_idx").on(t.userId),
+    moderationIdx: index("worker_public_profiles_moderation_idx").on(
+      t.moderationStatus
+    ),
+  })
+);
+export type WorkerPublicProfile = typeof workerPublicProfiles.$inferSelect;
+export type InsertWorkerPublicProfile =
+  typeof workerPublicProfiles.$inferInsert;
+
+// ─── Worker Experiences（移工自填經歷，需審核，P2）─────────────────────────────
+export const workerExperiences = mysqlTable(
+  "worker_experiences",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(), // → users.id（移工帳號）
+    employerType: mysqlEnum("employerType", [
+      "family_care", // 家庭看護
+      "institution", // 機構
+      "manufacturing", // 製造
+      "agriculture", // 農業
+      "construction", // 營造
+      "other", // 其他
+    ]).notNull(),
+    role: varchar("role", { length: 100 }).notNull(), // 職務
+    startDate: varchar("startDate", { length: 10 }), // YYYY-MM 或 YYYY-MM-DD
+    endDate: varchar("endDate", { length: 10 }), // 空＝迄今
+    description: text("description"),
+    reviewStatus: mysqlEnum("reviewStatus", ["pending", "approved", "rejected"])
+      .notNull()
+      .default("pending"),
+    rejectReason: varchar("rejectReason", { length: 300 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  t => ({
+    userIdx: index("worker_experiences_userId_idx").on(t.userId),
+    reviewIdx: index("worker_experiences_review_idx").on(t.reviewStatus),
+  })
+);
+export type WorkerExperience = typeof workerExperiences.$inferSelect;
+export type InsertWorkerExperience = typeof workerExperiences.$inferInsert;

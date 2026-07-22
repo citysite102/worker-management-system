@@ -46,6 +46,10 @@ import {
   InsertModerationEvent,
   matchRequests,
   InsertMatchRequest,
+  workerPublicProfiles,
+  InsertWorkerPublicProfile,
+  workerExperiences,
+  InsertWorkerExperience,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1432,4 +1436,198 @@ export async function getMatchRequestsByInitiator(initiatorUserId: number) {
     .from(matchRequests)
     .where(eq(matchRequests.initiatorUserId, initiatorUserId))
     .orderBy(desc(matchRequests.createdAt));
+}
+
+// ─── Worker Public Profiles（移工公開履歷，P2）────────────────────────────────
+export async function getProfileByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(workerPublicProfiles)
+    .where(eq(workerPublicProfiles.userId, userId))
+    .limit(1);
+  return rows[0];
+}
+
+export async function getProfileById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(workerPublicProfiles)
+    .where(eq(workerPublicProfiles.id, id))
+    .limit(1);
+  return rows[0];
+}
+
+export async function createProfile(
+  data: InsertWorkerPublicProfile
+): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return insertedId(await db.insert(workerPublicProfiles).values(data));
+}
+
+export async function updateProfile(
+  id: number,
+  data: Partial<InsertWorkerPublicProfile>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db
+    .update(workerPublicProfiles)
+    .set(data)
+    .where(eq(workerPublicProfiles.id, id));
+}
+
+/** 客服審核佇列：待審履歷。只列「想公開（published）且待審」者，草稿不入列。 */
+export async function getPendingProfiles() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(workerPublicProfiles)
+    .where(
+      and(
+        eq(workerPublicProfiles.publishStatus, "published"),
+        eq(workerPublicProfiles.moderationStatus, "pending")
+      )
+    )
+    .orderBy(workerPublicProfiles.createdAt);
+}
+
+/** 找移工：已公開且審核通過的匿名履歷（可依職類/國籍過濾）。 */
+export async function listPublicProfiles(filters?: {
+  jobType?: string;
+  nationality?: string;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select()
+    .from(workerPublicProfiles)
+    .where(
+      and(
+        eq(workerPublicProfiles.publishStatus, "published"),
+        eq(workerPublicProfiles.moderationStatus, "approved")
+      )
+    )
+    .orderBy(desc(workerPublicProfiles.updatedAt));
+  return rows.filter(r => {
+    if (filters?.jobType && r.jobType !== filters.jobType) return false;
+    if (filters?.nationality && r.nationality !== filters.nationality)
+      return false;
+    return true;
+  });
+}
+
+// ─── Worker Experiences（自填經歷，P2）────────────────────────────────────────
+export async function getExperiencesByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(workerExperiences)
+    .where(eq(workerExperiences.userId, userId))
+    .orderBy(desc(workerExperiences.startDate));
+}
+
+/** 找移工詳情用：某使用者「已審核通過」的自填經歷。 */
+export async function getApprovedExperiencesByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(workerExperiences)
+    .where(
+      and(
+        eq(workerExperiences.userId, userId),
+        eq(workerExperiences.reviewStatus, "approved")
+      )
+    )
+    .orderBy(desc(workerExperiences.startDate));
+}
+
+export async function getExperienceById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(workerExperiences)
+    .where(eq(workerExperiences.id, id))
+    .limit(1);
+  return rows[0];
+}
+
+export async function createExperience(
+  data: InsertWorkerExperience
+): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return insertedId(await db.insert(workerExperiences).values(data));
+}
+
+export async function updateExperience(
+  id: number,
+  data: Partial<InsertWorkerExperience>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db
+    .update(workerExperiences)
+    .set(data)
+    .where(eq(workerExperiences.id, id));
+}
+
+export async function deleteExperience(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.delete(workerExperiences).where(eq(workerExperiences.id, id));
+}
+
+/** 客服審核佇列：待審自填經歷。 */
+export async function getPendingExperiences() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(workerExperiences)
+    .where(eq(workerExperiences.reviewStatus, "pending"))
+    .orderBy(workerExperiences.createdAt);
+}
+
+/** 平台可信工作紀錄：某 workers.id 的僱傭紀錄（去識別：職務/期間/狀態）。 */
+export async function getEmploymentsByWorker(workerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: caseEmployments.id,
+      position: caseEmployments.position,
+      contractStart: caseEmployments.contractStart,
+      contractEnd: caseEmployments.contractEnd,
+      status: caseEmployments.status,
+    })
+    .from(caseEmployments)
+    .where(eq(caseEmployments.workerId, workerId))
+    .orderBy(desc(caseEmployments.contractStart));
+}
+
+/** 找移工 gating：雇主帳號名下已通過（approved）的需求單數。 */
+export async function countApprovedPostingsByEmployer(
+  employerUserId: number
+): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(jobPostings)
+    .where(
+      and(
+        eq(jobPostings.employerUserId, employerUserId),
+        eq(jobPostings.status, "approved")
+      )
+    );
+  return Number(rows[0]?.count ?? 0);
 }

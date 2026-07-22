@@ -7,6 +7,7 @@ import {
   protectedProcedure,
   staffProcedure,
   employerProcedure,
+  workerProcedure,
   router,
 } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
@@ -97,6 +98,21 @@ import {
   getMatchRequestById,
   updateMatchRequest,
   getMatchRequestsByInitiator,
+  getProfileByUserId,
+  getProfileById,
+  createProfile,
+  updateProfile,
+  getPendingProfiles,
+  listPublicProfiles,
+  getExperiencesByUserId,
+  getApprovedExperiencesByUserId,
+  getExperienceById,
+  createExperience,
+  updateExperience,
+  deleteExperience,
+  getPendingExperiences,
+  getEmploymentsByWorker,
+  countApprovedPostingsByEmployer,
 } from "./db";
 import {
   evaluateHealthChecks,
@@ -740,8 +756,167 @@ async function resolveMatchTargetSummary(
       label: "既有需求單",
     };
   }
+  if (targetType === "worker") {
+    const p = await getProfileById(targetId);
+    if (!p) return null;
+    return {
+      jobType: p.jobType,
+      city: p.availability ?? null, // 移工無地點，借欄位帶「可上工時間」供客服參考
+      label: p.alias ? `移工履歷（${p.alias}）` : "移工履歷",
+    };
+  }
   return null;
 }
+
+// ─── 移工公開履歷（P2）輔助 ──────────────────────────────────────────────────
+/** 出生年 → 年齡區間（5 歲一段，去識別，不露精確生日）。今年由伺服器時鐘取得。 */
+function ageRangeFromYear(year: number | null | undefined): string | null {
+  if (!year || year < 1900) return null;
+  const now = new Date().getFullYear();
+  const age = now - year;
+  if (age < 0 || age > 120) return null;
+  const lo = Math.floor(age / 5) * 5;
+  return `${lo}–${lo + 4}`;
+}
+
+/** 安全解析 JSON 陣列欄位（skills/languages），壞資料一律回空陣列。 */
+function parseJsonArray(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v.filter(x => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 把履歷正本轉成「對外匿名視圖」：只露去識別子集，永不含 userId/workerId、
+ * 真實姓名、證件、聯絡方式（規格 §11）。id 為 profile id，供詳情/送意向使用。
+ */
+function publicProfileView(p: {
+  id: number;
+  alias: string | null;
+  headline: string | null;
+  nationality: string | null;
+  yearOfBirth: number | null;
+  jobType: string | null;
+  skills: string | null;
+  languages: string | null;
+  availability: string | null;
+  selfIntro: string | null;
+}) {
+  return {
+    id: p.id,
+    alias: p.alias || `移工 #${p.id}`,
+    headline: p.headline,
+    nationality: p.nationality,
+    ageRange: ageRangeFromYear(p.yearOfBirth),
+    jobType: p.jobType,
+    category: p.jobType ? jobCategory(p.jobType as MarketplaceQualType) : null,
+    skills: parseJsonArray(p.skills),
+    languages: parseJsonArray(p.languages),
+    availability: p.availability,
+    selfIntro: p.selfIntro,
+  };
+}
+
+/** 移工履歷編輯輸入（自助帳號自填；送審時 moderationStatus 回 pending）。 */
+const workerProfileInput = z.object({
+  alias: z
+    .string()
+    .trim()
+    .max(50)
+    .optional()
+    .transform(s => s?.trim() || undefined),
+  headline: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .transform(s => s?.trim() || undefined),
+  nationality: z
+    .string()
+    .trim()
+    .max(50)
+    .optional()
+    .transform(s => s?.trim() || undefined),
+  yearOfBirth: z.number().int().min(1900).max(2020).optional(),
+  jobType: z
+    .enum([
+      "caregiver",
+      "domestic_helper",
+      "manufacturing",
+      "agriculture",
+      "construction",
+      "white_collar",
+      "intermediate",
+      "overseas_student",
+    ])
+    .optional(),
+  skills: z.array(z.string().trim().max(30)).max(20).optional(),
+  languages: z.array(z.string().trim().max(30)).max(10).optional(),
+  availability: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform(s => s?.trim() || undefined),
+  selfIntro: z
+    .string()
+    .trim()
+    .max(2000)
+    .optional()
+    .transform(s => s?.trim() || undefined),
+});
+
+/**
+ * 找移工 gating（§15-1）：雇主需至少一張通過審核的需求單才能瀏覽/聯繫移工履歷；
+ * staff/admin 免限制。list / get / expressInterest 一律先過此關，避免其中一支漏擋。
+ */
+async function assertCanBrowseWorkers(user: {
+  id: number;
+  role: string;
+}): Promise<void> {
+  if (user.role === "staff" || user.role === "admin") return;
+  const approved = await countApprovedPostingsByEmployer(user.id);
+  if (approved === 0)
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "需先有一張通過審核的需求單才能瀏覽移工履歷",
+    });
+}
+
+/** 自填經歷輸入。 */
+const workerExperienceInput = z.object({
+  employerType: z.enum([
+    "family_care",
+    "institution",
+    "manufacturing",
+    "agriculture",
+    "construction",
+    "other",
+  ]),
+  role: z.string().trim().min(1, "請填職務").max(100),
+  startDate: z
+    .string()
+    .trim()
+    .max(10)
+    .optional()
+    .transform(s => s?.trim() || undefined),
+  endDate: z
+    .string()
+    .trim()
+    .max(10)
+    .optional()
+    .transform(s => s?.trim() || undefined),
+  description: z
+    .string()
+    .trim()
+    .max(2000)
+    .optional()
+    .transform(s => s?.trim() || undefined),
+});
 
 // ─── Routers ──────────────────────────────────────────────────────────────────
 /**
@@ -3266,6 +3441,140 @@ export const appRouter = router({
         });
         return { success: true } as const;
       }),
+
+    // ── 移工履歷審核（P2）────────────────────────────────────────────────────
+    // 待審履歷（附發起者去識別摘要 + 帳號 email 供勾稽）
+    pendingProfiles: staffProcedure.query(async () => {
+      const rows = await getPendingProfiles();
+      return Promise.all(
+        rows.map(async p => {
+          const u = await getUserById(p.userId);
+          return {
+            id: p.id,
+            userId: p.userId,
+            alias: p.alias,
+            headline: p.headline,
+            nationality: p.nationality,
+            jobType: p.jobType,
+            availability: p.availability,
+            selfIntro: p.selfIntro,
+            accountEmail: u?.email ?? null,
+            accountName: u?.name ?? null,
+          };
+        })
+      );
+    }),
+    approveProfile: staffProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        const p = await getProfileById(input.id);
+        if (!p)
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此履歷" });
+        await updateProfile(input.id, {
+          moderationStatus: "approved",
+          rejectReason: null,
+        });
+        await insertModerationEvent({
+          entityType: "worker_profile",
+          entityId: input.id,
+          action: "approve",
+          staffId: ctx.user.id,
+        });
+        await logAudit(ctx, {
+          action: "moderation.profile.approve",
+          entityType: "worker_public_profiles",
+          entityId: input.id,
+        });
+        return { success: true } as const;
+      }),
+    rejectProfile: staffProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          reason: z
+            .string()
+            .trim()
+            .max(300)
+            .optional()
+            .transform(s => s?.trim() || undefined),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const p = await getProfileById(input.id);
+        if (!p)
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此履歷" });
+        await updateProfile(input.id, {
+          moderationStatus: "rejected",
+          rejectReason: input.reason ?? null,
+        });
+        await insertModerationEvent({
+          entityType: "worker_profile",
+          entityId: input.id,
+          action: "reject",
+          reason: input.reason,
+          staffId: ctx.user.id,
+        });
+        await logAudit(ctx, {
+          action: "moderation.profile.reject",
+          entityType: "worker_public_profiles",
+          entityId: input.id,
+        });
+        return { success: true } as const;
+      }),
+
+    // ── 自填經歷審核（P2）────────────────────────────────────────────────────
+    pendingExperiences: staffProcedure.query(async () => {
+      const rows = await getPendingExperiences();
+      return Promise.all(
+        rows.map(async e => {
+          const u = await getUserById(e.userId);
+          return {
+            ...e,
+            createdAt: e.createdAt?.toISOString() ?? null,
+            updatedAt: e.updatedAt?.toISOString() ?? null,
+            accountEmail: u?.email ?? null,
+            accountName: u?.name ?? null,
+          };
+        })
+      );
+    }),
+    reviewExperience: staffProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          approve: z.boolean(),
+          reason: z
+            .string()
+            .trim()
+            .max(300)
+            .optional()
+            .transform(s => s?.trim() || undefined),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const e = await getExperienceById(input.id);
+        if (!e)
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此經歷" });
+        await updateExperience(input.id, {
+          reviewStatus: input.approve ? "approved" : "rejected",
+          rejectReason: input.approve ? null : (input.reason ?? null),
+        });
+        await insertModerationEvent({
+          entityType: "worker_experience",
+          entityId: input.id,
+          action: input.approve ? "approve" : "reject",
+          reason: input.approve ? undefined : input.reason,
+          staffId: ctx.user.id,
+        });
+        await logAudit(ctx, {
+          action: input.approve
+            ? "moderation.experience.approve"
+            : "moderation.experience.reject",
+          entityType: "worker_experiences",
+          entityId: input.id,
+        });
+        return { success: true } as const;
+      }),
   }),
 
   // ─── 公開站：找工作（P1）──────────────────────────────────────────────────
@@ -3504,6 +3813,225 @@ export const appRouter = router({
         })
       );
     }),
+  }),
+
+  // ─── 移工自助：公開履歷 + 自填經歷（P2）──────────────────────────────────
+  // workerProcedure：需登入且 accountType=worker（staff/admin 亦可代操作）。
+  worker: router({
+    // 自己的履歷（含審核狀態）；未建立則回 null。
+    myProfile: workerProcedure.query(async ({ ctx }) => {
+      const p = await getProfileByUserId(ctx.user.id);
+      if (!p) return null;
+      return {
+        ...p,
+        skills: parseJsonArray(p.skills),
+        languages: parseJsonArray(p.languages),
+        createdAt: p.createdAt?.toISOString() ?? null,
+        updatedAt: p.updatedAt?.toISOString() ?? null,
+      };
+    }),
+    // 建立/更新履歷；submit=true 送審（moderationStatus → pending）。
+    upsertProfile: workerProcedure
+      .input(workerProfileInput.extend({ submit: z.boolean().default(false) }))
+      .mutation(async ({ ctx, input }) => {
+        const { submit, skills, languages, ...rest } = input;
+        const existing = await getProfileByUserId(ctx.user.id);
+        const data = {
+          ...rest,
+          skills: skills ? JSON.stringify(skills) : undefined,
+          languages: languages ? JSON.stringify(languages) : undefined,
+          // 任何內容編輯都必須重新審核 —— 否則已通過的履歷可透過「存草稿」把
+          // 真實姓名/電話塞進 selfIntro 而不經審核就對雇主公開（Code Review #2）。
+          // 已公開者一旦編輯即退回 pending，於重新通過前不再出現在找移工。
+          moderationStatus: "pending" as const,
+          publishStatus: submit
+            ? ("published" as const)
+            : (existing?.publishStatus ?? ("draft" as const)),
+          rejectReason: null,
+        };
+        let id: number;
+        if (existing) {
+          await updateProfile(existing.id, data);
+          id = existing.id;
+        } else {
+          id = await createProfile({ userId: ctx.user.id, ...data });
+        }
+        if (submit) {
+          await insertModerationEvent({
+            entityType: "worker_profile",
+            entityId: id,
+            action: "submit",
+            staffId: null,
+          });
+        }
+        await logAudit(ctx, {
+          action: "worker.profile.upsert",
+          entityType: "worker_public_profiles",
+          entityId: id,
+          meta: { submit },
+        });
+        return { success: true, id, submitted: submit } as const;
+      }),
+    // 自填經歷（自己的全部，含審核狀態）
+    myExperiences: workerProcedure.query(async ({ ctx }) => {
+      const rows = await getExperiencesByUserId(ctx.user.id);
+      return rows.map(e => ({
+        ...e,
+        createdAt: e.createdAt?.toISOString() ?? null,
+        updatedAt: e.updatedAt?.toISOString() ?? null,
+      }));
+    }),
+    addExperience: workerProcedure
+      .input(workerExperienceInput)
+      .mutation(async ({ ctx, input }) => {
+        const id = await createExperience({
+          userId: ctx.user.id,
+          employerType: input.employerType,
+          role: input.role,
+          startDate: input.startDate ?? null,
+          endDate: input.endDate ?? null,
+          description: input.description ?? null,
+        });
+        await insertModerationEvent({
+          entityType: "worker_experience",
+          entityId: id,
+          action: "submit",
+          staffId: null,
+        });
+        return { success: true, id } as const;
+      }),
+    updateExperience: workerProcedure
+      .input(workerExperienceInput.extend({ id: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...data } = input;
+        const e = await getExperienceById(id);
+        if (!e || e.userId !== ctx.user.id)
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此經歷" });
+        // 編輯後回到待審
+        await updateExperience(id, {
+          employerType: data.employerType,
+          role: data.role,
+          startDate: data.startDate ?? null,
+          endDate: data.endDate ?? null,
+          description: data.description ?? null,
+          reviewStatus: "pending",
+          rejectReason: null,
+        });
+        return { success: true } as const;
+      }),
+    deleteExperience: workerProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        const e = await getExperienceById(input.id);
+        if (!e || e.userId !== ctx.user.id)
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此經歷" });
+        await deleteExperience(input.id);
+        return { success: true } as const;
+      }),
+  }),
+
+  // ─── 找移工（雇主，需有通過的需求單，P2）─────────────────────────────────
+  // 規格 §15-1：雇主需登入 **且** 至少一張通過的需求單，才能瀏覽匿名履歷。
+  // 一律回去識別視圖，永不外露移工真實姓名/證件/聯絡方式（§11）。
+  findWorkers: router({
+    list: employerProcedure
+      .input(
+        z
+          .object({
+            jobType: z
+              .enum([
+                "caregiver",
+                "domestic_helper",
+                "manufacturing",
+                "agriculture",
+                "construction",
+                "white_collar",
+                "intermediate",
+                "overseas_student",
+              ])
+              .optional(),
+            nationality: z.string().trim().max(50).optional(),
+          })
+          .optional()
+      )
+      .query(async ({ ctx, input }) => {
+        await assertCanBrowseWorkers(ctx.user);
+        const rows = await listPublicProfiles(input);
+        return rows.map(publicProfileView);
+      }),
+    get: employerProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        await assertCanBrowseWorkers(ctx.user);
+        const p = await getProfileById(input.id);
+        if (
+          !p ||
+          p.publishStatus !== "published" ||
+          p.moderationStatus !== "approved"
+        )
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此履歷" });
+        // 平台可信工作紀錄（僅在客服已勾稽 workerId 時有；去識別）
+        const platformRecords = p.workerId
+          ? await getEmploymentsByWorker(p.workerId)
+          : [];
+        const experiences = await getApprovedExperiencesByUserId(p.userId);
+        return {
+          ...publicProfileView(p),
+          platformRecords,
+          experiences: experiences.map(e => ({
+            id: e.id,
+            employerType: e.employerType,
+            role: e.role,
+            startDate: e.startDate,
+            endDate: e.endDate,
+            description: e.description,
+          })),
+        };
+      }),
+    // 「送出媒合意向」→ match_request（targetType=worker），交客服居中。
+    expressInterest: employerProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          note: z
+            .string()
+            .trim()
+            .max(500)
+            .optional()
+            .transform(s => s?.trim() || undefined),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        await assertCanBrowseWorkers(ctx.user); // 與 list/get 同一道 §15-1 gate
+        const p = await getProfileById(input.id);
+        if (
+          !p ||
+          p.publishStatus !== "published" ||
+          p.moderationStatus !== "approved"
+        )
+          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此履歷" });
+        const existing = await getOpenMatchRequest(
+          ctx.user.id,
+          "worker",
+          input.id
+        );
+        if (existing) return { success: true, alreadySent: true } as const;
+        const matchId = await createMatchRequest({
+          initiatorUserId: ctx.user.id,
+          initiatorType: "employer",
+          targetType: "worker",
+          targetId: input.id,
+          status: "new",
+          note: input.note ?? null,
+        });
+        await logAudit(ctx, {
+          action: "match.request.create",
+          entityType: "match_requests",
+          entityId: matchId,
+          meta: { targetType: "worker", targetId: input.id },
+        });
+        return { success: true, alreadySent: false } as const;
+      }),
   }),
 
   // ─── 客服：媒合意向佇列（仲介居中，P3）───────────────────────────────────

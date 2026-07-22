@@ -34,6 +34,22 @@ const dbMock = vi.hoisted(() => ({
   getMatchRequestById: vi.fn().mockResolvedValue(undefined),
   updateMatchRequest: vi.fn().mockResolvedValue({}),
   getMatchRequestsByInitiator: vi.fn().mockResolvedValue([]),
+  // worker profiles / find-workers (P2)
+  getProfileByUserId: vi.fn().mockResolvedValue(undefined),
+  getProfileById: vi.fn().mockResolvedValue(undefined),
+  createProfile: vi.fn().mockResolvedValue(901),
+  updateProfile: vi.fn().mockResolvedValue({}),
+  getPendingProfiles: vi.fn().mockResolvedValue([]),
+  listPublicProfiles: vi.fn().mockResolvedValue([]),
+  getExperiencesByUserId: vi.fn().mockResolvedValue([]),
+  getApprovedExperiencesByUserId: vi.fn().mockResolvedValue([]),
+  getExperienceById: vi.fn().mockResolvedValue(undefined),
+  createExperience: vi.fn().mockResolvedValue(950),
+  updateExperience: vi.fn().mockResolvedValue({}),
+  deleteExperience: vi.fn().mockResolvedValue({}),
+  getPendingExperiences: vi.fn().mockResolvedValue([]),
+  getEmploymentsByWorker: vi.fn().mockResolvedValue([]),
+  countApprovedPostingsByEmployer: vi.fn().mockResolvedValue(1),
   // hardening 用
   getAllWorkers: vi.fn().mockResolvedValue([]),
 }));
@@ -450,5 +466,174 @@ describe("WS3 硬化：內部 procedure 需 staff/admin", () => {
   it("admin 可呼叫 workers.list", async () => {
     const res = await admin().workers.list();
     expect(Array.isArray(res)).toBe(true);
+  });
+});
+
+describe("移工履歷（worker，P2）", () => {
+  it("未登入 → UNAUTHORIZED；雇主 → FORBIDDEN；移工 → 可用", async () => {
+    await expect(anon().worker.myProfile()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    await expect(employer().worker.myProfile()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    expect(await worker().worker.myProfile()).toBeNull();
+  });
+
+  it("upsertProfile 初次建立並送審 → createProfile + pending + 送審事件", async () => {
+    const res = await worker().worker.upsertProfile({
+      alias: "小明",
+      nationality: "印尼",
+      jobType: "caregiver",
+      skills: ["翻身", "備餐"],
+      languages: ["中文", "印尼文"],
+      submit: true,
+    });
+    expect(res).toMatchObject({ success: true, submitted: true });
+    expect(dbMock.createProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 10,
+        moderationStatus: "pending",
+        publishStatus: "published",
+      })
+    );
+    expect(dbMock.insertModerationEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: "worker_profile",
+        action: "submit",
+      })
+    );
+  });
+
+  it("addExperience：移工可新增自填經歷", async () => {
+    const res = await worker().worker.addExperience({
+      employerType: "family_care",
+      role: "看護",
+    });
+    expect(res.success).toBe(true);
+    expect(dbMock.createExperience).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 10, role: "看護" })
+    );
+  });
+});
+
+describe("找移工（findWorkers，P2）權限、gating 與匿名", () => {
+  it("移工帳號 → FORBIDDEN（限雇主）", async () => {
+    await expect(worker().findWorkers.list()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+
+  it("雇主無通過需求單 → FORBIDDEN gating", async () => {
+    dbMock.countApprovedPostingsByEmployer.mockResolvedValueOnce(0);
+    await expect(employer().findWorkers.list()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+
+  it("雇主有通過需求單 → 回匿名視圖，不含 userId/workerId/PII", async () => {
+    dbMock.countApprovedPostingsByEmployer.mockResolvedValueOnce(1);
+    dbMock.listPublicProfiles.mockResolvedValueOnce([
+      {
+        id: 7,
+        userId: 10,
+        workerId: 55,
+        alias: "小明",
+        headline: "細心可靠",
+        nationality: "印尼",
+        yearOfBirth: 1995,
+        jobType: "caregiver",
+        skills: JSON.stringify(["翻身"]),
+        languages: JSON.stringify(["中文"]),
+        availability: "即刻",
+        selfIntro: "hi",
+      },
+    ]);
+    const res = await employer().findWorkers.list();
+    expect(res).toHaveLength(1);
+    const card = res[0] as Record<string, unknown>;
+    expect(card).toMatchObject({ id: 7, alias: "小明", category: "caregiver" });
+    expect(card.ageRange).toBeTruthy();
+    expect(card.userId).toBeUndefined();
+    expect(card.workerId).toBeUndefined();
+    expect(card.selfIntro).toBe("hi"); // 自我介紹屬公開子集
+  });
+
+  it("get：未公開/未通過的履歷 → NOT_FOUND", async () => {
+    dbMock.countApprovedPostingsByEmployer.mockResolvedValueOnce(1);
+    dbMock.getProfileById.mockResolvedValueOnce({
+      id: 7,
+      publishStatus: "draft",
+      moderationStatus: "pending",
+    });
+    await expect(employer().findWorkers.get({ id: 7 })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+
+  it("expressInterest（雇主對移工）建立 match_request targetType=worker", async () => {
+    dbMock.getProfileById.mockResolvedValueOnce({
+      id: 7,
+      publishStatus: "published",
+      moderationStatus: "approved",
+    });
+    const res = await employer().findWorkers.expressInterest({ id: 7 });
+    expect(res).toMatchObject({ success: true, alreadySent: false });
+    expect(dbMock.createMatchRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initiatorType: "employer",
+        targetType: "worker",
+        targetId: 7,
+      })
+    );
+  });
+});
+
+describe("履歷/經歷審核（moderation，P2）權限", () => {
+  it("approveProfile/reviewExperience 需 staff", async () => {
+    await expect(
+      worker().moderation.approveProfile({ id: 7 })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      worker().moderation.reviewExperience({ id: 9, approve: true })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("staff approveProfile → 更新為 approved", async () => {
+    dbMock.getProfileById.mockResolvedValueOnce({ id: 7 });
+    await staff().moderation.approveProfile({ id: 7 });
+    expect(dbMock.updateProfile).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ moderationStatus: "approved" })
+    );
+  });
+});
+
+describe("P2 Code Review 修復", () => {
+  it("findWorkers.expressInterest 也套 gating：無通過需求單 → FORBIDDEN，不建立意向", async () => {
+    dbMock.countApprovedPostingsByEmployer.mockResolvedValueOnce(0);
+    await expect(
+      employer().findWorkers.expressInterest({ id: 7 })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(dbMock.createMatchRequest).not.toHaveBeenCalled();
+  });
+
+  it("編輯已通過的履歷（存草稿）強制退回 pending，不會靜默republish", async () => {
+    dbMock.getProfileByUserId.mockResolvedValueOnce({
+      id: 7,
+      userId: 10,
+      moderationStatus: "approved",
+      publishStatus: "published",
+      rejectReason: null,
+    });
+    await worker().worker.upsertProfile({
+      selfIntro: "改成含電話 09xx",
+      submit: false,
+    });
+    expect(dbMock.updateProfile).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ moderationStatus: "pending" })
+    );
+    expect(dbMock.createProfile).not.toHaveBeenCalled();
   });
 });

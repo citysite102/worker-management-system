@@ -18,6 +18,8 @@ export const TEST_DATABASE_URL =
  */
 const TABLES = [
   "kpi_snapshots",
+  "worker_experiences",
+  "worker_public_profiles",
   "match_requests",
   "moderation_events",
   "job_postings",

@@ -2,7 +2,11 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public/PublicHeader";
-import { PageHeader, FilterChip } from "@/components/marketplace/ui";
+import {
+  PageHeader,
+  FilterChip,
+  SkeletonGrid,
+} from "@/components/marketplace/ui";
 import { WorkerCard, categoryIcon } from "@/components/marketplace/worker";
 import { JOB_TYPE_VALUES, type JobTypeValue } from "@/lib/marketplace";
 
@@ -48,9 +52,7 @@ export default function FindWorkers() {
         </div>
 
         {q.isLoading ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">
-            …
-          </div>
+          <SkeletonGrid />
         ) : !q.data || q.data.length === 0 ? (
           <div
             className="py-16 text-center text-sm text-muted-foreground"
@@ -63,8 +65,8 @@ export default function FindWorkers() {
             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
             data-testid="find-workers-list"
           >
-            {q.data.map(p => (
-              <WorkerCard key={p.id} p={p} />
+            {q.data.map((p, i) => (
+              <WorkerCard key={p.id} p={p} index={i} />
             ))}
           </div>
         )}

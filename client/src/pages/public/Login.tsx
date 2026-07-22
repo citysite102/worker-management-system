@@ -6,6 +6,7 @@ import { Eye, EyeOff, Wrench } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Logo } from "@/components/brand/Logo";
 
 type Mode = "login" | "register";
 
@@ -88,6 +89,14 @@ export default function Login() {
       </div>
       <div className="flex-1 flex items-center justify-center px-4 pb-16">
         <div className="w-full max-w-sm">
+          <a
+            href="/"
+            className="mb-6 flex items-center justify-center gap-2"
+            aria-label="長誠媒合"
+          >
+            <Logo variant="color" size="sm" />
+            <span className="text-lg font-bold tracking-tight">長誠媒合</span>
+          </a>
           <h1 className="text-2xl font-bold tracking-tight text-center mb-6">
             {isRegister ? t("login.registerTitle") : t("login.title")}
           </h1>

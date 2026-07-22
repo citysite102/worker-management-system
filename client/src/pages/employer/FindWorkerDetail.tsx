@@ -13,7 +13,11 @@ import {
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { PublicHeader } from "@/components/public/PublicHeader";
-import { SurfaceCard, StatusPill } from "@/components/marketplace/ui";
+import {
+  SurfaceCard,
+  StatusPill,
+  SkeletonCard,
+} from "@/components/marketplace/ui";
 import {
   AnonAvatar,
   CategoryTag,
@@ -58,8 +62,8 @@ export default function FindWorkerDetail() {
         </Link>
 
         {q.isLoading ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">
-            …
+          <div className="mt-4">
+            <SkeletonCard />
           </div>
         ) : q.error || !p ? (
           <div

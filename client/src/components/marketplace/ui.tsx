@@ -4,6 +4,7 @@
 // .status-* class，禁止硬編色碼（見 docs/design-system.md）。
 import type { ComponentType, ReactNode } from "react";
 import type { LucideProps } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 // ── 語義狀態色調 ──────────────────────────────────────────────────────────────
 export type Tone = "green" | "amber" | "red" | "gray";
@@ -110,12 +111,72 @@ export function SurfaceCard({
 } & React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`rounded-lg border border-border bg-card p-5 ${
-        interactive ? "hover:border-primary transition-colors" : ""
+      className={`rounded-lg border border-border bg-card p-5 shadow-xs ${
+        interactive
+          ? "transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-primary hover:shadow-sm"
+          : ""
       } ${className}`}
       {...rest}
     >
       {children}
+    </div>
+  );
+}
+
+/** 區塊小標（eyebrow）：品牌藍、小字；uppercase/tracking 只對拉丁語系有意義。 */
+export function Eyebrow({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const { i18n } = useTranslation();
+  const latin = !i18n.language.startsWith("zh");
+  return (
+    <span
+      className={`text-xs font-semibold text-primary ${
+        latin ? "uppercase tracking-wide" : ""
+      } ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** 載入骨架卡（對應 WorkerCard/JobCard 的版型）：比一顆「…」更有質感。 */
+export function SkeletonCard() {
+  return (
+    <div className="rounded-lg border border-border bg-card p-5 shadow-xs">
+      <div className="flex items-start gap-3">
+        <div className="h-12 w-12 shrink-0 animate-pulse rounded-full bg-muted" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+        </div>
+      </div>
+      <div className="mt-4 space-y-2">
+        <div className="h-3 w-full animate-pulse rounded bg-muted" />
+        <div className="h-3 w-4/5 animate-pulse rounded bg-muted" />
+      </div>
+      <div className="mt-4 flex gap-1.5">
+        <div className="h-5 w-14 animate-pulse rounded-full bg-muted" />
+        <div className="h-5 w-14 animate-pulse rounded-full bg-muted" />
+      </div>
+    </div>
+  );
+}
+
+/** 一格骨架網格（列表載入用）。 */
+export function SkeletonGrid({ count = 6 }: { count?: number }) {
+  return (
+    <div
+      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+      data-testid="skeleton-grid"
+    >
+      {Array.from({ length: count }).map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
     </div>
   );
 }

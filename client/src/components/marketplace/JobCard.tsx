@@ -23,14 +23,21 @@ export type JobCardData = {
 };
 
 /** 找工作卡片：職類籤 + 職種 + 地點/人數 + 薪資；既有需求標「既有需求」徽章。 */
-export function JobCard({ job }: { job: JobCardData }) {
+export function JobCard({
+  job,
+  index = 0,
+}: {
+  job: JobCardData;
+  index?: number;
+}) {
   const { t } = useTranslation();
   const salary =
     formatSalary(job.salaryMin, job.salaryMax) ?? t("jobs.salaryNegotiable");
   return (
     <Link
       href={`/jobs/${job.source}/${job.refId}`}
-      className="block"
+      className="block animate-in fade-in slide-in-from-bottom-2 fill-mode-both"
+      style={{ animationDelay: `${Math.min(index, 11) * 45}ms` }}
       data-testid="job-card"
     >
       <SurfaceCard interactive className="h-full">
@@ -60,7 +67,9 @@ export function JobCard({ job }: { job: JobCardData }) {
             {t(`jobs.employmentType.${job.employmentType}`)}
           </p>
         )}
-        <p className="mt-3 text-sm font-medium text-foreground">{salary}</p>
+        <p className="mt-3 text-sm font-medium text-foreground tabular-nums">
+          {salary}
+        </p>
       </SurfaceCard>
     </Link>
   );

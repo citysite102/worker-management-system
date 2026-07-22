@@ -10,6 +10,7 @@ import {
   CategoryChip,
   MetaItem,
   SurfaceCard,
+  SkeletonCard,
 } from "@/components/marketplace/ui";
 
 /** 公開站職缺詳情（開放匿名瀏覽）。「我有興趣」需登入 → 建立媒合意向交客服居中（P3）。 */
@@ -57,8 +58,8 @@ export default function JobDetail() {
         </Link>
 
         {jobQuery.isLoading ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">
-            …
+          <div className="mt-4">
+            <SkeletonCard />
           </div>
         ) : jobQuery.error || !jobQuery.data ? (
           <div

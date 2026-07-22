@@ -135,12 +135,19 @@ export type WorkerCardData = {
 };
 
 /** 找外籍工作者列表卡片：頭像 + 分類 icon + 評分 + 分類標籤。 */
-export function WorkerCard({ p }: { p: WorkerCardData }) {
+export function WorkerCard({
+  p,
+  index = 0,
+}: {
+  p: WorkerCardData;
+  index?: number;
+}) {
   const { t } = useTranslation();
   return (
     <Link
       href={`/find-workers/${p.id}`}
-      className="block"
+      className="block animate-in fade-in slide-in-from-bottom-2 fill-mode-both"
+      style={{ animationDelay: `${Math.min(index, 11) * 45}ms` }}
       data-testid="worker-card"
     >
       <SurfaceCard interactive className="h-full">

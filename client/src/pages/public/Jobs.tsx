@@ -4,7 +4,11 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { JobCard } from "@/components/marketplace/JobCard";
-import { PageHeader, FilterChip } from "@/components/marketplace/ui";
+import {
+  PageHeader,
+  FilterChip,
+  SkeletonGrid,
+} from "@/components/marketplace/ui";
 import {
   TW_CITIES,
   EMPLOYMENT_TYPE_VALUES,
@@ -119,9 +123,7 @@ export default function Jobs() {
 
         {/* List */}
         {jobsQuery.isLoading ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">
-            {t("jobs.title")}…
-          </div>
+          <SkeletonGrid />
         ) : !jobsQuery.data || jobsQuery.data.length === 0 ? (
           <div
             className="py-16 text-center text-sm text-muted-foreground"
@@ -134,8 +136,8 @@ export default function Jobs() {
             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
             data-testid="jobs-list"
           >
-            {jobsQuery.data.map(job => (
-              <JobCard key={`${job.source}-${job.refId}`} job={job} />
+            {jobsQuery.data.map((job, i) => (
+              <JobCard key={`${job.source}-${job.refId}`} job={job} index={i} />
             ))}
           </div>
         )}

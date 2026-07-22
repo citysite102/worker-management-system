@@ -9,24 +9,28 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
+import { Eyebrow } from "@/components/marketplace/ui";
 import { TW_CITIES, type JobCategory } from "@/lib/marketplace";
 
 const CATEGORIES: JobCategory[] = ["caregiver", "domestic_helper", "other"];
 
-// Hero 背景：品牌深藍漸層（含柔光），文字用白色。要換成實拍大圖時，把此處改成
-// `backgroundImage: "linear-gradient(...opacity), url('/hero.jpg')"` 即可（圖片放 public/）。
+// Hero 背景：品牌深藍漸層（含柔光），文字用白色；顏色一律走 token（見 index.css @theme）。
+// 白/黑 rgba 為柔光與陰影，非品牌色。要換成實拍大圖時，把 linear-gradient 換成
+// `linear-gradient(暗遮罩), url('/hero.jpg')` 即可（圖片放 public/）。
 const HERO_BG: React.CSSProperties = {
-  backgroundColor: "#1D4ED8",
+  backgroundColor: "var(--color-primary)",
   backgroundImage:
     "radial-gradient(1200px 500px at 15% -10%, rgba(255,255,255,0.22), transparent 60%)," +
     "radial-gradient(900px 500px at 100% 120%, rgba(0,0,0,0.35), transparent 55%)," +
-    "linear-gradient(135deg, #1D4ED8 0%, #1E3A8A 55%, #0F1E4A 100%)",
+    "linear-gradient(135deg, var(--color-primary) 0%, var(--color-brand-dark) 55%, var(--color-brand-darker) 100%)",
 };
 
 /** 公開站首頁：大圖 hero + 蓋在上面的職缺搜尋框（WS4 分流 + WS5 i18n 落點）。 */
 export default function PublicHome() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [, navigate] = useLocation();
+  // 行銷大標的襯線字（Fraunces）只給拉丁語系；中文維持粗黑（設計系統 §3）。
+  const display = i18n.language.startsWith("zh") ? "" : "font-display";
   const [category, setCategory] = useState<JobCategory | "">("");
   const [city, setCity] = useState("");
 
@@ -52,12 +56,14 @@ export default function PublicHome() {
             className="relative overflow-hidden rounded-3xl px-6 py-16 sm:px-12 sm:py-24"
             style={HERO_BG}
           >
-            <div className="relative max-w-2xl">
+            <div className="relative max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-700">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur">
                 <ShieldCheck className="h-3.5 w-3.5" />
                 {t("home.eyebrow")}
               </span>
-              <h1 className="mt-5 text-4xl sm:text-5xl font-bold tracking-tight text-white text-balance">
+              <h1
+                className={`mt-5 text-4xl font-bold tracking-tight text-balance text-white sm:text-6xl ${display}`}
+              >
                 {t("home.heroTitle")}
               </h1>
               <p className="mt-4 max-w-xl text-white/85">
@@ -147,10 +153,11 @@ export default function PublicHome() {
             { icon: ShieldCheck, key: "trustVerified" },
             { icon: Briefcase, key: "trustAgency" },
             { icon: Languages, key: "trustMultilang" },
-          ].map(({ icon: Icon, key }) => (
+          ].map(({ icon: Icon, key }, i) => (
             <div
               key={key}
-              className="rounded-lg border border-border bg-card p-5"
+              style={{ animationDelay: `${i * 90}ms` }}
+              className="rounded-lg border border-border bg-card p-5 shadow-xs transition-all duration-200 ease-out animate-in fade-in slide-in-from-bottom-2 fill-mode-both hover:-translate-y-0.5 hover:shadow-sm"
             >
               <Icon className="w-5 h-5 text-primary" />
               <p className="mt-3 text-sm font-medium">{t(`home.${key}`)}</p>
@@ -162,10 +169,10 @@ export default function PublicHome() {
         <section id="faq" className="scroll-mt-20 border-t border-border py-16">
           <div className="mx-auto max-w-3xl">
             <div className="text-center">
-              <span className="text-xs font-semibold uppercase tracking-wide text-primary">
-                {t("home.faqEyebrow")}
-              </span>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight">
+              <Eyebrow>{t("home.faqEyebrow")}</Eyebrow>
+              <h2
+                className={`mt-2 text-3xl font-bold tracking-tight ${display}`}
+              >
                 {t("home.faqTitle")}
               </h2>
               <p className="mt-2 text-muted-foreground">

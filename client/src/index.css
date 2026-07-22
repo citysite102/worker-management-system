@@ -87,6 +87,38 @@
     min-width: 0;
     min-height: 0;
   }
+
+  /* 可點擊元素一律 pointer 游標（Tailwind v4 Preflight 不再自動加）；
+     停用態改 not-allowed，避免看起來可點卻沒反應。 */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  label[for],
+  summary {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  /* 鍵盤可見焦點：所有互動元素在 focus-visible 時給一致的藍色 ring
+     （滑鼠點擊不觸發，不干擾視覺）。 */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  /* 尊重使用者的「減少動態」偏好（a11y）：近乎關閉所有動畫/轉場與平滑捲動。 */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 /* Status badge styles — 方向二：單一主色 + 語義灰階 */

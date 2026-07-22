@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { Eye, EyeOff, Wrench } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -33,6 +34,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [accountType, setAccountType] = useState<"worker" | "employer">(
     "worker"
   );
@@ -121,6 +123,7 @@ export default function Login() {
                 <input
                   value={name}
                   onChange={e => setName(e.target.value)}
+                  autoComplete="name"
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent"
                 />
               </div>
@@ -132,6 +135,8 @@ export default function Login() {
               <input
                 type="email"
                 required
+                inputMode="email"
+                autoComplete="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 data-testid="login-email"
@@ -142,15 +147,37 @@ export default function Login() {
               <label className="block text-sm font-medium mb-1.5">
                 {t("login.password")}
               </label>
-              <input
-                type="password"
-                required
-                minLength={isRegister ? 8 : undefined}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                data-testid="login-password"
-                className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={isRegister ? 8 : undefined}
+                  autoComplete={
+                    isRegister ? "new-password" : "current-password"
+                  }
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  data-testid="login-password"
+                  className="w-full rounded-md border border-border bg-card px-3 py-2 pr-10 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(s => !s)}
+                  aria-label={
+                    showPassword
+                      ? t("login.hidePassword")
+                      : t("login.showPassword")
+                  }
+                  aria-pressed={showPassword}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
             <button
               type="submit"
@@ -186,7 +213,8 @@ export default function Login() {
                 className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
                 data-testid="dev-bypass-login"
               >
-                🛠 以本地開發者身分登入
+                <Wrench className="h-3.5 w-3.5" />
+                以本地開發者身分登入
               </a>
             </div>
           )}

@@ -39,10 +39,14 @@ export function getSessionCookieOptions(
   //       ? hostname
   //       : undefined;
 
+  // SameSite=None 一定要搭 Secure，否則瀏覽器會直接丟棄該 cookie。正式環境走
+  // HTTPS 用 None（Manus OAuth 跨站導回需要）；本地/E2E 走 HTTP 時退回 Lax，
+  // 否則 Email/密碼登入的 session cookie 會被瀏覽器拒收、登入等於無效。
+  const secure = isSecureRequest(req);
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "none",
-    secure: isSecureRequest(req),
+    sameSite: secure ? "none" : "lax",
+    secure,
   };
 }

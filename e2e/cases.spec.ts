@@ -6,9 +6,11 @@
  * 唯一的例外是「驗證訊息內容」這類斷言，那時文字本身就是被測的行為。
  */
 import { expect, test } from "@playwright/test";
+import { loginAsStaff } from "./helpers/auth";
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/cases");
+  await loginAsStaff(page);
+  await page.goto("/admin/cases");
   await expect(page.getByRole("heading", { name: "案件管理" })).toBeVisible();
   // 標題出現不代表資料到齊 —— 列表是非同步載入的。等到有資料列為止，
   // 讓每個測試都從「已載入」狀態開始，否則數列數時會抓到 0。

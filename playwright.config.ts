@@ -54,10 +54,16 @@ export default defineConfig({
       NODE_ENV: "development",
       PORT: String(PORT),
       DATABASE_URL: E2E_DATABASE_URL,
-      // E2E 走本地繞過登入，不依賴 Manus OAuth。
-      DEV_AUTH_BYPASS: "1",
+      // E2E 走真實 Email/密碼登入（seed-test-accounts 建立的 staff/worker/employer），
+      // 才能實際走過「登入 → RequireStaff 守衛 → 後台」與公開站登入導回。
+      // 因此關掉 DEV_AUTH_BYPASS（開著會注入假 admin，讓守衛永遠放行、
+      // 也讓公開站的登入導回測不到）。
+      DEV_AUTH_BYPASS: "0",
       JWT_SECRET:
         process.env.JWT_SECRET ?? "e2e-test-secret-not-for-production",
+      // 自簽 session JWT 會帶入 appId=VITE_APP_ID，且 verifySession 要求 appId
+      // 非空才算有效；E2E 未串 Manus，因此給一個非空值讓 Email/密碼 session 成立。
+      VITE_APP_ID: process.env.VITE_APP_ID ?? "e2e-app",
     },
   },
 });

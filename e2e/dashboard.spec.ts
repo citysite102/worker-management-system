@@ -8,9 +8,11 @@
  * 綁在文案上的測試會在改字時假性失敗。
  */
 import { expect, test } from "@playwright/test";
+import { loginAsStaff } from "./helpers/auth";
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await loginAsStaff(page);
+  await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "儀表板" })).toBeVisible();
   // 標題出現不代表資料到齊 —— 統計卡在載入中是 skeleton，數字還沒進 DOM。
   // 等到數字出現為止，否則後面的斷言會抓到 0 個元素而假性通過／失敗。
@@ -91,8 +93,8 @@ test("點到期提醒的項目會進入該移工的詳情頁", async ({ page }) 
   await expect(page).toHaveURL(new RegExp(`/workers/${workerId}$`));
 });
 
-test("/dashboard 與 / 導向同一個頁面", async ({ page }) => {
-  await page.goto("/dashboard");
+test("/admin/dashboard 與 /admin 導向同一個頁面", async ({ page }) => {
+  await page.goto("/admin/dashboard");
   await expect(page.getByRole("heading", { name: "儀表板" })).toBeVisible();
   await expect
     .poll(() => page.getByTestId("dashboard-stat-card").count())

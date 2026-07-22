@@ -9,8 +9,9 @@
 新 schema 欄位 `cases.publicCity` 與 `case_demands.publicHidden` 會被既有後台查詢（`getAllCases`、`getDemandsByCaseId` 等）選取。若正式資料庫尚未加上這兩欄就先上新程式碼，**既有的案件/需求頁會查詢失敗**。因為變更全為 additive，先 migrate 一定安全。
 
 ```bash
-# 1) 對正式資料庫套用 0007（idempotent，可重複執行）
-DATABASE_URL=<prod> node scripts/migrate-marketplace-p1.mjs
+# 1) 對正式資料庫套用 migration（idempotent，可重複執行）
+DATABASE_URL=<prod> node scripts/migrate-marketplace-p1.mjs   # P1：job_postings/moderation_events + cases.publicCity/case_demands.publicHidden
+DATABASE_URL=<prod> node scripts/migrate-match-requests.mjs   # P3：match_requests（媒合意向）
 
 # 2) 再部署新程式碼
 ```
@@ -43,6 +44,10 @@ Email/密碼登入的 session cookie：正式環境走 HTTPS 時用 `SameSite=No
 
 E2E 已改為**真實 staff 登入**（關掉 `DEV_AUTH_BYPASS`，`e2e/helpers/auth.ts` 提供 `loginAs`/`loginAsStaff`），涵蓋既有後台 CRUD、公開站登入導回、需求單審核轉 case → 找工作上架全流程。跑法：需本地 MySQL（`mysql://root:root@localhost:3306`）→ `pnpm e2e`（會自建 `wms_e2e`、灌假資料、建測試帳號）。
 
+## P3 媒合意向（已完成）
+
+「我有興趣」建立 `match_requests`（仲介居中）：求職者/雇主表達興趣 → 客服於 `/admin/match-requests` 佇列接手、推進狀態（新進→處理中→已引介→成交/關閉）；發起者於 `/my-interests` 看自己的意向與狀態。雙方看不到彼此私密聯絡資訊（僅 staff 於後台可見發起者聯絡方式）。表達興趣有可見度守衛（只能對目前公開的職缺送意向）與去重。
+
 ## 待辦（後續階段）
 
-- P3：`match_requests`（仲介居中）取代目前「我有興趣」的稽核佔位；需求單 `paused/filled/closed` 生命週期同步。
+- 需求單 / 媒合意向的生命週期同步（需求單 `paused/filled/closed`；媒合成交後回寫）。

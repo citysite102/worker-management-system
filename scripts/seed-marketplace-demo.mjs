@@ -226,6 +226,25 @@ function dateShift(months) {
 }
 const jsonArr = a => JSON.stringify(a);
 
+// 與後端 moderation.approvePosting 對齊（server/routers.ts），讓 seed 建的案件
+// 與正規審核流程產出的一致。
+const QUAL_TYPE_LABEL = {
+  caregiver: "看護",
+  domestic_helper: "幫傭",
+  manufacturing: "製造業",
+  agriculture: "農業",
+  construction: "營造業",
+  white_collar: "白領",
+  intermediate: "中階技術",
+  overseas_student: "僑外生",
+};
+function inferQualCategory(qualType) {
+  if (["white_collar", "overseas_student", "intermediate"].includes(qualType))
+    return "professional";
+  if (["caregiver", "domestic_helper"].includes(qualType)) return "labor_out";
+  return "labor_in";
+}
+
 // ─── 連線 ────────────────────────────────────────────────────────────────────
 const dbUrl = process.env.DATABASE_URL;
 if (!dbUrl) {
@@ -269,6 +288,12 @@ if (demoUserIds.length > 0) {
   );
   await q(`DELETE FROM users WHERE id IN (${ph})`, demoUserIds);
 }
+// demo 案件（notes 標記）：先清子表（FK 由子到父），再清案件，最後才刪客戶。
+const DEMO_CASE =
+  "WHERE caseId IN (SELECT id FROM `cases` WHERE notes = '[seed-demo]')";
+await q(`DELETE FROM case_demands ${DEMO_CASE}`);
+await q(`DELETE FROM case_qualifications ${DEMO_CASE}`);
+await q("DELETE FROM `cases` WHERE notes = '[seed-demo]'");
 await q("DELETE FROM customers WHERE employerNo LIKE 'DEMO-%'");
 await q("DELETE FROM workers WHERE workerNo LIKE 'DEMO-%'");
 
@@ -450,12 +475,20 @@ for (let i = 0; i < 12; i++) {
   employerUserIds.push(u.insertId);
 }
 
-console.log(`→ 建立 ${N} 筆需求單（approved，直接上架）…`);
+console.log(
+  `→ 建立 ${N} 筆需求單（approved）＋對應案件（前後台一致：走正規審核產物）…`
+);
 for (let i = 0; i < N; i++) {
   const job = pick(JOBS, i);
   const loc = pick(CITIES, i);
   const [min, max] = job.salary;
-  await q(
+  const customerId = pick(customerIds, i);
+  const mgr = pick(managerIds, i);
+  const headcount = 1 + (i % 3);
+  const jobLabel = QUAL_TYPE_LABEL[job.jobType];
+
+  // 需求單
+  const [posting] = await q(
     `INSERT INTO job_postings
       (employerUserId, customerId, jobType, city, district, headcount, employmentType,
        requirements, publicDescription, salaryMin, salaryMax, expectedStartDate,
@@ -463,11 +496,11 @@ for (let i = 0; i < N; i++) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', NOW())`,
     [
       pick(employerUserIds, i),
-      pick(customerIds, i),
+      customerId,
       job.jobType,
       loc.city,
       pick(loc.districts, i),
-      1 + (i % 3),
+      headcount,
       job.empType,
       job.reqs,
       job.desc,
@@ -476,6 +509,37 @@ for (let i = 0; i < N; i++) {
       dateShift((i % 3) + 1),
     ]
   );
+
+  // 對應案件 + 資格 + 需求（等同 moderation.approvePosting 的產物；notes 標記供清理）
+  const [c] = await q(
+    `INSERT INTO \`cases\` (customerId, name, managerId, status, publicCity, notes)
+     VALUES (?, ?, ?, 'in_progress', ?, '[seed-demo]')`,
+    [customerId, `${jobLabel}－${loc.city}`, mgr, loc.city]
+  );
+  const caseId = c.insertId;
+  const [qual] = await q(
+    `INSERT INTO case_qualifications
+       (caseId, label, category, qualType, quotaTotal, applicationStatus)
+     VALUES (?, ?, ?, ?, ?, 'preparing')`,
+    [
+      caseId,
+      `${jobLabel}（公開需求單）`,
+      inferQualCategory(job.jobType),
+      job.jobType,
+      headcount,
+    ]
+  );
+  await q(
+    `INSERT INTO case_demands
+       (caseId, label, qualificationId, qualType, neededCount, status, publicHidden)
+     VALUES (?, ?, ?, ?, ?, 'open', 1)`,
+    [caseId, `${jobLabel}－${loc.city}`, qual.insertId, job.jobType, headcount]
+  );
+  // 回填需求單 → 案件連結
+  await q("UPDATE job_postings SET caseId = ? WHERE id = ?", [
+    caseId,
+    posting.insertId,
+  ]);
 }
 
 // ─── 摘要 ────────────────────────────────────────────────────────────────────

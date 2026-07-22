@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { MapPin, User, Mail, Phone, UserCheck } from "lucide-react";
+import { MapPin, User, Mail, Phone, UserCheck, Inbox } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import {
   PageHeader,
   SurfaceCard,
   SkeletonList,
+  EmptyState,
   StatusPill,
   MetaItem,
   MetaRow,
@@ -88,12 +89,9 @@ export default function MatchRequests() {
       {q.isLoading ? (
         <SkeletonList />
       ) : rows.length === 0 ? (
-        <div
-          className="py-16 text-center text-sm text-muted-foreground"
-          data-testid="match-empty"
-        >
+        <EmptyState icon={Inbox} data-testid="match-empty">
           目前沒有媒合意向
-        </div>
+        </EmptyState>
       ) : (
         <div className="space-y-3" data-testid="match-list">
           {rows.map(m => (

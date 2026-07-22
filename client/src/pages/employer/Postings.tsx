@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
-import { MapPin, Users, Plus, Pencil } from "lucide-react";
+import { MapPin, Users, Plus, Pencil, Inbox } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { formatSalary } from "@/lib/marketplace";
@@ -8,6 +8,7 @@ import {
   PageHeader,
   SurfaceCard,
   SkeletonList,
+  EmptyState,
   StatusPill,
   MetaItem,
   MetaRow,
@@ -40,12 +41,9 @@ export default function EmployerPostings() {
         {postingsQuery.isLoading ? (
           <SkeletonList />
         ) : !postingsQuery.data || postingsQuery.data.length === 0 ? (
-          <div
-            className="py-16 text-center text-sm text-muted-foreground"
-            data-testid="postings-empty"
-          >
+          <EmptyState icon={Inbox} data-testid="postings-empty">
             {t("employer.empty")}
-          </div>
+          </EmptyState>
         ) : (
           <div className="space-y-3" data-testid="postings-list">
             {postingsQuery.data.map(p => {

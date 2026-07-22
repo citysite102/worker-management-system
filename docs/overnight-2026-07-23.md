@@ -85,11 +85,16 @@
 - 前端元件：`client/src/**/<name>.test.tsx` → `pnpm test:client`
 - E2E（如適用）：`e2e/<name>.spec.ts` → `pnpm e2e`
 
-## 進度勾稽
+## 進度勾稽（本批次完成）
 
-- [x] 設計系統統一（console 頁）+ Home hero + 詳情頁（本批次前先 commit）
-- [ ] #4 意向審核 enhancement
-- [ ] #5 評價分數
-- [ ] #3 履歷擴增
-- [ ] #1 第三方登入 scaffold
-- [ ] #2 全站 UX/閱讀性
+- [x] 設計系統統一（console 頁）+ Home hero + 詳情頁
+- [x] #5 評價分數（ratings 表 + 受限寫入 + 聚合重算；11 單元 + 6 real DB）— 待決策 A
+- [x] #4 意向審核 enhancement（備註/關閉原因 UI + 骨架 + 顯示；4 前端測試）
+- [x] #3 履歷擴增（期望工作地區，全語系；3 real DB + 3 前端）
+- [x] #1 第三方登入 scaffold（Google/LINE/FB，env-gated；9 測試）— 待憑證 + live 冒煙
+- [x] #2 全站 UX/閱讀性（設計統一 + `EmptyState` 空狀態統一；持續，見 feature-ux-readability.md）
+
+**早上請先看**：本檔上方「需要你決策的項目」(A/B/C) 與「第三方登入申請清單」。
+所有變更在分支 `feat/marketplace-overnight`，逐 feature commit。合併前建議先在本機跑一次
+`pnpm verify`（＋ `docker start wms-mysql && pnpm test:db:setup && pnpm test:integration`）。
+正式庫需 `pnpm db:push` 補 `ratings` 表與 `worker_public_profiles.preferredCities` 欄位。

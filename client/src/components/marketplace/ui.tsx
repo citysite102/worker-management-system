@@ -288,6 +288,38 @@ export function SkeletonGrid({ count = 6 }: { count?: number }) {
   );
 }
 
+/**
+ * 空狀態：icon + 訊息（+ 可選動作）。取代各頁一行灰字，讀起來更明確、更一致，
+ * 並可引導下一步（action）。data-testid 等 props 透傳，維持既有測試選取。
+ */
+export function EmptyState({
+  icon: Icon,
+  children,
+  action,
+  className = "",
+  ...rest
+}: {
+  icon?: ComponentType<LucideProps>;
+  children: ReactNode;
+  action?: ReactNode;
+  className?: string;
+} & React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={`flex flex-col items-center py-16 text-center ${className}`}
+      {...rest}
+    >
+      {Icon && (
+        <span className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <Icon className="h-5 w-5" />
+        </span>
+      )}
+      <p className="max-w-sm text-sm text-muted-foreground">{children}</p>
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
 /** 單欄清單載入骨架（我的意向／雇主需求單等單欄頁）；取代臨時的「…」佔位。 */
 export function SkeletonList({ count = 4 }: { count?: number }) {
   return (

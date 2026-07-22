@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public/PublicHeader";
+import { UserSearch } from "lucide-react";
 import {
   PageHero,
   FilterChip,
   SkeletonGrid,
+  EmptyState,
 } from "@/components/marketplace/ui";
 import { WorkerCard, categoryIcon } from "@/components/marketplace/worker";
 import { JOB_TYPE_VALUES, type JobTypeValue } from "@/lib/marketplace";
@@ -54,12 +56,9 @@ export default function FindWorkers() {
         {q.isLoading ? (
           <SkeletonGrid />
         ) : !q.data || q.data.length === 0 ? (
-          <div
-            className="py-16 text-center text-sm text-muted-foreground"
-            data-testid="find-workers-empty"
-          >
+          <EmptyState icon={UserSearch} data-testid="find-workers-empty">
             {t("findWorkers.empty")}
-          </div>
+          </EmptyState>
         ) : (
           <div
             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"

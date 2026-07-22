@@ -3,11 +3,13 @@ import { useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public/PublicHeader";
+import { SearchX } from "lucide-react";
 import { JobCard } from "@/components/marketplace/JobCard";
 import {
   PageHero,
   FilterChip,
   SkeletonGrid,
+  EmptyState,
 } from "@/components/marketplace/ui";
 import {
   TW_CITIES,
@@ -125,12 +127,9 @@ export default function Jobs() {
         {jobsQuery.isLoading ? (
           <SkeletonGrid />
         ) : !jobsQuery.data || jobsQuery.data.length === 0 ? (
-          <div
-            className="py-16 text-center text-sm text-muted-foreground"
-            data-testid="jobs-empty"
-          >
+          <EmptyState icon={SearchX} data-testid="jobs-empty">
             {t("jobs.empty")}
-          </div>
+          </EmptyState>
         ) : (
           <div
             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"

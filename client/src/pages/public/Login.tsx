@@ -176,6 +176,20 @@ export default function Login() {
               {t("login.staffLogin")} →
             </a>
           </div>
+
+          {/* 本地開發捷徑：一鍵回到自動注入的假 admin（僅 Vite dev 顯示）。
+              走後端 /dev/restore-bypass 清掉登出抑制 cookie 後導回首頁。 */}
+          {import.meta.env.DEV && (
+            <div className="mt-3 text-center">
+              <a
+                href="/dev/restore-bypass"
+                className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+                data-testid="dev-bypass-login"
+              >
+                🛠 以本地開發者身分登入
+              </a>
+            </div>
+          )}
         </div>
       </div>
     </div>

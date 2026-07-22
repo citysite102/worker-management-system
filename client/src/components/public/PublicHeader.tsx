@@ -1,6 +1,12 @@
 import { Link, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Heart, FileUser, Briefcase, LogOut } from "lucide-react";
+import {
+  Heart,
+  FileUser,
+  Briefcase,
+  LogOut,
+  LayoutDashboard,
+} from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Logo } from "@/components/brand/Logo";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -101,6 +107,18 @@ export function PublicHeader() {
                     <Briefcase className="h-4 w-4" />
                     {t("employer.title")}
                   </DropdownMenuItem>
+                )}
+                {isStaff && (
+                  <>
+                    <DropdownMenuSeparator />
+                    {/* 內部人員：一鍵進後台（離開 nest 的公開站，用整頁導頁）*/}
+                    <DropdownMenuItem asChild data-testid="menu-admin">
+                      <a href="/admin">
+                        <LayoutDashboard className="h-4 w-4" />
+                        {t("nav.admin")}
+                      </a>
+                    </DropdownMenuItem>
+                  </>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

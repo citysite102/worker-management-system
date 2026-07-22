@@ -24,6 +24,7 @@ import {
   ClipboardCheck,
   Handshake,
   Link2,
+  ExternalLink,
 } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -226,8 +227,17 @@ function DashboardLayoutContent({
               </>
             )}
           </div>
-          {/* 右側工具列：通知鈴鐺 */}
-          <div className="flex items-center gap-1 ml-auto">
+          {/* 右側工具列：前往前台 + 通知鈴鐺 */}
+          <div className="flex items-center gap-2 ml-auto">
+            {/* 用整頁導頁離開 /admin nest，回到公開前台 */}
+            <a
+              href="/"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+              data-testid="admin-to-public"
+            >
+              <ExternalLink className="h-4 w-4" />
+              前往前台
+            </a>
             <NotificationBell />
           </div>
         </div>

@@ -7,7 +7,8 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { registerUploadRoute } from "../uploadRoute";
 import { appRouter } from "../routers";
-import { createContext } from "./context";
+import { createContext, DEV_BYPASS_OFF_COOKIE } from "./context";
+import { getSessionCookieOptions } from "./cookies";
 import { serveStatic, setupVite } from "./vite";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -38,6 +39,16 @@ async function startServer() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   registerUploadRoute(app);
+  // 本地開發：一鍵清掉登出抑制旗標，回到自動注入的假 admin（僅非 production）。
+  if (process.env.NODE_ENV !== "production") {
+    app.get("/dev/restore-bypass", (req, res) => {
+      res.clearCookie(DEV_BYPASS_OFF_COOKIE, {
+        ...getSessionCookieOptions(req),
+        maxAge: -1,
+      });
+      res.redirect("/");
+    });
+  }
   // tRPC API
   app.use(
     "/api/trpc",

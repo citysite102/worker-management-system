@@ -12,6 +12,7 @@ import {
   makeCase,
   makeCustomer,
   makeManager,
+  makeWorker,
 } from "./__tests__/helpers/fixtures";
 import { query } from "./__tests__/helpers/testDb";
 
@@ -225,5 +226,48 @@ describe("移工履歷 + 找移工（P2）", () => {
     expect(
       queue.some(m => m.targetType === "worker" && m.targetId === card.id)
     ).toBe(true);
+  });
+});
+
+describe("帳號勾稽 → 平台工作紀錄（P2 收尾）", () => {
+  it("連結公開履歷↔名冊後，找移工詳情帶出平台驗證紀錄", async () => {
+    const caller = createCaller();
+    const managerId = await makeManager(caller);
+    const workerId = await makeWorker(caller, managerId, { name: "阿明本尊" });
+    const customerId = await makeCustomer(caller, managerId);
+    const caseId = await makeCase(caller, customerId, managerId, {
+      name: "看護案",
+    });
+    await caller.caseEmployments.create({
+      caseId,
+      workerId,
+      position: "家庭看護",
+      contractStart: "2022-01-01",
+      status: "active",
+    });
+
+    // 自助履歷送審 + 通過
+    await caller.worker.upsertProfile({
+      alias: "連結測試",
+      jobType: "caregiver",
+      submit: true,
+    });
+    const prof = await caller.worker.myProfile();
+    await caller.moderation.approveProfile({ id: prof!.id });
+
+    // 連結前：無平台紀錄
+    let detail = await caller.findWorkers.get({ id: prof!.id });
+    expect(detail.platformRecords).toHaveLength(0);
+
+    // 客服勾稽 → 連結到名冊
+    await caller.reconcile.link({ profileId: prof!.id, workerId });
+
+    // 連結後：帶出平台驗證紀錄（去識別：職務/期間/狀態，無雇主身分）
+    detail = await caller.findWorkers.get({ id: prof!.id });
+    expect(detail.platformRecords.some(r => r.position === "家庭看護")).toBe(
+      true
+    );
+    // 仍為匿名：不外露 workerId
+    expect((detail as Record<string, unknown>).workerId).toBeUndefined();
   });
 });

@@ -50,6 +50,10 @@ const dbMock = vi.hoisted(() => ({
   getPendingExperiences: vi.fn().mockResolvedValue([]),
   getEmploymentsByWorker: vi.fn().mockResolvedValue([]),
   countApprovedPostingsByEmployer: vi.fn().mockResolvedValue(1),
+  getAllProfiles: vi.fn().mockResolvedValue([]),
+  searchWorkersForReconcile: vi.fn().mockResolvedValue([]),
+  setProfileWorkerLink: vi.fn().mockResolvedValue({}),
+  getWorkerById: vi.fn().mockResolvedValue(undefined),
   // hardening 用
   getAllWorkers: vi.fn().mockResolvedValue([]),
 }));
@@ -635,5 +639,39 @@ describe("P2 Code Review 修復", () => {
       expect.objectContaining({ moderationStatus: "pending" })
     );
     expect(dbMock.createProfile).not.toHaveBeenCalled();
+  });
+});
+
+describe("帳號勾稽（reconcile，客服）", () => {
+  it("profiles/searchWorkers/link 需 staff", async () => {
+    await expect(worker().reconcile.profiles()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(
+      worker().reconcile.link({ profileId: 7, workerId: 55 })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("link：連結公開履歷 ↔ 名冊 workers.id", async () => {
+    dbMock.getProfileById.mockResolvedValueOnce({ id: 7, userId: 10 });
+    dbMock.getWorkerById.mockResolvedValueOnce({ id: 55, name: "阿明" });
+    const res = await staff().reconcile.link({ profileId: 7, workerId: 55 });
+    expect(res.success).toBe(true);
+    expect(dbMock.setProfileWorkerLink).toHaveBeenCalledWith(7, 55);
+  });
+
+  it("link：名冊 workers 不存在 → NOT_FOUND", async () => {
+    dbMock.getProfileById.mockResolvedValueOnce({ id: 7 });
+    dbMock.getWorkerById.mockResolvedValueOnce(undefined);
+    await expect(
+      staff().reconcile.link({ profileId: 7, workerId: 999 })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(dbMock.setProfileWorkerLink).not.toHaveBeenCalled();
+  });
+
+  it("unlink：清除連結", async () => {
+    dbMock.getProfileById.mockResolvedValueOnce({ id: 7 });
+    await staff().reconcile.unlink({ profileId: 7 });
+    expect(dbMock.setProfileWorkerLink).toHaveBeenCalledWith(7, null);
   });
 });

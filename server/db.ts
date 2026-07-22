@@ -3,6 +3,7 @@ import {
   desc,
   eq,
   inArray,
+  like,
   lt,
   ne,
   notInArray,
@@ -1479,6 +1480,57 @@ export async function updateProfile(
     .update(workerPublicProfiles)
     .set(data)
     .where(eq(workerPublicProfiles.id, id));
+}
+
+/** 客服勾稽：所有移工公開履歷（不論狀態），最新在前。 */
+export async function getAllProfiles() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(workerPublicProfiles)
+    .orderBy(desc(workerPublicProfiles.createdAt));
+}
+
+/** 客服勾稽：以姓名/中英文名/居留證/護照號模糊搜尋既有名冊，供連結自助帳號。 */
+export async function searchWorkersForReconcile(query: string, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  const q = `%${query}%`;
+  return db
+    .select({
+      id: workers.id,
+      name: workers.name,
+      nameCn: workers.nameCn,
+      nameEn: workers.nameEn,
+      nationality: workers.nationality,
+      residentPermitNo: workers.residentPermitNo,
+      passportNo: workers.passportNo,
+    })
+    .from(workers)
+    .where(
+      or(
+        like(workers.name, q),
+        like(workers.nameCn, q),
+        like(workers.nameEn, q),
+        like(workers.residentPermitNo, q),
+        like(workers.passportNo, q)
+      )
+    )
+    .limit(limit);
+}
+
+/** 客服勾稽：連結（或解除）公開履歷 ↔ 既有名冊 workers.id。 */
+export async function setProfileWorkerLink(
+  profileId: number,
+  workerId: number | null
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db
+    .update(workerPublicProfiles)
+    .set({ workerId })
+    .where(eq(workerPublicProfiles.id, profileId));
 }
 
 /** 客服審核佇列：待審履歷。只列「想公開（published）且待審」者，草稿不入列。 */

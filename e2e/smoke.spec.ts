@@ -46,6 +46,7 @@ const ADMIN_PAGES = [
   { path: "/admin/cases", heading: /案件管理/ },
   { path: "/admin/moderation", heading: /審核佇列/ },
   { path: "/admin/match-requests", heading: /媒合意向/ },
+  { path: "/admin/reconcile", heading: /帳號勾稽/ },
   { path: "/admin/settings", heading: /設定/ },
 ] as const;
 

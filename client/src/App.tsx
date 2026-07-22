@@ -24,6 +24,7 @@ import EmployerPostings from "./pages/employer/Postings";
 import PostingForm from "./pages/employer/PostingForm";
 import Moderation from "./pages/Moderation";
 import MatchRequests from "./pages/MatchRequests";
+import Reconcile from "./pages/Reconcile";
 import MyInterests from "./pages/public/MyInterests";
 import WorkerProfile from "./pages/worker/WorkerProfile";
 import FindWorkers from "./pages/employer/FindWorkers";
@@ -45,6 +46,7 @@ function AdminApp() {
         <Route path="/customers/:id" component={CustomerDetail} />
         <Route path="/moderation" component={Moderation} />
         <Route path="/match-requests" component={MatchRequests} />
+        <Route path="/reconcile" component={Reconcile} />
         <Route path="/settings" component={Settings} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />

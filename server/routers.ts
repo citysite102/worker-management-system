@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { DEV_BYPASS_OFF_COOKIE } from "./_core/context";
 import { systemRouter } from "./_core/systemRouter";
 import {
   publicProcedure,
@@ -967,6 +968,15 @@ export const appRouter = router({
     logout: publicProcedure.mutation(async ({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      // 本地開發 bypass 模式：不設抑制旗標的話，context 會在下一個請求立刻重新
+      // 注入假 admin，讓登出看起來「完全沒作用」。設 dev_bypass_off 抑制注入，
+      // 直到重新登入（login/register 會清掉）或清 cookie。
+      if (
+        process.env.NODE_ENV !== "production" &&
+        process.env.DEV_AUTH_BYPASS === "1"
+      ) {
+        ctx.res.cookie(DEV_BYPASS_OFF_COOKIE, "1", cookieOptions);
+      }
       await logAudit(ctx, { action: "auth.logout" });
       return { success: true } as const;
     }),
@@ -1012,6 +1022,11 @@ export const appRouter = router({
           openId,
           name: input.name ?? null,
         });
+        // 清掉 dev bypass 抑制旗標（若有），讓本地開發登入後狀態乾淨。
+        ctx.res.clearCookie(DEV_BYPASS_OFF_COOKIE, {
+          ...getSessionCookieOptions(ctx.req),
+          maxAge: -1,
+        });
         await logAudit(ctx, {
           action: "auth.register",
           entityType: "users",
@@ -1049,6 +1064,11 @@ export const appRouter = router({
         await issueSession(ctx.req, ctx.res, {
           openId: user.openId,
           name: user.name,
+        });
+        // 清掉 dev bypass 抑制旗標（若有），讓本地開發登入後狀態乾淨。
+        ctx.res.clearCookie(DEV_BYPASS_OFF_COOKIE, {
+          ...getSessionCookieOptions(ctx.req),
+          maxAge: -1,
         });
         await logAudit(ctx, {
           action: "auth.login",

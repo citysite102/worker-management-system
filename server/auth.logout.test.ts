@@ -7,7 +7,11 @@ vi.mock("./_core/audit", () => ({
 
 import { appRouter } from "./routers";
 import { COOKIE_NAME } from "../shared/const";
-import type { TrpcContext } from "./_core/context";
+import {
+  createContext,
+  DEV_BYPASS_OFF_COOKIE,
+  type TrpcContext,
+} from "./_core/context";
 import { logAudit } from "./_core/audit";
 
 type CookieCall = {
@@ -20,8 +24,10 @@ type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 function createAuthContext(): {
   ctx: TrpcContext;
   clearedCookies: CookieCall[];
+  setCookies: Array<{ name: string; value: string }>;
 } {
   const clearedCookies: CookieCall[] = [];
+  const setCookies: Array<{ name: string; value: string }> = [];
 
   const user: AuthenticatedUser = {
     id: 1,
@@ -52,10 +58,13 @@ function createAuthContext(): {
       clearCookie: (name: string, options: Record<string, unknown>) => {
         clearedCookies.push({ name, options });
       },
-    } as TrpcContext["res"],
+      cookie: (name: string, value: string) => {
+        setCookies.push({ name, value });
+      },
+    } as unknown as TrpcContext["res"],
   };
 
-  return { ctx, clearedCookies };
+  return { ctx, clearedCookies, setCookies };
 }
 
 describe("auth.logout", () => {
@@ -89,5 +98,69 @@ describe("auth.logout", () => {
       expect.anything(),
       expect.objectContaining({ action: "auth.logout" })
     );
+  });
+
+  it("在 DEV_AUTH_BYPASS 模式下，登出會設 dev_bypass_off 抑制旗標", async () => {
+    const prev = process.env.DEV_AUTH_BYPASS;
+    process.env.DEV_AUTH_BYPASS = "1";
+    try {
+      const { ctx, setCookies } = createAuthContext();
+      await appRouter.createCaller(ctx).auth.logout();
+      expect(
+        setCookies.some(
+          c => c.name === DEV_BYPASS_OFF_COOKIE && c.value === "1"
+        )
+      ).toBe(true);
+    } finally {
+      process.env.DEV_AUTH_BYPASS = prev;
+    }
+  });
+
+  it("未開 bypass 時，登出不設抑制旗標", async () => {
+    const prev = process.env.DEV_AUTH_BYPASS;
+    delete process.env.DEV_AUTH_BYPASS;
+    try {
+      const { ctx, setCookies } = createAuthContext();
+      await appRouter.createCaller(ctx).auth.logout();
+      expect(setCookies.some(c => c.name === DEV_BYPASS_OFF_COOKIE)).toBe(
+        false
+      );
+    } finally {
+      if (prev === undefined) delete process.env.DEV_AUTH_BYPASS;
+      else process.env.DEV_AUTH_BYPASS = prev;
+    }
+  });
+});
+
+// createContext 的 bypass 注入行為（登出後不再自動變回 admin）
+describe("createContext（本地 bypass 抑制）", () => {
+  function fakeOpts(cookieHeader?: string) {
+    return {
+      req: { protocol: "http", headers: { cookie: cookieHeader } },
+      res: { clearCookie: () => {}, cookie: () => {} },
+    } as unknown as Parameters<typeof createContext>[0];
+  }
+
+  it("bypass 開啟且無抑制 cookie → 注入假 admin", async () => {
+    const prev = process.env.DEV_AUTH_BYPASS;
+    process.env.DEV_AUTH_BYPASS = "1";
+    try {
+      const ctx = await createContext(fakeOpts(undefined));
+      expect(ctx.user?.role).toBe("admin");
+      expect(ctx.user?.openId).toBe("dev-local-admin");
+    } finally {
+      process.env.DEV_AUTH_BYPASS = prev;
+    }
+  });
+
+  it("bypass 開啟但帶 dev_bypass_off=1 → 不注入（維持登出）", async () => {
+    const prev = process.env.DEV_AUTH_BYPASS;
+    process.env.DEV_AUTH_BYPASS = "1";
+    try {
+      const ctx = await createContext(fakeOpts(`${DEV_BYPASS_OFF_COOKIE}=1`));
+      expect(ctx.user).toBeNull();
+    } finally {
+      process.env.DEV_AUTH_BYPASS = prev;
+    }
   });
 });

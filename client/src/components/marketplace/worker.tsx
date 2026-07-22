@@ -104,7 +104,7 @@ export function RatingStars({
             key={i}
             className={`h-3.5 w-3.5 ${
               i < full
-                ? "fill-current text-[var(--color-status-amber)]"
+                ? "fill-current text-[var(--color-rating)]"
                 : "text-border"
             }`}
           />

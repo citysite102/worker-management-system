@@ -40,6 +40,8 @@ const resources = {
         trustVerified: "平台驗證的工作紀錄",
         trustAgency: "仲介居中，安心媒合",
         trustMultilang: "母語履歷 · 多語支援",
+        trustEyebrow: "為什麼選我們",
+        trustTitle: "看得見的信任，成交前全程把關",
         how: {
           eyebrow: "如何運作",
           title: "三步驟，專人把關",
@@ -293,6 +295,8 @@ const resources = {
         trustVerified: "Platform-verified work records",
         trustAgency: "Agency-mediated, worry-free matching",
         trustMultilang: "Native-language résumé · multilingual",
+        trustEyebrow: "Why us",
+        trustTitle: "Visible trust, vetted end to end",
         how: {
           eyebrow: "How it works",
           title: "Three steps, vetted by our team",
@@ -555,6 +559,8 @@ const resources = {
         trustVerified: "Hồ sơ công việc được nền tảng xác minh",
         trustAgency: "Môi giới trung gian, kết nối an tâm",
         trustMultilang: "Hồ sơ bằng tiếng mẹ đẻ · đa ngôn ngữ",
+        trustEyebrow: "Vì sao chọn chúng tôi",
+        trustTitle: "Niềm tin hữu hình, kiểm duyệt từ đầu đến cuối",
         how: {
           eyebrow: "Cách hoạt động",
           title: "Ba bước, có nhân viên kiểm duyệt",
@@ -818,6 +824,9 @@ const resources = {
         trustVerified: "Rekam kerja terverifikasi platform",
         trustAgency: "Dimediasi agen, pencocokan tenang",
         trustMultilang: "Resume bahasa ibu · multibahasa",
+        trustEyebrow: "Kenapa kami",
+        trustTitle:
+          "Kepercayaan yang terlihat, ditinjau dari awal sampai akhir",
         how: {
           eyebrow: "Cara kerja",
           title: "Tiga langkah, ditinjau tim kami",

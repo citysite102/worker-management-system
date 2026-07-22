@@ -9,7 +9,12 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
-import { Eyebrow, Section, useDisplay } from "@/components/marketplace/ui";
+import {
+  Eyebrow,
+  Section,
+  Figure,
+  useDisplay,
+} from "@/components/marketplace/ui";
 import { TW_CITIES, type JobCategory } from "@/lib/marketplace";
 
 const CATEGORIES: JobCategory[] = ["caregiver", "domestic_helper", "other"];
@@ -193,21 +198,35 @@ export default function PublicHome() {
           </div>
         </Section>
 
-        {/* ── 信任訴求（緊湊橫列，細線分隔）── */}
-        <Section divider className="!py-10">
-          <div className="grid gap-6 sm:grid-cols-3">
-            {[
-              { icon: ShieldCheck, key: "trustVerified" },
-              { icon: Briefcase, key: "trustAgency" },
-              { icon: Languages, key: "trustMultilang" },
-            ].map(({ icon: Icon, key }) => (
-              <div key={key} className="flex items-center gap-3">
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <p className="text-sm font-medium">{t(`home.${key}`)}</p>
-              </div>
-            ))}
+        {/* ── 信任訴求（editorial 圖文帶；Figure 照片就緒，放圖前為品牌色塊）── */}
+        <Section divider>
+          <div className="grid items-center gap-10 md:grid-cols-2">
+            <div>
+              <Eyebrow>{t("home.trustEyebrow")}</Eyebrow>
+              <h2
+                className={`mt-3 text-3xl font-bold tracking-tight text-balance sm:text-4xl ${display}`}
+              >
+                {t("home.trustTitle")}
+              </h2>
+              <ul className="mt-6 space-y-4">
+                {[
+                  { icon: ShieldCheck, key: "trustVerified" },
+                  { icon: Briefcase, key: "trustAgency" },
+                  { icon: Languages, key: "trustMultilang" },
+                ].map(({ icon: Icon, key }) => (
+                  <li key={key} className="flex items-center gap-3">
+                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className="text-sm font-medium">
+                      {t(`home.${key}`)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {/* 放圖：把已授權/去識別的照片放 client/public/trust.jpg，改成 src="/trust.jpg" 即顯示 */}
+            <Figure alt={t("home.trustTitle")} aspect="5 / 4" />
           </div>
         </Section>
 

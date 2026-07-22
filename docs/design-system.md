@@ -197,3 +197,12 @@
 | DS-5 | 深色模式 | 暫緩：公開站先只做亮色，後台深色另排。                                                                             |
 
 > 以上已落地 `client/src/index.css`（token）、`client/src/components/marketplace/`（共用元件）與 `/brand-preview`（活樣式指南）。`CLAUDE.md` 已載入「前端一律遵循本設計系統」守門。
+
+## 圖片與照片（B4，photo-ready）
+
+editorial 版型很吃圖，但目前**沒有內建照片素材**。版面已做成「照片就緒」：
+
+- 共用元件 `Figure`（`components/marketplace/ui.tsx`）：有 `src` 顯示真圖（`object-cover`、`loading="lazy"`、404 自動退回），沒有就顯示**品牌漸層底**——空的時候也像刻意色塊，不是破圖。
+- **放圖方式**：把檔案放 `client/public/`（如 `client/public/trust.jpg`），把對應 `<Figure>` 的 `src` 設成 `/trust.jpg` 即顯示。首頁「為什麼選我們」帶已預留一格。
+- **外籍工作者真實照片**：後端只在**登入後**才下傳 `photoUrl`（`worker_public_profiles.photoKey` → `/manus-storage/...`）；找移工詳情頁登入後自動以真照取代匿名頭像。卡片與未登入一律匿名頭像，維持去識別。
+- **素材規範（務必遵守）**：真人照片必須①取得肖像同意、②具合法授權、③尊嚴取向、不獵奇不刻板；外籍工作者照片還需符合去識別/個資規範（§11、§15-14/15）。不確定授權就不要放——`Figure` 的品牌色塊 fallback 本身就是可上線的樣子。

@@ -47,6 +47,8 @@
   /* 需行動/錯誤：紅 */
   --color-status-red: #dc2626;
   --color-status-red-bg: #fdecec;
+  /* 評分金（語義獨立於警示琥珀；只用於星等） */
+  --color-rating: #f59e0b;
   /* 退場/中性：灰 */
   --color-status-faded: #6b7280;
   --color-status-faded-bg: #f1f3f5;

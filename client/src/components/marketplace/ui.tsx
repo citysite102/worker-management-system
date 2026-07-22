@@ -2,9 +2,16 @@
 // 把散落在各頁的「卡片 / 頁首 / 狀態徽章 / 職缺卡 / meta 列 / 篩選鈕」收斂成一組
 // 取用 token 的共用元件，確保介面一致。所有顏色一律走 index.css 的 token 與
 // .status-* class，禁止硬編色碼（見 docs/design-system.md）。
-import type { ComponentType, ReactNode } from "react";
-import type { LucideProps } from "lucide-react";
+import { useState, type ComponentType, type ReactNode } from "react";
+import { ImageIcon, type LucideProps } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+/** 品牌感圖片 fallback 底（照片就緒；放圖後由 Figure 顯示真圖）。 */
+const FIGURE_FALLBACK_BG: React.CSSProperties = {
+  backgroundImage:
+    "radial-gradient(600px 300px at 20% 0%, rgba(255,255,255,0.18), transparent 60%)," +
+    "linear-gradient(135deg, var(--color-primary) 0%, var(--color-brand-dark) 100%)",
+};
 
 // ── 語義狀態色調 ──────────────────────────────────────────────────────────────
 export type Tone = "green" | "amber" | "red" | "gray";
@@ -173,6 +180,51 @@ export function PageHero({
       </h1>
       {subtitle && (
         <p className="mt-3 max-w-2xl text-muted-foreground">{subtitle}</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 圖片框（照片就緒，B4）：有 src 就顯示真圖（object-cover、lazy、404 自動退回），
+ * 沒有就顯示品牌漸層底 —— 空的時候也像刻意色塊，不是破圖。放圖只要傳入 src。
+ * 真人照片務必已去識別／取得肖像同意／授權（見 docs/design-system.md）。
+ */
+export function Figure({
+  src,
+  alt,
+  aspect = "4 / 3",
+  className = "",
+}: {
+  src?: string | null;
+  alt: string;
+  aspect?: string;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const showImg = src && !failed;
+  return (
+    <div
+      className={`relative overflow-hidden rounded-2xl border border-border ${className}`}
+      style={{ aspectRatio: aspect }}
+    >
+      {showImg ? (
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          onError={() => setFailed(true)}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div
+          role="img"
+          aria-label={alt}
+          className="flex h-full w-full items-center justify-center"
+          style={FIGURE_FALLBACK_BG}
+        >
+          <ImageIcon className="h-8 w-8 text-white/50" aria-hidden />
+        </div>
       )}
     </div>
   );

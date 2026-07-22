@@ -78,11 +78,21 @@ export default function FindWorkerDetail() {
             <SurfaceCard className="overflow-hidden p-0">
               <div className="bg-accent/40 px-6 py-6">
                 <div className="flex items-start gap-4">
-                  <AnonAvatar
-                    jobType={p.jobType}
-                    size="lg"
-                    locked={p.gated || !p.photoUrl}
-                  />
+                  {/* 登入後若有真實照片就顯示（後端只在登入時下傳 photoUrl）；否則匿名頭像 */}
+                  {p.photoUrl ? (
+                    <img
+                      src={p.photoUrl}
+                      alt={p.alias}
+                      loading="lazy"
+                      className="h-20 w-20 shrink-0 rounded-full border border-border object-cover"
+                    />
+                  ) : (
+                    <AnonAvatar
+                      jobType={p.jobType}
+                      size="lg"
+                      locked={p.gated}
+                    />
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       {p.jobTypes.map(jt => (

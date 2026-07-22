@@ -15,6 +15,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { MapPin, Users } from "lucide-react";
+import {
+  PageHeader,
+  SurfaceCard,
+  StatusPill,
+  CategoryChip,
+  MetaItem,
+  MetaRow,
+  FilterChip,
+} from "@/components/marketplace/ui";
+import { JobCard } from "@/components/marketplace/JobCard";
 
 // ── 色票 ────────────────────────────────────────────────
 // Clean SaaS（見 docs/design-system.md）：白/淺灰為主，單一品牌深藍作重點
@@ -174,6 +185,117 @@ export default function BrandPreview() {
       </div>
 
       <div className="max-w-5xl mx-auto px-8 py-10 space-y-14">
+        {/* ── 0. Marketplace 共用元件 ── */}
+        <section>
+          <SectionTitle
+            number="00"
+            title="Marketplace 共用元件"
+            subtitle="公開媒合平台一律取用這組元件（client/src/components/marketplace）：卡片 / 頁首 / 狀態徽章 / 職類籤 / 篩選鈕 / meta 列 / 職缺卡，確保介面一致。"
+          />
+          <div className="space-y-8">
+            {/* StatusPill */}
+            <div>
+              <p className="text-sm font-medium mb-2">
+                StatusPill — 語義狀態徽章（綠/琥珀/紅/灰，走 .status-*）
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <StatusPill tone="green">已上架</StatusPill>
+                <StatusPill tone="amber">審核中</StatusPill>
+                <StatusPill tone="red">已退件</StatusPill>
+                <StatusPill tone="gray">草稿</StatusPill>
+              </div>
+            </div>
+
+            {/* CategoryChip + FilterChip */}
+            <div className="flex flex-wrap items-center gap-6">
+              <div>
+                <p className="text-sm font-medium mb-2">CategoryChip 職類籤</p>
+                <div className="flex gap-2">
+                  <CategoryChip>看護</CategoryChip>
+                  <CategoryChip>房務</CategoryChip>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-2">
+                  FilterChip 篩選鈕（選中/未選）
+                </p>
+                <div className="flex gap-1.5">
+                  <FilterChip active>看護</FilterChip>
+                  <FilterChip active={false}>房務</FilterChip>
+                </div>
+              </div>
+            </div>
+
+            {/* PageHeader */}
+            <div>
+              <p className="text-sm font-medium mb-2">
+                PageHeader — 頁首（標題 + 副標 + 動作）
+              </p>
+              <SurfaceCard>
+                <PageHeader
+                  title="找工作"
+                  subtitle="由專人把關的可信職缺"
+                  action={
+                    <span className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+                      張貼需求單
+                    </span>
+                  }
+                  className="mb-0"
+                />
+              </SurfaceCard>
+            </div>
+
+            {/* SurfaceCard + MetaRow */}
+            <div>
+              <p className="text-sm font-medium mb-2">
+                SurfaceCard + MetaItem/MetaRow
+              </p>
+              <SurfaceCard>
+                <h3 className="font-semibold">看護</h3>
+                <MetaRow>
+                  <MetaItem icon={MapPin}>臺北市</MetaItem>
+                  <MetaItem icon={Users}>需求人數：1 人</MetaItem>
+                </MetaRow>
+              </SurfaceCard>
+            </div>
+
+            {/* JobCard */}
+            <div>
+              <p className="text-sm font-medium mb-2">
+                JobCard — 找工作卡片（公開需求單 / 既有需求）
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <JobCard
+                  job={{
+                    source: "posting",
+                    refId: 1,
+                    category: "caregiver",
+                    jobType: "caregiver",
+                    city: "臺北市",
+                    district: "大安區",
+                    employmentType: "live_in",
+                    headcount: 1,
+                    salaryMin: 28000,
+                    salaryMax: 32000,
+                  }}
+                />
+                <JobCard
+                  job={{
+                    source: "demand",
+                    refId: 2,
+                    category: "other",
+                    jobType: "manufacturing",
+                    city: "桃園市",
+                    headcount: 3,
+                    salaryMin: null,
+                    salaryMax: null,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ── 1. 色票 ── */}
         <section>
           <SectionTitle

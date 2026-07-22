@@ -2,6 +2,15 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { MapPin, User, Mail, Phone, UserCheck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import {
+  PageHeader,
+  SurfaceCard,
+  StatusPill,
+  MetaItem,
+  MetaRow,
+  FilterChip,
+  matchStatusTone,
+} from "@/components/marketplace/ui";
 
 const JOB_TYPE_LABEL: Record<string, string> = {
   caregiver: "看護",
@@ -26,9 +35,6 @@ type Status = (typeof STATUS_OPTIONS)[number]["value"];
 
 const STATUS_LABEL: Record<string, string> = Object.fromEntries(
   STATUS_OPTIONS.map(s => [s.value, s.label])
-);
-const STATUS_CLS: Record<string, string> = Object.fromEntries(
-  STATUS_OPTIONS.map(s => [s.value, s.cls])
 );
 
 /** 內部後台：媒合意向佇列（仲介居中，P3）。 */
@@ -59,26 +65,21 @@ export default function MatchRequests() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold tracking-tight mb-1">媒合意向</h1>
-      <p className="text-sm text-muted-foreground mb-4">
-        求職者/雇主表達興趣後由客服居中安排；雙方不直接聯繫。
-      </p>
+      <PageHeader
+        title="媒合意向"
+        subtitle="求職者/雇主表達興趣後由客服居中安排；雙方不直接聯繫。"
+      />
 
       <div className="flex flex-wrap gap-1.5 mb-6">
         {(["all", ...STATUS_OPTIONS.map(s => s.value)] as const).map(v => (
-          <button
+          <FilterChip
             key={v}
-            type="button"
+            active={filter === v}
             onClick={() => setFilter(v)}
-            className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
-              filter === v
-                ? "border-primary bg-accent text-accent-foreground"
-                : "border-border bg-card text-muted-foreground hover:bg-muted"
-            }`}
             data-testid={`match-filter-${v}`}
           >
             {v === "all" ? "全部" : STATUS_LABEL[v]}
-          </button>
+          </FilterChip>
         ))}
       </div>
 
@@ -96,35 +97,23 @@ export default function MatchRequests() {
       ) : (
         <div className="space-y-3" data-testid="match-list">
           {rows.map(m => (
-            <div
-              key={m.id}
-              className="rounded-lg border border-border bg-card p-5"
-              data-testid="match-row"
-            >
+            <SurfaceCard key={m.id} data-testid="match-row">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold">
                       {JOB_TYPE_LABEL[m.targetJobType ?? ""] ?? "職缺"}
                     </h3>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                        STATUS_CLS[m.status] ?? "status-gray"
-                      }`}
-                    >
+                    <StatusPill tone={matchStatusTone(m.status)}>
                       {STATUS_LABEL[m.status] ?? m.status}
-                    </span>
+                    </StatusPill>
                     <span className="text-xs text-muted-foreground">
                       {m.targetLabel}
                     </span>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="w-4 h-4" />
-                      {m.targetCity || "面議"}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <User className="w-4 h-4" />
+                  <MetaRow>
+                    <MetaItem icon={MapPin}>{m.targetCity || "面議"}</MetaItem>
+                    <MetaItem icon={User}>
                       {m.initiatorName || "—"}（
                       {m.initiatorType === "worker"
                         ? "求職者"
@@ -132,20 +121,14 @@ export default function MatchRequests() {
                           ? "雇主"
                           : "使用者"}
                       ）
-                    </span>
+                    </MetaItem>
                     {m.initiatorEmail && (
-                      <span className="flex items-center gap-1.5">
-                        <Mail className="w-4 h-4" />
-                        {m.initiatorEmail}
-                      </span>
+                      <MetaItem icon={Mail}>{m.initiatorEmail}</MetaItem>
                     )}
                     {m.initiatorPhone && (
-                      <span className="flex items-center gap-1.5">
-                        <Phone className="w-4 h-4" />
-                        {m.initiatorPhone}
-                      </span>
+                      <MetaItem icon={Phone}>{m.initiatorPhone}</MetaItem>
                     )}
-                  </div>
+                  </MetaRow>
                   {m.note && (
                     <p className="mt-2 text-sm text-foreground">
                       留言：{m.note}
@@ -181,7 +164,7 @@ export default function MatchRequests() {
                   </button>
                 </div>
               </div>
-            </div>
+            </SurfaceCard>
           ))}
         </div>
       )}

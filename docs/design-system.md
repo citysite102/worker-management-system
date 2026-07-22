@@ -126,30 +126,45 @@
 
 ---
 
-## 5. 核心元件規範（對應 shadcn/radix）
+## 5. 核心元件規範（Clean SaaS，對應 shadcn/radix）
 
-| 元件               | 規範                                                                   |
-| ------------------ | ---------------------------------------------------------------------- |
-| Button / Primary   | 暖黑 `ink` 藥丸、白字、右側箭頭選用；hover 微亮+上浮                   |
-| Button / Secondary | 透明底 + `line` 邊框 + `ink` 字；hover 底 `surface`                    |
-| Button / Ghost     | 無邊框、hover `accent` 淡 moss 底                                      |
-| Card               | `surface` 底、`line` 邊框、`lg` 圓角、預設無陰影，hover `sm` 陰影+上浮 |
-| Bento 卡片         | 大小混排網格；圖片卡可疊暗漸層+白字（參考視覺）                        |
-| Input / Select     | `surface` 底、`line` 邊框、`md` 圓角、focus `ring=moss`                |
-| Badge / Status     | 用 §2.3 語義色（暖化 pill）                                            |
-| Eyebrow 標籤       | 大寫、`letter-spacing:.08em`、`ink-muted`、常配 moss 小點/短線         |
-| Divider            | 1px `line` 髮絲線，編輯感分區                                          |
-| Nav                | 透明/紙底、細字、右上藥丸 CTA（參考視覺）                              |
+| 元件                | 規範                                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| Button / Primary    | `bg-primary`（深藍）白字、`md` 圓角；hover `opacity-90`。用於主要 CTA                               |
+| Button / Secondary  | `bg-card` + `border`（淺灰）+ 中性字；hover `bg-muted`                                              |
+| Button / Ghost      | 無邊框、hover `bg-muted`；圖示鈕用 ghost                                                            |
+| Card（SurfaceCard） | `bg-card`（白）、`border`（淺灰 1px）、`lg` 圓角（10px）、預設無陰影；可點卡 hover 邊框轉 `primary` |
+| Input / Select      | `bg-card`、`border`、`md` 圓角（8px）、focus `ring`（藍）                                           |
+| Badge / StatusPill  | pill（`rounded-full px-2 py-0.5 text-xs font-medium`）+ §2.3 語義色（`.status-*`）                  |
+| CategoryChip        | pill、藍淡底 `bg-accent` + `accent-foreground`（職類/分類籤，屬重點色）                             |
+| Divider             | 1px `border` 髮絲線                                                                                 |
+| Nav / Sidebar       | 白/紙底、中性細字、作用中項用 `accent`（藍淡底）＋藍字；右上 CTA 為深藍主按鈕                       |
+
+### 5.1 共用元件庫（單一真相，優先取用）
+
+公開媒合平台的介面**一律取用** `client/src/components/marketplace/` 這組元件，不再各頁 inline 拼卡片/徽章/頁首：
+
+| 元件                                                 | 檔案                      | 用途                                                                   |
+| ---------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------- |
+| `PageHeader`                                         | `marketplace/ui.tsx`      | 頁首：標題 + 副標 + 右側動作，統一標題節奏                             |
+| `SurfaceCard`                                        | `marketplace/ui.tsx`      | 標準表面卡片（白底/淺灰邊/10px 圓角）；`interactive` 時 hover 邊框轉藍 |
+| `StatusPill` + `postingStatusTone`/`matchStatusTone` | `marketplace/ui.tsx`      | 語義狀態徽章，狀態值 → 綠/琥珀/紅/灰色調                               |
+| `CategoryChip`                                       | `marketplace/ui.tsx`      | 職類分類籤（藍淡底重點色）                                             |
+| `FilterChip`                                         | `marketplace/ui.tsx`      | 篩選膠囊鈕（選中＝藍淡底＋藍框）                                       |
+| `MetaItem` / `MetaRow`                               | `marketplace/ui.tsx`      | icon + 文字的次要資訊列（地點/人數/聯絡…）                             |
+| `JobCard`                                            | `marketplace/JobCard.tsx` | 找工作卡片（職類籤＋職種＋地點/人數＋薪資；既有需求標徽章）            |
+
+> 內部後台（`/admin`，zh-TW）也共用同一組 `PageHeader` / `SurfaceCard` / `StatusPill` / `MetaItem`，讓公開站與後台視覺一致。新增/調整任何一個，**同步更新 `/brand-preview`（§00 Marketplace 共用元件）**。
 
 ---
 
-## 6. 版面語彙（取自參考視覺）
+## 6. 版面語彙（Clean SaaS）
 
-- **Hero**：置中或左置大標（襯線+粗無襯線混排）、副標 `ink-muted`、黑藥丸 CTA。
-- **Bento 特色區**：2–3 欄不規則卡片網格，圖片卡 + 純色大地色卡混排。
-- **客戶/信任列**：細 logo 排、上下髮絲線。
-- **服務/功能**：左窄標題 + 右多欄小項（FYLLA 式），配小幾何 icon。
-- **節奏**：區塊之間用髮絲線或底色切換（`paper` ↔ `paper-dim`）。
+- **Hero**：置中大標（中文粗黑體；Latin 可用 `.font-display` 襯線）、副標 `muted-foreground`、**深藍主按鈕** CTA + 次要外框鈕。
+- **列表/卡片區**：規則網格（`sm:grid-cols-2 lg:grid-cols-3`）的 `SurfaceCard`；掃描優先，摘要在前、狀態用 `StatusPill` 一眼可辨。
+- **信任列**：三欄 icon + 短句（首頁），白卡 + 淺灰邊。
+- **後台**：`PageHeader` 標題列 + 篩選鈕 + 卡片列表；資訊密集、緊湊留白。
+- **節奏**：區塊之間用底色（`background` 畫布 ↔ `card` 白）與 1px `border` 髮絲線分層；陰影淺而少。
 
 ---
 
@@ -171,14 +186,14 @@
 
 ---
 
-## 9. 需你拍板的決策
+## 9. 決策（已定案）
 
-| #    | 決策            | 建議                                                                                            |
-| ---- | --------------- | ----------------------------------------------------------------------------------------------- |
-| DS-1 | teal 品牌退役？ | **是**：以 Warm Editorial 取代 teal `#1FA59B`；吉祥物是否保留另議（建議精緻化或收斂為輔助角色） |
-| DS-2 | 套用範圍        | **公開站全新採用；內部後台漸進換皮**（先換 token，元件多已用變數，風險低）                      |
-| DS-3 | 品牌主色        | 採 **moss `#5F6B45`** 為品牌識別色（連結/選中），主按鈕用暖黑藥丸                               |
-| DS-4 | 字體確認        | Fraunces（襯線）+ Hanken Grotesk（無襯線）+ Noto TC；如你有偏好可換                             |
-| DS-5 | 深色模式        | P 幾做？建議公開站先只做亮色，後台深色另排                                                      |
+| #    | 決策     | 定案                                                                                                               |
+| ---- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| DS-1 | 品牌方向 | **Clean SaaS**：白/淺灰為主 + 單一品牌深藍 `#1D4ED8`。舊 teal `#1FA59B`＋吉祥物、Warm Editorial 暖色**全數退役**。 |
+| DS-2 | 套用範圍 | 公開站與內部後台**共用同一組 token 與元件**；後台已換 token。                                                      |
+| DS-3 | 品牌主色 | 深藍 `#1D4ED8`（＝主按鈕、連結、選中、focus）；語義色（綠/琥珀/紅/灰）獨立。                                       |
+| DS-4 | 字體     | Hanken Grotesk + Noto Sans TC（UI/內文）；Fraunces + Noto Serif TC 僅行銷大標（`.font-display`）。                 |
+| DS-5 | 深色模式 | 暫緩：公開站先只做亮色，後台深色另排。                                                                             |
 
-> 你確認 DS-1~DS-4（或說「照建議走」），我就把 token 落進 `index.css`、換字體、刷新 `/brand-preview` 作為活樣式指南，並建立 `CLAUDE.md` 守門。
+> 以上已落地 `client/src/index.css`（token）、`client/src/components/marketplace/`（共用元件）與 `/brand-preview`（活樣式指南）。`CLAUDE.md` 已載入「前端一律遵循本設計系統」守門。

@@ -6,6 +6,13 @@ import {
   REJECT_REASON_VALUES,
   type RejectReasonValue,
 } from "@/lib/marketplace";
+import {
+  PageHeader,
+  SurfaceCard,
+  StatusPill,
+  MetaItem,
+  MetaRow,
+} from "@/components/marketplace/ui";
 
 const JOB_TYPE_LABEL: Record<string, string> = {
   caregiver: "看護",
@@ -63,10 +70,10 @@ export default function Moderation() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold tracking-tight mb-1">需求單審核</h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        通過後自動建立對應案件、資格與媒合需求，並在公開站上架。
-      </p>
+      <PageHeader
+        title="需求單審核"
+        subtitle="通過後自動建立對應案件、資格與媒合需求，並在公開站上架。"
+      />
 
       {pending.isLoading ? (
         <div className="py-16 text-center text-sm text-muted-foreground">
@@ -82,32 +89,26 @@ export default function Moderation() {
       ) : (
         <div className="space-y-3" data-testid="moderation-list">
           {rows.map(p => (
-            <div
-              key={p.id}
-              className="rounded-lg border border-border bg-card p-5"
-              data-testid="moderation-row"
-            >
+            <SurfaceCard key={p.id} data-testid="moderation-row">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold">
                   {JOB_TYPE_LABEL[p.jobType] ?? p.jobType}
                 </h3>
-                <span className="inline-flex items-center rounded-full status-amber px-2 py-0.5 text-xs font-medium">
-                  審核中
-                </span>
+                <StatusPill tone="amber">審核中</StatusPill>
               </div>
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4" />
+              <MetaRow>
+                <MetaItem icon={MapPin}>
                   {p.city}
                   {p.district ? `・${p.district}` : ""}
+                </MetaItem>
+                <MetaItem icon={Users}>{p.headcount} 人</MetaItem>
+                <span className="text-sm text-muted-foreground">
+                  {EMPLOYMENT_LABEL[p.employmentType] ?? ""}
                 </span>
-                <span className="flex items-center gap-1.5">
-                  <Users className="w-4 h-4" />
-                  {p.headcount} 人
+                <span className="text-sm text-muted-foreground">
+                  雇主：{p.employerName || p.employerEmail || "—"}
                 </span>
-                <span>{EMPLOYMENT_LABEL[p.employmentType] ?? ""}</span>
-                <span>雇主：{p.employerName || p.employerEmail || "—"}</span>
-              </div>
+              </MetaRow>
               {p.publicDescription && (
                 <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
                   {p.publicDescription}
@@ -173,7 +174,7 @@ export default function Moderation() {
                   </button>
                 </div>
               )}
-            </div>
+            </SurfaceCard>
           ))}
         </div>
       )}

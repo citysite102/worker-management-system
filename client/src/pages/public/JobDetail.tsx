@@ -5,6 +5,11 @@ import { MapPin, Users, Calendar, ShieldCheck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { formatSalary } from "@/lib/marketplace";
+import {
+  CategoryChip,
+  MetaItem,
+  SurfaceCard,
+} from "@/components/marketplace/ui";
 
 /** 公開站職缺詳情（需登入）。「我有興趣」→ 建立媒合意向交客服居中（P3）。 */
 export default function JobDetail() {
@@ -58,14 +63,11 @@ export default function JobDetail() {
             {t("jobs.empty")}
           </div>
         ) : (
-          <article
-            className="mt-4 rounded-lg border border-border bg-card p-6"
-            data-testid="job-detail"
-          >
+          <SurfaceCard className="mt-4" data-testid="job-detail">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground">
+              <CategoryChip>
                 {t(`jobs.category.${jobQuery.data.category}`)}
-              </span>
+              </CategoryChip>
               {jobQuery.data.source === "demand" && (
                 <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                   <ShieldCheck className="w-3.5 h-3.5 text-primary" />
@@ -77,28 +79,25 @@ export default function JobDetail() {
               {t(`jobs.jobType.${jobQuery.data.jobType}`)}
             </h1>
 
-            <div className="mt-4 grid gap-2 text-sm text-muted-foreground">
-              <p className="flex items-center gap-2">
-                <MapPin className="w-4 h-4" />
+            <div className="mt-4 grid gap-2">
+              <MetaItem icon={MapPin}>
                 {jobQuery.data.city || t("jobs.cityNegotiable")}
                 {jobQuery.data.district ? `・${jobQuery.data.district}` : ""}
-              </p>
-              <p className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
+              </MetaItem>
+              <MetaItem icon={Users}>
                 {t("jobs.headcount")}：{jobQuery.data.headcount}{" "}
                 {t("jobs.people")}
-              </p>
+              </MetaItem>
               {jobQuery.data.employmentType && (
-                <p>
+                <p className="text-sm text-muted-foreground">
                   {t("jobs.filterEmployment")}：
                   {t(`jobs.employmentType.${jobQuery.data.employmentType}`)}
                 </p>
               )}
               {jobQuery.data.expectedStartDate && (
-                <p className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
+                <MetaItem icon={Calendar}>
                   {t("jobs.expectedStart")}：{jobQuery.data.expectedStartDate}
-                </p>
+                </MetaItem>
               )}
             </div>
 
@@ -142,7 +141,7 @@ export default function JobDetail() {
                 {t("jobs.viaAgency")}
               </span>
             </div>
-          </article>
+          </SurfaceCard>
         )}
       </main>
     </div>

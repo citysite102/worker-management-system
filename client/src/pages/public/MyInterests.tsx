@@ -3,14 +3,14 @@ import { useTranslation } from "react-i18next";
 import { MapPin } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public/PublicHeader";
-
-const STATUS_CLASS: Record<string, string> = {
-  new: "status-gray",
-  staff_handling: "status-amber",
-  introduced: "status-amber",
-  matched: "status-green",
-  closed: "status-gray",
-};
+import {
+  PageHeader,
+  SurfaceCard,
+  StatusPill,
+  CategoryChip,
+  MetaItem,
+  matchStatusTone,
+} from "@/components/marketplace/ui";
 
 /** 公開站：我的媒合意向（發起者看自己送出的意向與狀態）。 */
 export default function MyInterests() {
@@ -21,9 +21,7 @@ export default function MyInterests() {
     <div className="min-h-screen bg-background text-foreground">
       <PublicHeader />
       <main className="max-w-3xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-bold tracking-tight mb-6">
-          {t("jobs.myTitle")}
-        </h1>
+        <PageHeader title={t("jobs.myTitle")} />
 
         {q.isLoading ? (
           <div className="py-16 text-center text-sm text-muted-foreground">
@@ -49,24 +47,23 @@ export default function MyInterests() {
                           : t("jobs.title")}
                       </h3>
                       {m.category && (
-                        <span className="inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
+                        <CategoryChip>
                           {t(`jobs.category.${m.category}`)}
-                        </span>
+                        </CategoryChip>
                       )}
                     </div>
-                    <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <MapPin className="w-4 h-4" />
-                      {m.city || t("jobs.cityNegotiable")}
-                    </p>
+                    <div className="mt-1.5">
+                      <MetaItem icon={MapPin}>
+                        {m.city || t("jobs.cityNegotiable")}
+                      </MetaItem>
+                    </div>
                   </div>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      STATUS_CLASS[m.status] ?? "status-gray"
-                    }`}
+                  <StatusPill
+                    tone={matchStatusTone(m.status)}
                     data-testid={`interest-status-${m.status}`}
                   >
                     {t(`jobs.status.${m.status}`)}
-                  </span>
+                  </StatusPill>
                 </div>
               );
               // 公開需求單可回到職缺詳情；既有需求單無公開詳情頁，僅顯示。
@@ -74,19 +71,15 @@ export default function MyInterests() {
                 <Link
                   key={m.id}
                   href={`/jobs/posting/${m.targetId}`}
-                  className="block rounded-lg border border-border bg-card p-5 hover:border-primary transition-colors"
+                  className="block"
                   data-testid="my-interest-row"
                 >
-                  {inner}
+                  <SurfaceCard interactive>{inner}</SurfaceCard>
                 </Link>
               ) : (
-                <div
-                  key={m.id}
-                  className="rounded-lg border border-border bg-card p-5"
-                  data-testid="my-interest-row"
-                >
+                <SurfaceCard key={m.id} data-testid="my-interest-row">
                   {inner}
-                </div>
+                </SurfaceCard>
               );
             })}
           </div>

@@ -35,7 +35,14 @@ Migration 內容（`drizzle/0007_marketplace_p1.sql` 為對照 SQL）：
 4. 該職缺出現在 `/jobs`（`source=posting`，單張卡）。
 5. 既有內部需求單（`open`/`filling`）預設也出現在 `/jobs`（`source=demand`）；於案件詳情的媒合分頁可設「公開顯示縣市」與逐筆「隱藏」。
 
+## Session cookie（部署環境須知）
+
+Email/密碼登入的 session cookie：正式環境走 HTTPS 時用 `SameSite=None; Secure`（Manus OAuth 跨站導回需要）；**非 HTTPS（本地/純 http 佈署）時自動退回 `SameSite=Lax`**，否則瀏覽器會丟棄 `SameSite=None` 又非 `Secure` 的 cookie，導致「登入成功但下一個請求就沒登入」。因此本地開發真實登入請走 `localhost`（http 會用 Lax，可正常保存 session）。
+
+## E2E（已全綠）
+
+E2E 已改為**真實 staff 登入**（關掉 `DEV_AUTH_BYPASS`，`e2e/helpers/auth.ts` 提供 `loginAs`/`loginAsStaff`），涵蓋既有後台 CRUD、公開站登入導回、需求單審核轉 case → 找工作上架全流程。跑法：需本地 MySQL（`mysql://root:root@localhost:3306`）→ `pnpm e2e`（會自建 `wms_e2e`、灌假資料、建測試帳號）。
+
 ## 待辦（後續階段）
 
 - P3：`match_requests`（仲介居中）取代目前「我有興趣」的稽核佔位；需求單 `paused/filled/closed` 生命週期同步。
-- 既有 E2E（`e2e/{dashboard,cases,customers,workers}.spec.ts`）自 P0 `/admin` 分流後路徑未更新，需補 staff 登入步驟；本階段未動（無法在此環境跑 E2E 驗證）。新 `e2e/marketplace.spec.ts` 已對齊現行路由。

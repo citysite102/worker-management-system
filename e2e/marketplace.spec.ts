@@ -28,6 +28,22 @@ test.describe("登入導回（迴歸：登入後不回首頁）", () => {
       page.getByTestId("jobs-list").or(page.getByTestId("jobs-empty"))
     ).toBeVisible();
   });
+
+  test("首頁 hero 搜尋帶著篩選導向找工作（登入後保留）", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("hero-category").selectOption("caregiver");
+    await page.getByTestId("hero-city").selectOption("臺北市");
+    await page.getByTestId("hero-search").click();
+    // 未登入 → 導到登入頁，next 保留 /jobs?category=caregiver&city=臺北市
+    await expect(page).toHaveURL(/\/login\?next=/);
+    await expect(page).toHaveURL(/category%3Dcaregiver/);
+    await fillLogin(page, "worker@test.local");
+    // 登入後回到帶篩選的找工作頁，且看護分類為選中
+    await expect(page).toHaveURL(/\/jobs\?category=caregiver/);
+    await expect(page.getByTestId("filter-category-caregiver")).toHaveClass(
+      /border-primary/
+    );
+  });
 });
 
 test.describe("雇主張貼需求單", () => {

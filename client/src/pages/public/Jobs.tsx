@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public/PublicHeader";
@@ -7,6 +8,7 @@ import { PageHeader, FilterChip } from "@/components/marketplace/ui";
 import {
   TW_CITIES,
   EMPLOYMENT_TYPE_VALUES,
+  JOB_CATEGORY_VALUES,
   type JobCategory,
   type EmploymentTypeValue,
 } from "@/lib/marketplace";
@@ -16,8 +18,18 @@ const CATEGORIES: JobCategory[] = ["caregiver", "domestic_helper", "other"];
 /** 公開站「找工作」列表（需登入；統一呈現公開需求單 + 既有內部需求單）。 */
 export default function Jobs() {
   const { t } = useTranslation();
-  const [category, setCategory] = useState<JobCategory | undefined>();
-  const [city, setCity] = useState<string | undefined>();
+  // 首頁 hero 搜尋會帶 ?category=..&city=.. 進來，這裡作為初始篩選。
+  const searchStr = useSearch();
+  const initial = new URLSearchParams(searchStr);
+  const initCategory = initial.get("category");
+  const [category, setCategory] = useState<JobCategory | undefined>(
+    (JOB_CATEGORY_VALUES as readonly string[]).includes(initCategory ?? "")
+      ? (initCategory as JobCategory)
+      : undefined
+  );
+  const [city, setCity] = useState<string | undefined>(
+    initial.get("city") || undefined
+  );
   const [employmentType, setEmploymentType] = useState<
     EmploymentTypeValue | undefined
   >();

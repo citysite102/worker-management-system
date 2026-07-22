@@ -16,6 +16,7 @@ vi.mock("@/lib/trpc", async () => {
 // 固定當前位置為 /jobs；Redirect 換成看得見 to 的標記元素。
 vi.mock("wouter", () => ({
   useLocation: () => ["/jobs", vi.fn()],
+  useSearch: () => "",
   Redirect: ({ to }: { to: string }) => (
     <div data-testid="redirect" data-to={to} />
   ),

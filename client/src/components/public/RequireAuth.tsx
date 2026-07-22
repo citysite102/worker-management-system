@@ -1,4 +1,4 @@
-import { Redirect, useLocation } from "wouter";
+import { Redirect, useLocation, useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 
@@ -17,6 +17,7 @@ export function RequireAuth({
 }) {
   const { t } = useTranslation();
   const [location] = useLocation();
+  const search = useSearch();
   const { data: me, isLoading } = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
@@ -31,7 +32,9 @@ export function RequireAuth({
   }
 
   if (!me) {
-    return <Redirect to={`/login?next=${encodeURIComponent(location)}`} />;
+    // 保留查詢字串（例如找工作的 ?category=..&city=..），登入後才回得到同樣的篩選。
+    const next = location + (search ? `?${search}` : "");
+    return <Redirect to={`/login?next=${encodeURIComponent(next)}`} />;
   }
 
   const isStaff = me.role === "staff" || me.role === "admin";

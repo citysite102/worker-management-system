@@ -91,9 +91,11 @@ describe("oauthProviders（純函式 registry）", () => {
   });
 
   it("身分映射：openId=provider_<sub>，永不以 email 當 key", () => {
-    expect(oauthOpenId("line", "U123")).toBe("line_U123");
+    expect(oauthOpenId("facebook", "U123")).toBe("facebook_U123");
     expect(toIdentity("google", "abc", "a@b.co", "小明")).toEqual({
       openId: "google_abc",
+      provider: "google",
+      providerUserId: "abc",
       email: "a@b.co",
       name: "小明",
       loginMethod: "google",

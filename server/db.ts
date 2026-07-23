@@ -53,6 +53,8 @@ import {
   InsertWorkerExperience,
   ratings,
   InsertRating,
+  oauthIdentities,
+  InsertOAuthIdentity,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1773,4 +1775,34 @@ export async function recomputeWorkerRating(workerId: number): Promise<void> {
     .update(workerPublicProfiles)
     .set({ ratingAvg: avgTimes10, ratingCount: count })
     .where(eq(workerPublicProfiles.workerId, workerId));
+}
+
+// ─── OAuth Identities（社群登入 ↔ 本地帳號）────────────────────────────────────
+/** 依 (provider, providerUserId) 找已連結的社群身分。 */
+export async function getOAuthIdentity(
+  provider: string,
+  providerUserId: string
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(oauthIdentities)
+    .where(
+      and(
+        eq(oauthIdentities.provider, provider),
+        eq(oauthIdentities.providerUserId, providerUserId)
+      )
+    )
+    .limit(1);
+  return rows[0];
+}
+
+/** 建立社群身分連結（把某 provider 身分綁到某本地 users.id）。 */
+export async function insertOAuthIdentity(
+  data: InsertOAuthIdentity
+): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return insertedId(await db.insert(oauthIdentities).values(data));
 }

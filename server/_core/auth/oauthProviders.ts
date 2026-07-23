@@ -5,8 +5,10 @@
 // 設計文件：docs/feature-oauth-social-login.md
 import { createHash, randomBytes } from "node:crypto";
 
-export type ProviderId = "google" | "line" | "facebook";
-export const PROVIDER_IDS: ProviderId[] = ["google", "line", "facebook"];
+// 註：社群「一鍵登入」只放走 OAuth redirect 的 Google / Facebook。
+// WhatsApp 屬「手機號 OTP」流程（非 OAuth redirect），另走 oauthWhatsapp（見文件）。
+export type ProviderId = "google" | "facebook";
+export const PROVIDER_IDS: ProviderId[] = ["google", "facebook"];
 
 export interface ProviderConfig {
   id: ProviderId;
@@ -38,15 +40,6 @@ const STATIC: Record<
     jwksUrl: "https://www.googleapis.com/oauth2/v3/certs",
     issuer: "https://accounts.google.com",
   },
-  line: {
-    authorizeUrl: "https://access.line.me/oauth2/v2.1/authorize",
-    tokenUrl: "https://api.line.me/oauth2/v2.1/token",
-    scopes: ["openid", "profile", "email"],
-    usesPKCE: true,
-    isOIDC: true,
-    jwksUrl: "https://api.line.me/oauth2/v2.1/certs",
-    issuer: "https://access.line.me",
-  },
   facebook: {
     authorizeUrl: `https://www.facebook.com/${process.env.FACEBOOK_GRAPH_VERSION ?? "v25.0"}/dialog/oauth`,
     tokenUrl: `https://graph.facebook.com/${process.env.FACEBOOK_GRAPH_VERSION ?? "v25.0"}/oauth/access_token`,
@@ -66,11 +59,6 @@ const ENV_KEYS: Record<
     id: "GOOGLE_OAUTH_CLIENT_ID",
     secret: "GOOGLE_OAUTH_CLIENT_SECRET",
     redirect: "GOOGLE_OAUTH_REDIRECT_URI",
-  },
-  line: {
-    id: "LINE_CLIENT_ID",
-    secret: "LINE_CLIENT_SECRET",
-    redirect: "LINE_OAUTH_REDIRECT_URI",
   },
   facebook: {
     id: "FACEBOOK_CLIENT_ID",
@@ -129,9 +117,11 @@ export function buildAuthorizationUrl(
   return u.toString();
 }
 
-/** 標準化的社群身分（供 issueSession / upsertUser）。 */
+/** 標準化的社群身分（供 issueSession / upsertUser / 帳號合併）。 */
 export interface OAuthIdentity {
   openId: string;
+  provider: ProviderId;
+  providerUserId: string;
   email: string | null;
   name: string | null;
   loginMethod: ProviderId;
@@ -146,6 +136,8 @@ export function toIdentity(
 ): OAuthIdentity {
   return {
     openId: oauthOpenId(provider, providerUserId),
+    provider,
+    providerUserId,
     email: email ?? null,
     name: name ?? null,
     loginMethod: provider,

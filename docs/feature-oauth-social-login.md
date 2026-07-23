@@ -1,6 +1,9 @@
-# 功能設計：第三方（社群）登入 — Google / LINE / Facebook
+# 功能設計：第三方（社群）登入 — Google / Facebook（+ WhatsApp OTP）
 
-狀態：**scaffold（程式與設定就緒）**，待你提供各家憑證後啟用。憑證申請清單見 `docs/overnight-2026-07-23.md`。
+狀態：**scaffold + Email 帳號合併已實作**，待你提供憑證後啟用。憑證申請清單見 `docs/overnight-2026-07-23.md`。
+
+> **provider 決定（2026-07-23 更新）**：一鍵 OAuth 登入＝**Google + Facebook**（原 LINE 移除）。
+> **WhatsApp 不是 OAuth redirect** 而是「手機號 OTP」流程（見文末「WhatsApp」節），架構不同，需另做且要你先開通 Meta WhatsApp Cloud API + 送審 OTP 訊息範本。
 
 ## 目標與原則
 
@@ -107,9 +110,32 @@ FACEBOOK_GRAPH_VERSION=v25.0
 - [ ] **待你提供憑證後**：貼進 `.env`（§6 變數）→ 做一次 live 冒煙測試（沙箱無憑證，provider 端 HTTP 交握無法端對端自動測）
 - **決策 C（帳號合併）**：目前預設 openId=`provider_<sub>` 各自成帳號、**不以 email 自動合併**（安全）。多 provider 綁同一本地帳號的「設定頁連結」流程為後續（會用到 `oauth_identities` 表）。
 
-### 帳號連結的安全預設（重要）
+### 帳號合併（已實作，2026-07-23 依你的指示開啟）
 
-本批次**未**實作「以 email 自動合併既有帳號」。原因：LINE/FB 的 email 未必經驗證，自動合併會有帳號接管風險（見 §5）。因此每個社群身分預設是獨立帳號。若你要「同一人用 Google 和 LINE 都連到同一帳號」，需另做登入後的手動連結頁 + `oauth_identities` 表——早上可討論是否要納入。
+`oauth_identities` 表 + `resolveOAuthUser(identity, emailVerified)`（`server/_core/auth/oauthSocial.ts`）：
+
+1. 已連結過的 `(provider, providerUserId)` → 直接登入該帳號。
+2. 未連結、但 **email 可信**且比對到既有帳號 → **合併**：把此社群身分連到既有帳號，往後同一人用 Google/FB 或 Email 密碼都是同一帳號。
+3. 皆無 → 建新帳號並記錄社群身分。
+
+**「email 可信」的判定（安全關鍵）**：只有可信 email 才自動合併，防止有人用未驗證的同名 email 接管既有帳號。
+
+- **Google**：`id_token` 的 `email_verified === true`（一般為 true）→ 合併。
+- **Facebook**：Graph 只在使用者有「已確認 email」時回傳 email，故有回 email 即視為可信 → 合併。（此判定在 `identityFromProfile` 一行，可調嚴。）
+- 不可信/無 email → 不合併，另建帳號。
+
+測試：`server/oauthMerge.integration.test.ts`（4 real DB：合併、未驗證不合併、無比對建新、重複登入冪等）。
+
+## WhatsApp 登入（＝手機號 OTP，另一條路）
+
+**WhatsApp 沒有像 Google/FB 的消費者 OAuth redirect 登入。** 對移工受眾，正解是「手機號 + WhatsApp 收驗證碼」：
+
+1. 使用者輸入手機號 → 後端產 6 碼 OTP、存 `phone_otps`（含到期/嘗試次數）。
+2. 用 **Meta WhatsApp Cloud API** 發送 OTP 訊息（需已核准的 authentication 範本）。
+3. 使用者輸入碼 → 驗證 → 以手機號 resolve/建立 `users`（用既有 `users.phone`/`phoneVerified`）→ `issueSession`。
+
+**你需先準備（長前置）**：WhatsApp Business 帳號 + Cloud API 存取權杖 + Phone Number ID + **送審 OTP 訊息範本**（Meta 審核要時間）。
+**尚未實作**：待你確認要做，我再補 `phone_otps` 表 + `/auth/whatsapp/request-otp|verify-otp` + 前端手機/OTP 輸入（env-gated，未設 Cloud API 即隱藏）。
 
 ## 版本敏感備註
 

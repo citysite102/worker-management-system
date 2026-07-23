@@ -13,7 +13,6 @@ type Mode = "login" | "register";
 /** 社群 provider 的品牌顯示名（品牌名不翻譯）。 */
 const OAUTH_LABEL: Record<string, string> = {
   google: "Google",
-  line: "LINE",
   facebook: "Facebook",
 };
 

@@ -38,13 +38,15 @@
 - **公開媒合層的問題**：自助 marketplace 的 `match_requests` 目前不會產生 `case_employments`（兩層只透過 `reconcile` 手動勾稽）。因此「純線上媒合、未走內部建案」的成交，暫時無法評分。
 - **需你確認**：(1) 是否也允許「移工評雇主」？(2) 是否接受「僅限有內部合約者可評」這個較嚴格的門檻，或要放寬到 `match_requests.status='matched'`？（放寬會讓「未實際完成工作」也能評，與你的規則衝突，故我預設不放寬。）
 
-### B. 第三方登入要上哪幾家？
+### B. 第三方登入要上哪幾家？ ✅ 已定
 
-預設實作 **Google + LINE + Facebook**（見下方清單）。若只想先上其中一兩家，早上跟我說即可（scaffold 已 provider-agnostic，開關在環境變數）。
+**Google + Facebook（OAuth 一鍵）+ WhatsApp（手機 OTP，另做）**。LINE 已移除。
+WhatsApp 非 OAuth，是手機號 OTP（見 OAuth 文件文末），需你先開通 Meta WhatsApp Cloud API + 送審 OTP 範本，確認後我再實作。
 
-### C. Email 帳號合併策略
+### C. Email 帳號合併策略 ✅ 已實作（依你指示開啟合併）
 
-社群登入若帶回的 email 與既有 Email/密碼帳號相同，是否自動合併？**預設：不自動合併**（安全考量，見 OAuth 文件 §5 的帳號接管風險）。Google（email_verified=true）可較安全地合併；LINE/FB 不保證，故一律要求登入後於設定頁手動連結。
+社群登入帶回的 **可信 email** 與既有帳號相同 → **自動合併**到既有帳號（`oauth_identities` 表 + `resolveOAuthUser`）。
+安全門檻：只有可信 email 才合併（Google `email_verified`、FB 已確認 email），未驗證 email 不合併、另建帳號——防帳號接管。
 
 ---
 
@@ -59,13 +61,6 @@
 - [ ] Authorized redirect URIs 加入（正式 + 測試 + `http://localhost:3199/auth/oauth/google/callback`）
 - [ ] 給我 **Client ID** + **Client secret**
 
-### LINE（LINE Developers Console，**先送 email 審核**）
-
-- [ ] 建 **Provider** → **LINE Login channel**（不是 Messaging API）
-- [ ] 設 **Callback URL**（正式 + local）
-- [ ] **申請 Email address permission**（上傳同意畫面截圖 + 用途說明）← 長前置，先辦
-- [ ] 給我 **Channel ID** + **Channel secret**
-
 ### Facebook（Meta for Developers）
 
 - [ ] 建 App（Consumer）→ 加 **Facebook Login** 產品
@@ -73,7 +68,14 @@
 - [ ] 送 **App Review** 要 `email`，並切到 Live
 - [ ] 給我 **App ID** + **App Secret**
 
-我會把這些貼進 `.env`（變數名見 `docs/feature-oauth-social-login.md` §6）。
+### WhatsApp（Meta WhatsApp Cloud API，**若要做 OTP 登入**）
+
+- [ ] 開通 **WhatsApp Business** + **Cloud API**（Meta for Developers → WhatsApp）
+- [ ] 取得 **Access Token** + **Phone Number ID**
+- [ ] **送審 authentication（OTP）訊息範本** ← 長前置
+- [ ] 跟我說要做 → 我補 OTP 流程（手機輸入 + 收碼 + 驗證）
+
+我會把 Google/FB 憑證貼進 `.env`（變數名見 `docs/feature-oauth-social-login.md` §6）。
 
 ---
 

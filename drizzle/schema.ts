@@ -1029,3 +1029,28 @@ export const ratings = mysqlTable(
 );
 export type Rating = typeof ratings.$inferSelect;
 export type InsertRating = typeof ratings.$inferInsert;
+
+// ─── OAuth Identities（社群登入身分 ↔ 本地帳號，P3）──────────────────────────────
+// 一個本地 users 可綁多個社群身分。以 (provider, providerUserId) 唯一定位；
+// 帳號合併時把新 provider 身分連到既有 user（見 oauthSocial.resolveOAuthUser）。
+// 永不以 email 當 key（email 只作「已驗證才合併」的比對依據）。
+export const oauthIdentities = mysqlTable(
+  "oauth_identities",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    provider: varchar("provider", { length: 20 }).notNull(), // google/facebook/whatsapp…
+    providerUserId: varchar("providerUserId", { length: 191 }).notNull(), // sub / app-scoped id
+    userId: int("userId").notNull(), // → users.id
+    email: varchar("email", { length: 320 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => ({
+    providerIdx: uniqueIndex("oauth_identities_provider_idx").on(
+      t.provider,
+      t.providerUserId
+    ),
+    userIdx: index("oauth_identities_userId_idx").on(t.userId),
+  })
+);
+export type OAuthIdentityRow = typeof oauthIdentities.$inferSelect;
+export type InsertOAuthIdentity = typeof oauthIdentities.$inferInsert;

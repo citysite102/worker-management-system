@@ -26,7 +26,15 @@ const ALL_KEYS = [
   "FACEBOOK_CLIENT_ID",
   "FACEBOOK_CLIENT_SECRET",
   "FACEBOOK_OAUTH_REDIRECT_URI",
+  "FACEBOOK_LOGIN_CONFIG_ID",
 ];
+
+const FB_ENV = {
+  FACEBOOK_CLIENT_ID: "fbid",
+  FACEBOOK_CLIENT_SECRET: "fbsec",
+  FACEBOOK_OAUTH_REDIRECT_URI:
+    "https://app.example.com/auth/oauth/facebook/callback",
+};
 
 describe("oauthProviders（純函式 registry）", () => {
   const saved: Record<string, string | undefined> = {};
@@ -88,6 +96,23 @@ describe("oauthProviders（純函式 registry）", () => {
     expect(url.searchParams.get("nonce")).toBe("no");
     expect(url.searchParams.get("code_challenge")).toBe("cc");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+  });
+
+  it("Facebook Login for Business：設了 config_id → 授權 URL 帶 config_id、不帶 scope", () => {
+    Object.assign(process.env, FB_ENV, { FACEBOOK_LOGIN_CONFIG_ID: "cfg-123" });
+    const cfg = getProvider("facebook")!;
+    expect(cfg.loginConfigId).toBe("cfg-123");
+    const url = new URL(buildAuthorizationUrl(cfg, { state: "st" }));
+    expect(url.searchParams.get("config_id")).toBe("cfg-123");
+    expect(url.searchParams.get("scope")).toBeNull();
+  });
+
+  it("Facebook 未設 config_id → 走傳統 scope（public_profile email）", () => {
+    Object.assign(process.env, FB_ENV);
+    const cfg = getProvider("facebook")!;
+    const url = new URL(buildAuthorizationUrl(cfg, { state: "st" }));
+    expect(url.searchParams.get("scope")).toBe("public_profile email");
+    expect(url.searchParams.get("config_id")).toBeNull();
   });
 
   it("身分映射：openId=provider_<sub>，永不以 email 當 key", () => {

@@ -24,6 +24,8 @@ export interface ProviderConfig {
   issuer?: string;
   /** 非 OIDC（Facebook）用的 profile endpoint。 */
   profileUrl?: string;
+  /** Facebook Login for Business 的 login configuration id；有設就用 config_id 取代 scope。 */
+  loginConfigId?: string;
 }
 
 /** 各 provider 的固定端點與 scope（憑證從 env 帶入）。 */
@@ -74,7 +76,18 @@ export function getProvider(id: ProviderId): ProviderConfig | null {
   const clientSecret = process.env[keys.secret];
   const redirectUri = process.env[keys.redirect];
   if (!clientId || !clientSecret || !redirectUri) return null;
-  return { id, clientId, clientSecret, redirectUri, ...STATIC[id] };
+  const cfg: ProviderConfig = {
+    id,
+    clientId,
+    clientSecret,
+    redirectUri,
+    ...STATIC[id],
+  };
+  // Facebook Login for Business：設了 login configuration 就用 config_id（權限由設定決定）。
+  if (id === "facebook" && process.env.FACEBOOK_LOGIN_CONFIG_ID) {
+    cfg.loginConfigId = process.env.FACEBOOK_LOGIN_CONFIG_ID;
+  }
+  return cfg;
 }
 
 /** 目前已設定憑證、可用的 provider 清單（供前端決定顯示哪些登入鈕）。 */
@@ -107,7 +120,9 @@ export function buildAuthorizationUrl(
   u.searchParams.set("response_type", "code");
   u.searchParams.set("client_id", cfg.clientId);
   u.searchParams.set("redirect_uri", cfg.redirectUri);
-  u.searchParams.set("scope", cfg.scopes.join(" "));
+  // FB Login for Business：權限由 login configuration 決定 → 帶 config_id、不帶 scope。
+  if (cfg.loginConfigId) u.searchParams.set("config_id", cfg.loginConfigId);
+  else u.searchParams.set("scope", cfg.scopes.join(" "));
   u.searchParams.set("state", opts.state);
   if (cfg.isOIDC && opts.nonce) u.searchParams.set("nonce", opts.nonce);
   if (cfg.usesPKCE && opts.codeChallenge) {

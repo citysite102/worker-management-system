@@ -162,6 +162,21 @@ import {
   validateTaxId,
   validateNotFutureDate,
 } from "../shared/validation";
+import {
+  toPublicProfile,
+  toPublicWorkerCard,
+  toPublicJobCard,
+  toPublicDemandCard,
+  toPublicJobDetail,
+  toPublicDemandDetail,
+} from "./publicView";
+import {
+  jobCategory,
+  type PublicWorkerCard,
+  type PublicListingCard,
+  type PublicListingDetail,
+  type PublicProfileDetail,
+} from "@shared/publicView";
 
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
 
@@ -689,15 +704,6 @@ const QUAL_TYPE_LABEL: Record<MarketplaceQualType, string> = {
   overseas_student: "僑外生",
 };
 
-/** 公開站三桶職類：看護 / 房務 / 其他。 */
-function jobCategory(
-  qualType: MarketplaceQualType
-): "caregiver" | "domestic_helper" | "other" {
-  if (qualType === "caregiver") return "caregiver";
-  if (qualType === "domestic_helper") return "domestic_helper";
-  return "other";
-}
-
 /** 需求單轉 case 時，依職類推斷案件資格類別（勞基法內外 / 專業評點）。 */
 function inferQualCategory(
   qualType: MarketplaceQualType
@@ -795,16 +801,6 @@ async function resolveMatchTargetSummary(
 }
 
 // ─── 移工公開履歷（P2）輔助 ──────────────────────────────────────────────────
-/** 出生年 → 年齡區間（5 歲一段，去識別，不露精確生日）。今年由伺服器時鐘取得。 */
-function ageRangeFromYear(year: number | null | undefined): string | null {
-  if (!year || year < 1900) return null;
-  const now = new Date().getFullYear();
-  const age = now - year;
-  if (age < 0 || age > 120) return null;
-  const lo = Math.floor(age / 5) * 5;
-  return `${lo}–${lo + 4}`;
-}
-
 /** 安全解析 JSON 陣列欄位（skills/languages），壞資料一律回空陣列。 */
 function parseJsonArray(raw: string | null | undefined): string[] {
   if (!raw) return [];
@@ -814,59 +810,6 @@ function parseJsonArray(raw: string | null | undefined): string[] {
   } catch {
     return [];
   }
-}
-
-/**
- * 把履歷正本轉成「對外匿名視圖」：只露去識別子集，永不含 userId/workerId、
- * 真實姓名、證件、聯絡方式（規格 §11）。id 為 profile id，供詳情/送意向使用。
- */
-/** 評分達此則數才對外顯示（門檻；真實評分流程之後再做）。 */
-const RATING_MIN_COUNT = 5;
-
-function publicProfileView(p: {
-  id: number;
-  alias: string | null;
-  headline: string | null;
-  nationality: string | null;
-  yearOfBirth: number | null;
-  jobType: string | null;
-  jobTypes?: string | null;
-  preferredCities?: string | null;
-  skills: string | null;
-  languages: string | null;
-  availability: string | null;
-  photoKey?: string | null;
-  ratingAvg?: number | null;
-  ratingCount?: number | null;
-}) {
-  const ratingCount = p.ratingCount ?? 0;
-  // 期望職類可多選：優先讀 jobTypes（JSON 陣列），無則回退到單值 jobType。
-  const parsedTypes = parseJsonArray(p.jobTypes);
-  const jobTypes =
-    parsedTypes.length > 0 ? parsedTypes : p.jobType ? [p.jobType] : [];
-  return {
-    id: p.id,
-    alias: p.alias || `外籍工作者 #${p.id}`,
-    headline: p.headline,
-    nationality: p.nationality,
-    ageRange: ageRangeFromYear(p.yearOfBirth),
-    jobType: jobTypes[0] ?? null, // 主要職類（供頭像/相容）
-    jobTypes, // 全部期望職類（多選）
-    category: jobTypes[0]
-      ? jobCategory(jobTypes[0] as MarketplaceQualType)
-      : null,
-    skills: parseJsonArray(p.skills),
-    languages: parseJsonArray(p.languages),
-    preferredCities: parseJsonArray(p.preferredCities),
-    availability: p.availability,
-    // 公開層只給「有無真實照片」布林，實際照片一律登入後才下傳（維持去識別）。
-    hasPhoto: !!p.photoKey,
-    // 未達門檻不外露任何評分數字；達門檻才給平均分（×1/10 還原）與則數。
-    rating:
-      ratingCount >= RATING_MIN_COUNT
-        ? { avg: (p.ratingAvg ?? 0) / 10, count: ratingCount }
-        : null,
-  };
 }
 
 /** 移工履歷編輯輸入（自助帳號自填；送審時 moderationStatus 回 pending）。 */
@@ -962,18 +905,6 @@ async function assertRatingEligible(
       code: "FORBIDDEN",
       message: "只有該工作的雇主可評價",
     });
-}
-
-/**
- * 公開職缺可露的「去識別雇主線索」：只回「個人/公司」類型，永不外露雇主名稱、
- * 地址、聯絡方式（§11；仲介居中，雇主身分成交前不揭露）。
- */
-async function publicEmployerType(
-  customerId: number | null | undefined
-): Promise<"individual" | "company" | null> {
-  if (!customerId) return null;
-  const cust = await getCustomerById(customerId);
-  return (cust?.employerType as "individual" | "company") ?? null;
 }
 
 /** 自填經歷輸入。 */
@@ -3786,58 +3717,16 @@ export const appRouter = router({
           })
           .optional()
       )
-      .query(async ({ input }) => {
+      .query(async ({ input }): Promise<PublicListingCard[]> => {
         const [postings, demands] = await Promise.all([
           listApprovedJobPostings(),
           listPublicOpenDemands(),
         ]);
-        type Card = {
-          source: "posting" | "demand";
-          refId: number;
-          category: "caregiver" | "domestic_helper" | "other";
-          jobType: string;
-          city: string | null;
-          district: string | null;
-          employmentType: string | null;
-          headcount: number;
-          publicDescription: string | null;
-          salaryMin: number | null;
-          salaryMax: number | null;
-          postedAt: string | null;
-        };
-        const cards: Card[] = [];
-        for (const p of postings) {
-          cards.push({
-            source: "posting",
-            refId: p.id,
-            category: jobCategory(p.jobType),
-            jobType: p.jobType,
-            city: p.city,
-            district: p.district,
-            employmentType: p.employmentType,
-            headcount: p.headcount,
-            publicDescription: p.publicDescription,
-            salaryMin: p.salaryMin,
-            salaryMax: p.salaryMax,
-            postedAt: (p.publishedAt ?? p.createdAt)?.toISOString() ?? null,
-          });
-        }
-        for (const d of demands) {
-          cards.push({
-            source: "demand",
-            refId: d.id,
-            category: jobCategory(d.qualType),
-            jobType: d.qualType,
-            city: d.publicCity,
-            district: null,
-            employmentType: null,
-            headcount: d.neededCount,
-            publicDescription: null,
-            salaryMin: null,
-            salaryMax: null,
-            postedAt: d.createdAt?.toISOString() ?? null,
-          });
-        }
+        // 對外卡片一律經 publicView 蓋章產出——回傳形狀與過往一致，但不再就地挑欄位。
+        const cards = [
+          ...postings.map(toPublicJobCard),
+          ...demands.map(toPublicDemandCard),
+        ];
         const filtered = cards.filter(c => {
           if (input?.category && c.category !== input.category) return false;
           if (input?.city && c.city !== input.city) return false;
@@ -3861,29 +3750,16 @@ export const appRouter = router({
           id: z.number().int().positive(),
         })
       )
-      .query(async ({ input }) => {
+      .query(async ({ input }): Promise<PublicListingDetail> => {
         if (input.source === "posting") {
           const p = await getJobPostingById(input.id);
           if (!p || p.status !== "approved")
             throw new TRPCError({ code: "NOT_FOUND", message: "找不到此職缺" });
-          return {
-            source: "posting" as const,
-            refId: p.id,
-            category: jobCategory(p.jobType),
-            jobType: p.jobType,
-            city: p.city,
-            district: p.district,
-            employmentType: p.employmentType,
-            // 去識別雇主線索：只給「個人/公司」類型，永不外露名稱/地址/聯絡（§11）。
-            employerType: await publicEmployerType(p.customerId),
-            headcount: p.headcount,
-            requirements: p.requirements,
-            publicDescription: p.publicDescription,
-            salaryMin: p.salaryMin,
-            salaryMax: p.salaryMax,
-            expectedStartDate: p.expectedStartDate,
-            postedAt: (p.publishedAt ?? p.createdAt)?.toISOString() ?? null,
-          };
+          // 去識別雇主線索只給「個人/公司」，永不外露名稱/地址/聯絡（§11）——經 publicView 蓋章。
+          const employer = p.customerId
+            ? await getCustomerById(p.customerId)
+            : null;
+          return toPublicJobDetail(p, employer);
         }
         const d = await getDemandById(input.id);
         if (
@@ -3893,23 +3769,19 @@ export const appRouter = router({
         )
           throw new TRPCError({ code: "NOT_FOUND", message: "找不到此職缺" });
         const c = await getCaseById(d.caseId);
-        return {
-          source: "demand" as const,
-          refId: d.id,
-          category: jobCategory(d.qualType),
-          jobType: d.qualType,
-          city: c?.publicCity ?? null,
-          district: null,
-          employmentType: null,
-          employerType: await publicEmployerType(c?.customerId),
-          headcount: d.neededCount,
-          requirements: null,
-          publicDescription: null,
-          salaryMin: null,
-          salaryMax: null,
-          expectedStartDate: null,
-          postedAt: d.createdAt?.toISOString() ?? null,
-        };
+        const employer = c?.customerId
+          ? await getCustomerById(c.customerId)
+          : null;
+        return toPublicDemandDetail(
+          {
+            id: d.id,
+            qualType: d.qualType,
+            neededCount: d.neededCount,
+            publicCity: c?.publicCity ?? null,
+            createdAt: d.createdAt,
+          },
+          employer
+        );
       }),
     // 「我有興趣」：P1 先記錄意向（稽核）；仲介居中的完整媒合流程於 P3。
     // 「我有興趣」→ 建立一筆媒合意向（match_request），交客服居中處理（P3）。
@@ -4256,13 +4128,13 @@ export const appRouter = router({
           })
           .optional()
       )
-      .query(async ({ input }) => {
+      .query(async ({ input }): Promise<PublicWorkerCard[]> => {
         const rows = await listPublicProfiles(input);
-        return rows.map(publicProfileView);
+        return rows.map(toPublicWorkerCard);
       }),
     get: publicProcedure
       .input(z.object({ id: z.number().int().positive() }))
-      .query(async ({ ctx, input }) => {
+      .query(async ({ ctx, input }): Promise<PublicProfileDetail> => {
         const p = await getProfileById(input.id);
         if (
           !p ||
@@ -4270,7 +4142,7 @@ export const appRouter = router({
           p.moderationStatus !== "approved"
         )
           throw new TRPCError({ code: "NOT_FOUND", message: "找不到此履歷" });
-        const base = publicProfileView(p);
+        const base = toPublicProfile(p);
         // 受保護欄位一律「登入後才下傳」——未登入時完全不放進回應（前端顯示模糊
         // 佔位，且無法從 HTML/DevTools 反查真實資料）。gated 供前端判斷是否上鎖。
         const locked = {

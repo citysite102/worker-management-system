@@ -103,6 +103,33 @@ function findTestedProcedures() {
   return tested;
 }
 
+// ─── 對外資料出口守則：禁止在 publicView 以外對「蓋章型別」強制轉型 ──────────────
+// 對外資料一律經 server/publicView.ts 的 toPublicX 蓋章產出；其餘檔案若用
+// `as Public*` 強制轉型，等於繞過去識別遮蔽——直接擋下（非棘輪，應永遠為 0）。
+
+const PUBLIC_VIEW_REL = path.join("server", "publicView.ts");
+const BRAND_CAST =
+  /\bas\s+(?:Public<|PublicProfile\b|PublicWorkerCard\b|PublicListingCard\b|PublicListingDetail\b)/;
+
+function findIllegalPublicCasts() {
+  const files = [
+    ...collectFiles(path.join(ROOT, "server"), f => /\.tsx?$/.test(f)),
+    ...collectFiles(path.join(ROOT, "shared"), f => /\.tsx?$/.test(f)),
+    ...collectFiles(path.join(ROOT, "client"), f => /\.tsx?$/.test(f)),
+  ];
+  const violations = [];
+  for (const file of files) {
+    const rel = path.relative(ROOT, file);
+    if (rel === PUBLIC_VIEW_REL) continue; // 唯一允許蓋章之處
+    if (/\.(test|spec)\.tsx?$/.test(rel)) continue; // 測試可自由建構假資料
+    const lines = readFileSync(file, "utf8").split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      if (BRAND_CAST.test(lines[i])) violations.push(`${rel}:${i + 1}`);
+    }
+  }
+  return violations;
+}
+
 // ─── 主流程 ────────────────────────────────────────────────────────────────
 
 const source = readFileSync(ROUTERS_FILE, "utf8");
@@ -178,6 +205,15 @@ if (newUntested.length > 0) {
     `新增了 ${newUntested.length} 個沒有測試的 procedure：\n` +
       newUntested.map(p => `    - ${p}`).join("\n") +
       `\n  請在 server/*.test.ts 或 server/*.integration.test.ts 補上呼叫。`
+  );
+}
+
+const illegalCasts = findIllegalPublicCasts();
+if (illegalCasts.length > 0) {
+  problems.push(
+    `發現 ${illegalCasts.length} 處在 server/publicView.ts 以外對「蓋章型別」強制轉型：\n` +
+      illegalCasts.map(v => `    - ${v}`).join("\n") +
+      `\n  對外資料一律經 server/publicView.ts 的 toPublicX 產出；請勿用 as Public* 繞過遮蔽。`
   );
 }
 

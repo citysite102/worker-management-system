@@ -171,12 +171,12 @@ import {
   toPublicDemandDetail,
 } from "./publicView";
 import {
-  jobCategory,
   type PublicWorkerCard,
   type PublicListingCard,
   type PublicListingDetail,
   type PublicProfileDetail,
 } from "@shared/publicView";
+import { resolveTarget } from "./matchTarget";
 
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
 
@@ -760,45 +760,6 @@ const jobPostingInput = z.object({
     .optional()
     .transform(s => s?.trim() || undefined),
 });
-
-/**
- * 解析媒合意向標的的「去識別摘要」（職缺類 / 縣市），供客服佇列與「我的意向」共用。
- * 只回結構化欄位，不含任何雇主 PII。worker 標的（找移工 P2）尚未建，先回 null。
- */
-async function resolveMatchTargetSummary(
-  targetType: "job_posting" | "case_demand" | "worker",
-  targetId: number
-): Promise<{
-  jobType: string | null;
-  city: string | null;
-  label: string;
-} | null> {
-  if (targetType === "job_posting") {
-    const p = await getJobPostingById(targetId);
-    if (!p) return null;
-    return { jobType: p.jobType, city: p.city, label: "公開需求單" };
-  }
-  if (targetType === "case_demand") {
-    const d = await getDemandById(targetId);
-    if (!d) return null;
-    const c = await getCaseById(d.caseId);
-    return {
-      jobType: d.qualType,
-      city: c?.publicCity ?? null,
-      label: "既有需求單",
-    };
-  }
-  if (targetType === "worker") {
-    const p = await getProfileById(targetId);
-    if (!p) return null;
-    return {
-      jobType: p.jobType,
-      city: p.availability ?? null, // 移工無地點，借欄位帶「可上工時間」供客服參考
-      label: p.alias ? `移工履歷（${p.alias}）` : "移工履歷",
-    };
-  }
-  return null;
-}
 
 // ─── 移工公開履歷（P2）輔助 ──────────────────────────────────────────────────
 /** 安全解析 JSON 陣列欄位（skills/languages），壞資料一律回空陣列。 */
@@ -3858,28 +3819,8 @@ export const appRouter = router({
       const rows = await getMatchRequestsByInitiator(ctx.user.id);
       return Promise.all(
         rows.map(async r => {
-          // 開放諮詢無標的：摘要與分類取自意向自身欄位（§8）。
-          if (r.targetType === "general_inquiry") {
-            return {
-              id: r.id,
-              status: r.status,
-              note: r.note,
-              createdAt: r.createdAt?.toISOString() ?? null,
-              targetType: r.targetType,
-              targetId: r.targetId,
-              jobType: null,
-              city: r.inquiryCity ?? null,
-              // inquiryCategory 已是公開三桶（unsure 不對應分類，回 null）。
-              category:
-                r.inquiryCategory && r.inquiryCategory !== "unsure"
-                  ? r.inquiryCategory
-                  : null,
-            };
-          }
-          const summary = await resolveMatchTargetSummary(
-            r.targetType,
-            r.targetId
-          );
+          // 標的解讀統一交給 resolveTarget（含開放諮詢）；此處只做純值層映射。
+          const s = await resolveTarget(r);
           return {
             id: r.id,
             status: r.status,
@@ -3887,11 +3828,10 @@ export const appRouter = router({
             createdAt: r.createdAt?.toISOString() ?? null,
             targetType: r.targetType,
             targetId: r.targetId,
-            jobType: summary?.jobType ?? null,
-            city: summary?.city ?? null,
-            category: summary?.jobType
-              ? jobCategory(summary.jobType as MarketplaceQualType)
-              : null,
+            jobType: s?.jobType ?? null,
+            city: s?.city ?? null,
+            // 諮詢的 unsure 不對應公開三桶 → 濾成 null；真標的為 jobCategory 結果。
+            category: s?.category === "unsure" ? null : (s?.category ?? null),
           };
         })
       );
@@ -4254,12 +4194,8 @@ export const appRouter = router({
         return Promise.all(
           rows.map(async r => {
             const initiator = await getUserById(r.initiatorUserId);
-            // 開放諮詢無標的：摘要取自意向自身的 inquiry* 欄位（§8）。
-            const summary =
-              r.targetType === "general_inquiry"
-                ? null
-                : await resolveMatchTargetSummary(r.targetType, r.targetId);
-            const isInquiry = r.targetType === "general_inquiry";
+            // 標的解讀（含開放諮詢）統一交給 resolveTarget；此處只做純值層映射。
+            const s = await resolveTarget(r);
             return {
               ...r,
               createdAt: r.createdAt?.toISOString() ?? null,
@@ -4267,13 +4203,10 @@ export const appRouter = router({
               initiatorName: initiator?.name ?? null,
               initiatorEmail: initiator?.email ?? null,
               initiatorPhone: initiator?.phone ?? null,
-              targetJobType: isInquiry
-                ? (r.inquiryCategory ?? null)
-                : (summary?.jobType ?? null),
-              targetCity: isInquiry
-                ? (r.inquiryCity ?? null)
-                : (summary?.city ?? null),
-              targetLabel: isInquiry ? "免費諮詢" : (summary?.label ?? null),
+              // 諮詢無具體 jobType，退回其分類（＝現況把 inquiryCategory 放此欄的行為）。
+              targetJobType: s?.jobType ?? s?.category ?? null,
+              targetCity: s?.city ?? null,
+              targetLabel: s?.label ?? null,
             };
           })
         );

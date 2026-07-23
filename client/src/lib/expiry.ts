@@ -1,27 +1,17 @@
-// ─── 到期色彩規則（統一 4 段）──────────────────────────────────────────────
-// 全站證件/文件「距到期天數」一律用這裡的分段與配色，避免各頁各自為政。
-//   已過期        → expired  紅
-//   14 天內       → critical 橙紅
-//   30 天內       → warning  橙
-//   90 天內       → notice   黃
-//   其餘          → ok       灰（通常不特別標示）
+// ─── 到期色彩（前端配色轉接層）────────────────────────────────────────────────
+// 分段與判定邏輯一律來自 shared/expiry.ts（server / client 單一來源）；
+// 這裡只負責把分段對應到 Tailwind 樣式（純前端呈現），並沿用原有匯入路徑。
 
-export type ExpiryTier = "expired" | "critical" | "warning" | "notice" | "ok";
+export {
+  type ExpiryTier,
+  expiryTier,
+  expiryLabel,
+  isExpiryUrgent,
+  daysUntil,
+  todayInTaipei,
+} from "@shared/expiry";
 
-export function expiryTier(days: number): ExpiryTier {
-  if (days < 0) return "expired";
-  if (days <= 14) return "critical";
-  if (days <= 30) return "warning";
-  if (days <= 90) return "notice";
-  return "ok";
-}
-
-/** 剩餘天數文字（如「已過期 3 天」／「今日到期」／「剩 12 天」）。 */
-export function expiryLabel(days: number): string {
-  if (days < 0) return `已過期 ${Math.abs(days)} 天`;
-  if (days === 0) return "今日到期";
-  return `剩 ${days} 天`;
-}
+import type { ExpiryTier } from "@shared/expiry";
 
 /** 徽章（pill）樣式，供儀表板等清單使用。 */
 export const EXPIRY_PILL_CLASS: Record<ExpiryTier, string> = {
@@ -40,9 +30,3 @@ export const EXPIRY_TEXT_CLASS: Record<ExpiryTier, string> = {
   notice: "text-amber-500 font-medium",
   ok: "text-muted-foreground",
 };
-
-/** 是否屬「需要警示」的緊迫程度（30 天內或已過期）。 */
-export function isExpiryUrgent(days: number): boolean {
-  const t = expiryTier(days);
-  return t === "expired" || t === "critical" || t === "warning";
-}

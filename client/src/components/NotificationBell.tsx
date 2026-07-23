@@ -2,14 +2,11 @@ import { useMemo, useRef, useEffect, useState } from "react";
 import { Bell, CalendarClock, ChevronRight, CheckCheck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
+import { daysUntil, todayInTaipei } from "@/lib/expiry";
 
-// ─── 到期日工具函數（與 Workers.tsx 保持一致）────────────────────────────────
+// ─── 到期日工具函數（與 Workers.tsx 一致：共用 shared/expiry，以台北時區為準）────
 function daysUntilExpiry(dateStr: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const expiry = new Date(dateStr);
-  expiry.setHours(0, 0, 0, 0);
-  return Math.round((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return daysUntil(dateStr, todayInTaipei());
 }
 
 type NotificationItem = {
@@ -22,8 +19,8 @@ type NotificationItem = {
   managerName: string;
   urgency: "expired" | "critical" | "warning"; // 已過期 / 30天內 / 90天內
   labelOverride?: string; // 自訂緊急標籤（健檢用）
-  detailText?: string;    // 自訂明細文字（健檢用）
-  href?: string;          // 自訂導航目標（健檢導向案件）
+  detailText?: string; // 自訂明細文字（健檢用）
+  href?: string; // 自訂導航目標（健檢導向案件）
 };
 
 export function NotificationBell() {
@@ -31,14 +28,19 @@ export function NotificationBell() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
 
-  const { data: workers = [], isLoading: workersLoading } = trpc.workers.list.useQuery();
-  const { data: managers = [], isLoading: managersLoading } = trpc.managers.list.useQuery();
-  const { data: compliance, isLoading: complianceLoading } = trpc.dashboard.compliance.useQuery();
+  const { data: workers = [], isLoading: workersLoading } =
+    trpc.workers.list.useQuery();
+  const { data: managers = [], isLoading: managersLoading } =
+    trpc.managers.list.useQuery();
+  const { data: compliance, isLoading: complianceLoading } =
+    trpc.dashboard.compliance.useQuery();
   const isLoading = workersLoading || managersLoading || complianceLoading;
 
   const managerMap = useMemo(() => {
     const map: Record<number, string> = {};
-    managers.forEach(m => { map[m.id] = m.name; });
+    managers.forEach(m => {
+      map[m.id] = m.name;
+    });
     return map;
   }, [managers]);
 
@@ -46,9 +48,13 @@ export function NotificationBell() {
   const notifications = useMemo((): NotificationItem[] => {
     const items: NotificationItem[] = [];
     workers.forEach(w => {
-      const displayName = (w as any).nameCn || (w as any).nameEn || (w as any).name || "—";
+      const displayName =
+        (w as any).nameCn || (w as any).nameEn || (w as any).name || "—";
       const managerName = managerMap[w.managerId] ?? "—";
-      const makeItem = (dateStr: string, type: NotificationItem["expiryType"]): NotificationItem => {
+      const makeItem = (
+        dateStr: string,
+        type: NotificationItem["expiryType"]
+      ): NotificationItem => {
         const days = daysUntilExpiry(dateStr);
         return {
           id: `${w.id}-${type}`, // 複合唯一 key
@@ -58,7 +64,11 @@ export function NotificationBell() {
           expiryType: type,
           days,
           managerName,
-          urgency: (days < 0 ? "expired" : days <= 30 ? "critical" : "warning") as NotificationItem["urgency"],
+          urgency: (days < 0
+            ? "expired"
+            : days <= 30
+              ? "critical"
+              : "warning") as NotificationItem["urgency"],
         };
       };
       if ((w as any).residentPermitExpiry) {
@@ -76,7 +86,11 @@ export function NotificationBell() {
     // 紀錄會整個漏掉，正是收到衛生局逾期公文的成因）；聘僱許可續聘為新增涵蓋。
     (compliance?.alerts ?? []).forEach(a => {
       const urgency: NotificationItem["urgency"] =
-        a.status === "overdue" ? "expired" : a.status === "due_now" ? "critical" : "warning";
+        a.status === "overdue"
+          ? "expired"
+          : a.status === "due_now"
+            ? "critical"
+            : "warning";
       const isHealth = a.kind === "health_check";
       const label =
         a.status === "overdue"
@@ -106,15 +120,22 @@ export function NotificationBell() {
     return items.sort((a, b) => a.days - b.days);
   }, [workers, managerMap, compliance]);
 
-  const expiredCount = notifications.filter(n => n.urgency === "expired").length;
-  const criticalCount = notifications.filter(n => n.urgency === "critical").length;
+  const expiredCount = notifications.filter(
+    n => n.urgency === "expired"
+  ).length;
+  const criticalCount = notifications.filter(
+    n => n.urgency === "critical"
+  ).length;
   const badgeCount = expiredCount + criticalCount; // 只算 30 天內+已過期
 
   // 點擊外部關閉
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     };
@@ -125,7 +146,9 @@ export function NotificationBell() {
   // Escape 關閉
   useEffect(() => {
     if (!open) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [open]);
@@ -138,9 +161,26 @@ export function NotificationBell() {
 
   // urgency 樣式
   const urgencyStyle = (urgency: NotificationItem["urgency"]) => {
-    if (urgency === "expired") return { dot: "bg-red-500", text: "text-red-600", bg: "hover:bg-red-50", badge: "bg-red-50 text-red-600 border-red-200" };
-    if (urgency === "critical") return { dot: "bg-red-400", text: "text-red-500", bg: "hover:bg-red-50/60", badge: "bg-orange-50 text-orange-600 border-orange-200" };
-    return { dot: "bg-amber-400", text: "text-amber-600", bg: "hover:bg-amber-50/50", badge: "bg-amber-50 text-amber-600 border-amber-200" };
+    if (urgency === "expired")
+      return {
+        dot: "bg-red-500",
+        text: "text-red-600",
+        bg: "hover:bg-red-50",
+        badge: "bg-red-50 text-red-600 border-red-200",
+      };
+    if (urgency === "critical")
+      return {
+        dot: "bg-red-400",
+        text: "text-red-500",
+        bg: "hover:bg-red-50/60",
+        badge: "bg-orange-50 text-orange-600 border-orange-200",
+      };
+    return {
+      dot: "bg-amber-400",
+      text: "text-amber-600",
+      bg: "hover:bg-amber-50/50",
+      badge: "bg-amber-50 text-amber-600 border-amber-200",
+    };
   };
 
   const urgencyLabel = (n: NotificationItem) => {
@@ -156,7 +196,9 @@ export function NotificationBell() {
         type="button"
         onClick={() => setOpen(v => !v)}
         className={`relative h-9 w-9 flex items-center justify-center rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-          open ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+          open
+            ? "bg-accent text-foreground"
+            : "text-muted-foreground hover:bg-accent hover:text-foreground"
         }`}
         aria-label={`通知（${badgeCount} 筆待處理）`}
       >
@@ -178,7 +220,9 @@ export function NotificationBell() {
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CalendarClock className="w-4 h-4 text-amber-500" />
-              <span className="text-sm font-semibold text-foreground">到期提醒</span>
+              <span className="text-sm font-semibold text-foreground">
+                到期提醒
+              </span>
             </div>
             {notifications.length > 0 && (
               <span className="text-xs text-muted-foreground">
@@ -198,7 +242,9 @@ export function NotificationBell() {
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
                 <CheckCheck className="w-7 h-7 opacity-40" />
                 <p className="text-sm">目前無到期提醒</p>
-                <p className="text-xs opacity-70">所有移工證件均在 90 天有效期內</p>
+                <p className="text-xs opacity-70">
+                  所有移工證件均在 90 天有效期內
+                </p>
               </div>
             ) : (
               <div className="divide-y divide-border/60">
@@ -212,7 +258,9 @@ export function NotificationBell() {
                       className={`w-full px-4 py-3 text-left flex items-start gap-3 transition-colors ${s.bg} group`}
                     >
                       {/* 狀態點 */}
-                      <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
+                      <div
+                        className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${s.dot}`}
+                      />
 
                       {/* 內容 */}
                       <div className="flex-1 min-w-0">
@@ -220,13 +268,16 @@ export function NotificationBell() {
                           <span className="text-sm font-medium text-foreground truncate">
                             {n.name}
                           </span>
-                          <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${s.badge}`}>
+                          <span
+                            className={`text-[11px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${s.badge}`}
+                          >
                             {urgencyLabel(n)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-muted-foreground">
-                            {n.detailText ?? `${n.expiryType === "resident" ? "居留證" : n.expiryType === "passport" ? "護照" : "體檢"}到期：${n.expiryDate}`}
+                            {n.detailText ??
+                              `${n.expiryType === "resident" ? "居留證" : n.expiryType === "passport" ? "護照" : "體檢"}到期：${n.expiryDate}`}
                           </span>
                           <span className="text-muted-foreground/40">·</span>
                           <span className="text-xs text-muted-foreground truncate">
@@ -248,13 +299,26 @@ export function NotificationBell() {
           {notifications.length > 0 && (
             <div className="px-4 py-2.5 border-t border-border bg-muted/30 flex items-center justify-between gap-2">
               <span className="text-xs text-muted-foreground">
-                {expiredCount > 0 && <span className="text-red-500 font-medium">{expiredCount} 筆已過期</span>}
-                {expiredCount > 0 && criticalCount > 0 && <span className="mx-1 text-muted-foreground/40">·</span>}
-                {criticalCount > 0 && <span className="text-orange-500 font-medium">{criticalCount} 筆 30 天內</span>}
+                {expiredCount > 0 && (
+                  <span className="text-red-500 font-medium">
+                    {expiredCount} 筆已過期
+                  </span>
+                )}
+                {expiredCount > 0 && criticalCount > 0 && (
+                  <span className="mx-1 text-muted-foreground/40">·</span>
+                )}
+                {criticalCount > 0 && (
+                  <span className="text-orange-500 font-medium">
+                    {criticalCount} 筆 30 天內
+                  </span>
+                )}
               </span>
               <button
                 type="button"
-                onClick={() => { setOpen(false); setLocation("/workers?expiry=expiring_90"); }}
+                onClick={() => {
+                  setOpen(false);
+                  setLocation("/workers?expiry=expiring_90");
+                }}
                 className="text-xs text-primary hover:underline underline-offset-2 flex items-center gap-0.5"
               >
                 查看全部

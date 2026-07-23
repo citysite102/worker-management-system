@@ -39,6 +39,10 @@ export default function Login() {
   const utils = trpc.useUtils();
   // 已啟用的社群登入（未設憑證時為空陣列 → 不顯示任何社群鈕）。
   const oauthProviders = trpc.auth.oauthProviders.useQuery().data ?? [];
+  const whatsappOn = trpc.auth.whatsappEnabled.useQuery().data ?? false;
+  const [waStage, setWaStage] = useState<"idle" | "code">("idle");
+  const [waPhone, setWaPhone] = useState("");
+  const [waCode, setWaCode] = useState("");
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,6 +74,22 @@ export default function Login() {
   const registerMut = trpc.auth.register.useMutation({
     onSuccess: async () => {
       toast.success(t("login.successRegister"));
+      await afterAuth();
+    },
+    onError: e => toast.error(e.message),
+  });
+
+  // WhatsApp 手機 OTP 登入
+  const waRequestMut = trpc.auth.whatsappRequestOtp.useMutation({
+    onSuccess: () => {
+      setWaStage("code");
+      toast.success(t("login.otpSent"));
+    },
+    onError: e => toast.error(e.message),
+  });
+  const waVerifyMut = trpc.auth.whatsappVerifyOtp.useMutation({
+    onSuccess: async () => {
+      toast.success(t("login.successLogin"));
       await afterAuth();
     },
     onError: e => toast.error(e.message),
@@ -213,16 +233,16 @@ export default function Login() {
             </button>
           </form>
 
-          {/* 社群登入（Google/LINE/Facebook）；未設憑證 → oauthProviders 為空 → 不顯示 */}
-          {oauthProviders.length > 0 && (
-            <div className="mt-5" data-testid="oauth-providers">
+          {/* 社群登入（Google/FB 一鍵）+ WhatsApp 手機 OTP；未設憑證 → 各自隱藏 */}
+          {(oauthProviders.length > 0 || whatsappOn) && (
+            <div className="mt-5" data-testid="alt-login">
               <div className="relative mb-4 text-center">
                 <span className="relative z-10 bg-card px-2 text-xs text-muted-foreground">
                   {t("login.orContinueWith")}
                 </span>
                 <div className="absolute inset-x-0 top-1/2 border-t border-border" />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2" data-testid="oauth-providers">
                 {oauthProviders.map(p => (
                   <a
                     key={p}
@@ -234,6 +254,75 @@ export default function Login() {
                   </a>
                 ))}
               </div>
+
+              {whatsappOn && (
+                <div
+                  className="mt-2 rounded-md border border-border p-3"
+                  data-testid="wa-login"
+                >
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">
+                    {t("login.whatsappLogin")}
+                  </p>
+                  {waStage === "idle" ? (
+                    <div className="flex gap-2">
+                      <input
+                        value={waPhone}
+                        onChange={e => setWaPhone(e.target.value)}
+                        inputMode="tel"
+                        placeholder="+886912345678"
+                        className="h-10 flex-1 rounded-md border border-border bg-card px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                        data-testid="wa-phone"
+                      />
+                      <button
+                        type="button"
+                        disabled={
+                          waRequestMut.isPending || waPhone.trim().length < 6
+                        }
+                        onClick={() => waRequestMut.mutate({ phone: waPhone })}
+                        className="shrink-0 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                        data-testid="wa-send"
+                      >
+                        {t("login.sendCode")}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        value={waCode}
+                        onChange={e => setWaCode(e.target.value)}
+                        inputMode="numeric"
+                        maxLength={6}
+                        placeholder="000000"
+                        className="h-10 w-full rounded-md border border-border bg-card px-3 text-center text-sm tracking-widest focus:border-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                        data-testid="wa-code"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={
+                            waVerifyMut.isPending || waCode.length !== 6
+                          }
+                          onClick={() =>
+                            waVerifyMut.mutate({ phone: waPhone, code: waCode })
+                          }
+                          className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                          data-testid="wa-verify"
+                        >
+                          {t("login.verifyCode")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWaStage("idle")}
+                          className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+                          data-testid="wa-back"
+                        >
+                          {t("login.changeNumber")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

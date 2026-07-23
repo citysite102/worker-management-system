@@ -126,16 +126,30 @@ FACEBOOK_GRAPH_VERSION=v25.0
 
 測試：`server/oauthMerge.integration.test.ts`（4 real DB：合併、未驗證不合併、無比對建新、重複登入冪等）。
 
-## WhatsApp 登入（＝手機號 OTP，另一條路）
+## WhatsApp 登入（＝手機號 OTP，已實作）
 
-**WhatsApp 沒有像 Google/FB 的消費者 OAuth redirect 登入。** 對移工受眾，正解是「手機號 + WhatsApp 收驗證碼」：
+**WhatsApp 沒有像 Google/FB 的消費者 OAuth redirect 登入。** 對移工受眾用「手機號 + WhatsApp 收驗證碼」。**已用 Meta Cloud API 實作**（env-gated；未設即隱藏）。
 
-1. 使用者輸入手機號 → 後端產 6 碼 OTP、存 `phone_otps`（含到期/嘗試次數）。
-2. 用 **Meta WhatsApp Cloud API** 發送 OTP 訊息（需已核准的 authentication 範本）。
-3. 使用者輸入碼 → 驗證 → 以手機號 resolve/建立 `users`（用既有 `users.phone`/`phoneVerified`）→ `issueSession`。
+流程：
 
-**你需先準備（長前置）**：WhatsApp Business 帳號 + Cloud API 存取權杖 + Phone Number ID + **送審 OTP 訊息範本**（Meta 審核要時間）。
-**尚未實作**：待你確認要做，我再補 `phone_otps` 表 + `/auth/whatsapp/request-otp|verify-otp` + 前端手機/OTP 輸入（env-gated，未設 Cloud API 即隱藏）。
+1. `auth.whatsappRequestOtp({ phone })`：正規化手機號（台灣 09→+886；其他保留國碼）→ 產 6 碼 OTP → 存 `phone_otps`（**只存 HMAC 後的碼**、到期 5 分、嘗試上限 5、單一有效碼）→ 用 Cloud API 發 WhatsApp（authentication 範本）。
+2. `auth.whatsappVerifyOtp({ phone, code })`：查最新碼（未過期/未用/未超嘗試）→ 常數時間比對 → 成功即 `resolveWhatsappUser`（以 `users.phone` resolve/建立，`phoneVerified=1`、`loginMethod=whatsapp`）→ `issueSession`。錯碼累加 attempts。
+3. 前端 `Login.tsx`：`whatsappEnabled` 為真才顯示「手機 → 收碼 → 驗證」小流程。
+
+**檔案**：`server/_core/auth/whatsapp.ts`（config/OTP/HMAC/normalize/sendOtp/resolve）、`auth.whatsappEnabled|whatsappRequestOtp|whatsappVerifyOtp`（routers）、`phone_otps` 表。
+**測試**：`server/whatsapp.test.ts`（5 純函式 + enabled query）、`server/whatsappOtp.integration.test.ts`（4 real DB：request→verify、錯碼累計、重放防護、台灣格式）——發送端（Cloud API）在測試中被 stub。
+
+**你需準備（長前置）**：WhatsApp Business + Cloud API（Access Token + Phone Number ID）+ **送審 authentication OTP 範本**。設進 `.env` 後做一次 live 冒煙（真的收到 WhatsApp 碼）。env 變數：
+
+```dotenv
+WHATSAPP_CLOUD_API_TOKEN=
+WHATSAPP_PHONE_NUMBER_ID=
+WHATSAPP_OTP_TEMPLATE=      # 已核准的範本名，如 otp_login
+WHATSAPP_OTP_LANG=en        # 範本語言碼（選填，預設 en）
+# 共用 FACEBOOK_GRAPH_VERSION（預設 v25.0）
+```
+
+**待強化（非阻斷）**：發碼頻率限制（防簡訊轟炸）；國際手機號的前端國碼選擇器；範本語言依使用者語系切換。
 
 ## 版本敏感備註
 

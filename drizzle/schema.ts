@@ -1054,3 +1054,24 @@ export const oauthIdentities = mysqlTable(
 );
 export type OAuthIdentityRow = typeof oauthIdentities.$inferSelect;
 export type InsertOAuthIdentity = typeof oauthIdentities.$inferInsert;
+
+// ─── Phone OTPs（WhatsApp 手機號一次性驗證碼，P3）────────────────────────────────
+// WhatsApp 登入＝手機號 OTP：發碼時存「HMAC 後的碼」（不存明碼）+ 到期 + 嘗試次數。
+// 驗證成功即以手機號 resolve/建立帳號（見 whatsapp.resolveWhatsappUser）。
+export const phoneOtps = mysqlTable(
+  "phone_otps",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    phone: varchar("phone", { length: 20 }).notNull(), // E.164
+    codeHash: varchar("codeHash", { length: 128 }).notNull(), // HMAC-SHA256(code)
+    expiresAt: timestamp("expiresAt").notNull(),
+    attempts: int("attempts").notNull().default(0), // 驗證嘗試次數（超過即失效）
+    consumedAt: timestamp("consumedAt"), // 已用（成功驗證）時間；null＝未用
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => ({
+    phoneIdx: index("phone_otps_phone_idx").on(t.phone),
+  })
+);
+export type PhoneOtp = typeof phoneOtps.$inferSelect;
+export type InsertPhoneOtp = typeof phoneOtps.$inferInsert;

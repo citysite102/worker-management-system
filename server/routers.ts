@@ -122,6 +122,11 @@ import {
   createRating,
   getRatingsByWorker,
   recomputeWorkerRating,
+  createPhoneOtp,
+  getLatestPhoneOtp,
+  bumpPhoneOtpAttempts,
+  consumePhoneOtp,
+  deletePhoneOtps,
 } from "./db";
 import {
   evaluateHealthChecks,
@@ -138,6 +143,17 @@ import { getUserByEmail, createUser } from "./db";
 import { hashPassword, verifyPassword } from "./_core/auth/password";
 import { issueSession, newLocalOpenId } from "./_core/auth/session";
 import { enabledProviders } from "./_core/auth/oauthProviders";
+import {
+  whatsappEnabled,
+  generateOtp,
+  hashOtp,
+  verifyOtpHash,
+  normalizePhone as normalizeWaPhone,
+  sendOtp,
+  resolveWhatsappUser,
+  OTP_TTL_MS,
+  OTP_MAX_ATTEMPTS,
+} from "./_core/auth/whatsapp";
 import {
   validateTwPhone,
   normalizePhone,
@@ -1012,6 +1028,85 @@ export const appRouter = router({
     me: publicProcedure.query(opts => opts.ctx.user),
     // 已啟用的社群登入 provider（憑證設定與否決定）；登入頁未登入即需，故 public。
     oauthProviders: publicProcedure.query(() => enabledProviders()),
+    // WhatsApp OTP 是否啟用（前端決定是否顯示手機登入）。
+    whatsappEnabled: publicProcedure.query(() => whatsappEnabled()),
+    // 取得 OTP：發碼到手機（WhatsApp）。不揭露手機是否已註冊（一律回 sent）。
+    whatsappRequestOtp: publicProcedure
+      .input(z.object({ phone: z.string().trim().min(6).max(30) }))
+      .mutation(async ({ input }) => {
+        if (!whatsappEnabled())
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "WhatsApp 登入未啟用",
+          });
+        let phone: string;
+        try {
+          phone = normalizeWaPhone(input.phone);
+        } catch {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "手機號格式不正確",
+          });
+        }
+        const code = generateOtp();
+        await deletePhoneOtps(phone); // 單一有效碼
+        await createPhoneOtp({
+          phone,
+          codeHash: hashOtp(code, phone),
+          expiresAt: new Date(Date.now() + OTP_TTL_MS),
+        });
+        await sendOtp(phone, code);
+        return { sent: true } as const;
+      }),
+    // 驗證 OTP：成功即以手機號 resolve/建立帳號並發 session。
+    whatsappVerifyOtp: publicProcedure
+      .input(
+        z.object({
+          phone: z.string().trim().min(6).max(30),
+          code: z
+            .string()
+            .trim()
+            .regex(/^\d{6}$/, "驗證碼為 6 位數字"),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        if (!whatsappEnabled())
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "WhatsApp 登入未啟用",
+          });
+        let phone: string;
+        try {
+          phone = normalizeWaPhone(input.phone);
+        } catch {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "手機號格式不正確",
+          });
+        }
+        const otp = await getLatestPhoneOtp(phone);
+        if (
+          !otp ||
+          otp.consumedAt ||
+          otp.attempts >= OTP_MAX_ATTEMPTS ||
+          otp.expiresAt.getTime() < Date.now()
+        )
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "驗證碼無效或已過期，請重新取得",
+          });
+        if (!verifyOtpHash(input.code, phone, otp.codeHash)) {
+          await bumpPhoneOtpAttempts(otp.id);
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "驗證碼錯誤" });
+        }
+        await consumePhoneOtp(otp.id);
+        const user = await resolveWhatsappUser(phone);
+        await issueSession(ctx.req, ctx.res, {
+          openId: user.openId,
+          name: user.name,
+        });
+        return { ok: true } as const;
+      }),
     logout: publicProcedure.mutation(async ({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

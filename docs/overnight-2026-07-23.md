@@ -38,10 +38,10 @@
 - **公開媒合層的問題**：自助 marketplace 的 `match_requests` 目前不會產生 `case_employments`（兩層只透過 `reconcile` 手動勾稽）。因此「純線上媒合、未走內部建案」的成交，暫時無法評分。
 - **需你確認**：(1) 是否也允許「移工評雇主」？(2) 是否接受「僅限有內部合約者可評」這個較嚴格的門檻，或要放寬到 `match_requests.status='matched'`？（放寬會讓「未實際完成工作」也能評，與你的規則衝突，故我預設不放寬。）
 
-### B. 第三方登入要上哪幾家？ ✅ 已定
+### B. 第三方登入要上哪幾家？ ✅ 已定並實作
 
-**Google + Facebook（OAuth 一鍵）+ WhatsApp（手機 OTP，另做）**。LINE 已移除。
-WhatsApp 非 OAuth，是手機號 OTP（見 OAuth 文件文末），需你先開通 Meta WhatsApp Cloud API + 送審 OTP 範本，確認後我再實作。
+**Google + Facebook（OAuth 一鍵）+ WhatsApp（手機 OTP）**，皆已實作、env-gated。LINE 已移除。
+WhatsApp 是手機號 OTP（非 OAuth），走 Meta Cloud API。**你要準備**：WhatsApp Business + Cloud API（Token + Phone Number ID）+ 送審 OTP 範本（見申請清單）。
 
 ### C. Email 帳號合併策略 ✅ 已實作（依你指示開啟合併）
 
@@ -99,4 +99,4 @@ WhatsApp 非 OAuth，是手機號 OTP（見 OAuth 文件文末），需你先開
 **早上請先看**：本檔上方「需要你決策的項目」(A/B/C) 與「第三方登入申請清單」。
 所有變更在分支 `feat/marketplace-overnight`，逐 feature commit。合併前建議先在本機跑一次
 `pnpm verify`（＋ `docker start wms-mysql && pnpm test:db:setup && pnpm test:integration`）。
-正式庫需 `pnpm db:push` 補 `ratings` 表與 `worker_public_profiles.preferredCities` 欄位。
+正式庫需 `pnpm db:push` 補新表／欄位：`ratings`、`oauth_identities`、`phone_otps`，以及 `worker_public_profiles.preferredCities`。

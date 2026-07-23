@@ -55,6 +55,8 @@ import {
   InsertRating,
   oauthIdentities,
   InsertOAuthIdentity,
+  phoneOtps,
+  InsertPhoneOtp,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1805,4 +1807,71 @@ export async function insertOAuthIdentity(
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return insertedId(await db.insert(oauthIdentities).values(data));
+}
+
+// ─── Phone OTP / 手機號帳號（WhatsApp 登入）──────────────────────────────────
+/** 依手機號查使用者（WhatsApp OTP 登入用）。 */
+export async function getUserByPhone(phone: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(users)
+    .where(eq(users.phone, phone))
+    .limit(1);
+  return rows[0];
+}
+
+/** 標記某帳號手機已驗證。 */
+export async function markPhoneVerified(userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ phoneVerified: 1 }).where(eq(users.id, userId));
+}
+
+/** 清掉某手機號的舊 OTP（發新碼前呼叫，維持單一有效碼）。 */
+export async function deletePhoneOtps(phone: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(phoneOtps).where(eq(phoneOtps.phone, phone));
+}
+
+/** 建立一筆 OTP。 */
+export async function createPhoneOtp(data: InsertPhoneOtp): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return insertedId(await db.insert(phoneOtps).values(data));
+}
+
+/** 取某手機號最新一筆 OTP（驗證時用；到期/嘗試次數在呼叫端判斷）。 */
+export async function getLatestPhoneOtp(phone: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(phoneOtps)
+    .where(eq(phoneOtps.phone, phone))
+    .orderBy(desc(phoneOtps.createdAt))
+    .limit(1);
+  return rows[0];
+}
+
+/** 驗證失敗：累加嘗試次數。 */
+export async function bumpPhoneOtpAttempts(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(phoneOtps)
+    .set({ attempts: sql`${phoneOtps.attempts} + 1` })
+    .where(eq(phoneOtps.id, id));
+}
+
+/** 驗證成功：標記已用（防重放）。 */
+export async function consumePhoneOtp(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(phoneOtps)
+    .set({ consumedAt: new Date() })
+    .where(eq(phoneOtps.id, id));
 }

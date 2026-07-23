@@ -24,6 +24,17 @@
 - **新 procedure 一律用 `protectedProcedure` / 角色中介層**，勿新增 public（規約 ratchet 會擋，除非確有必要並 `--update` baseline）。
 - 權限分層：`protectedProcedure`（登入）、`adminProcedure`（admin）；P0 將新增 `staffProcedure` / `workerProcedure` / `employerProcedure`。
 
+## 🛠️ 功能開發流程（每個功能一律依序執行）
+
+每開一個新功能，**依下列六階段推進，不可跳步**；每階段結束前先自我把關，關鍵階段跑 Code Review 再往下。
+
+1. **整理規格** — 先在 `docs/` 寫或更新該功能的規格（目標、使用者旅程、狀態機、範圍與非目標、待拍板項）。規格是後續測試與開發的唯一依據；不清楚處先與使用者確認，勿偷偷假設。
+2. **確認資料庫欄位與影響範疇** — 對照 `drizzle/schema.ts` 盤點既有表/欄位，決定 additive 擴充或新表（沿用 int PK、`createdAt/updatedAt`、`YYYY-MM-DD` varchar 日期、int 表布林、外鍵索引慣例）；列出受影響的 procedure、前端頁面、migration 與部署順序（**先 migrate 再上程式碼**）。
+3. **先寫測試案例** — 依規格與權限矩陣先寫測試（`server/*.test.ts` 單元、`*.integration.test.ts` 真 DB、`vitest.client.config.ts` 前端元件、`e2e/*.spec.ts`）。涵蓋權限 gating、狀態轉移、邊界與去識別/隱私守衛。此時測試應為紅燈。
+4. **基於測試與規格開發** — 實作 schema/migration → procedure（角色中介層，勿新增 public）→ 前端（優先取用既有共用元件，禁硬編色碼，補 `data-testid`），逐步讓測試轉綠。
+5. **每階段 Code Review** — schema、後端、前端各自完成後，跑 Code Review（`/code-review` 或 review agent）；HIGH/隱私/權限問題當階段修掉再前進，勿累積到最後。
+6. **收尾：測試完整且全綠** — 補齊規格對應的測試缺口，`pnpm verify` 全綠、相關 `pnpm e2e` / `pnpm test:integration` 通過；更新規格與記憶的狀態。
+
 ## ✅ 開發慣例
 
 - 驗證指令：`pnpm verify`（typecheck ×2 + 規約 + 單元 + 前端測試）；提交前 pre-commit hook 會跑格式與規約檢查（含 prettier）。
@@ -33,6 +44,7 @@
 
 ## 📄 重要文件
 
-- `docs/marketplace-platform-spec.md` — 公開媒合平台規格（v1.0，已定案）
+- `docs/marketplace-platform-spec.md` — 公開媒合平台規格（v1.1，已定案）
+- `docs/marketplace-lead-pipeline.md` — 業務線索管線增補（§7.5 延伸：聯絡偏好/SLA/結案分類/開放諮詢入口）
 - `docs/p0-foundation-plan.md` — P0 地基技術計畫
-- `docs/design-system.md` — 設計系統（Warm Editorial）
+- `docs/design-system.md` — 設計系統（Clean SaaS）

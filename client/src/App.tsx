@@ -26,6 +26,7 @@ import Moderation from "./pages/Moderation";
 import MatchRequests from "./pages/MatchRequests";
 import Reconcile from "./pages/Reconcile";
 import MyInterests from "./pages/public/MyInterests";
+import Inquiry from "./pages/public/Inquiry";
 import WorkerProfile from "./pages/worker/WorkerProfile";
 import FindWorkers from "./pages/employer/FindWorkers";
 import FindWorkerDetail from "./pages/employer/FindWorkerDetail";
@@ -72,6 +73,8 @@ function Router() {
       {/* 找工作（開放匿名瀏覽；「我有興趣」時才需登入）*/}
       <Route path="/jobs" component={Jobs} />
       <Route path="/jobs/:source/:id" component={JobDetail} />
+      {/* 開放諮詢入口（§8；表單開放瀏覽，送出時才需登入）*/}
+      <Route path="/inquiry" component={Inquiry} />
       {/* 我的媒合意向（需登入）*/}
       <Route path="/my-interests">
         <RequireAuth>

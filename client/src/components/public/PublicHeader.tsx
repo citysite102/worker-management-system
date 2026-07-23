@@ -61,6 +61,13 @@ export function PublicHeader() {
             >
               {t("nav.findWorkers")}
             </Link>
+            <Link
+              href="/inquiry"
+              className="transition-colors hover:text-foreground"
+              data-testid="nav-inquiry"
+            >
+              {t("inquiry.nav")}
+            </Link>
           </nav>
         </div>
 

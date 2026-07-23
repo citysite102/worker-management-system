@@ -880,11 +880,12 @@ export const matchRequests = mysqlTable(
     initiatorType: mysqlEnum("initiatorType", ["worker", "employer", "other"])
       .notNull()
       .default("other"),
-    // 標的：公開需求單 / 既有內部需求 / 移工（找移工 P2 用）
+    // 標的：公開需求單 / 既有內部需求 / 移工（找移工 P2 用）/ 開放諮詢（無標的，targetId=0）
     targetType: mysqlEnum("targetType", [
       "job_posting",
       "case_demand",
       "worker",
+      "general_inquiry", // 開放諮詢（§8 lead-pipeline；targetId=0，摘要取自 inquiry* 欄位）
     ]).notNull(),
     targetId: int("targetId").notNull(),
     status: mysqlEnum("status", [
@@ -900,6 +901,28 @@ export const matchRequests = mysqlTable(
     note: text("note"), // 發起者留言（選填）
     staffNote: text("staffNote"), // 客服內部備註
     closeReason: varchar("closeReason", { length: 200 }), // 關閉原因（選填）
+    // 聯絡偏好（lead-pipeline §4.1；intake 捕捉，供業務接手用）
+    preferredChannel: mysqlEnum("preferredChannel", [
+      "phone",
+      "line",
+      "whatsapp",
+      "zalo",
+      "email",
+    ]),
+    preferredTime: mysqlEnum("preferredTime", [
+      "anytime",
+      "daytime",
+      "evening",
+      "weekend",
+    ]),
+    // 開放諮詢（§8；無標的，摘要來源）：職類意向 + 地區
+    inquiryCategory: mysqlEnum("inquiryCategory", [
+      "caregiver",
+      "domestic_helper",
+      "other",
+      "unsure",
+    ]),
+    inquiryCity: varchar("inquiryCity", { length: 20 }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },

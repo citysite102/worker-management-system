@@ -3986,6 +3986,24 @@ export const appRouter = router({
       const rows = await getMatchRequestsByInitiator(ctx.user.id);
       return Promise.all(
         rows.map(async r => {
+          // 開放諮詢無標的：摘要與分類取自意向自身欄位（§8）。
+          if (r.targetType === "general_inquiry") {
+            return {
+              id: r.id,
+              status: r.status,
+              note: r.note,
+              createdAt: r.createdAt?.toISOString() ?? null,
+              targetType: r.targetType,
+              targetId: r.targetId,
+              jobType: null,
+              city: r.inquiryCity ?? null,
+              // inquiryCategory 已是公開三桶（unsure 不對應分類，回 null）。
+              category:
+                r.inquiryCategory && r.inquiryCategory !== "unsure"
+                  ? r.inquiryCategory
+                  : null,
+            };
+          }
           const summary = await resolveMatchTargetSummary(
             r.targetType,
             r.targetId
@@ -4006,6 +4024,77 @@ export const appRouter = router({
         })
       );
     }),
+
+    // 開放諮詢（§8 lead-pipeline）：無標的的上游意圖 → 生成 general_inquiry 意向。
+    // 送出需登入（沿用 §15-1「聯絡才登入」）；一人同時只允許一筆進行中諮詢（去重）。
+    submitInquiry: protectedProcedure
+      .input(
+        z.object({
+          inquiryCategory: z.enum([
+            "caregiver",
+            "domestic_helper",
+            "other",
+            "unsure",
+          ]),
+          inquiryCity: z
+            .string()
+            .trim()
+            .max(20)
+            .optional()
+            .transform(s => s?.trim() || undefined),
+          note: z
+            .string()
+            .trim()
+            .max(500)
+            .optional()
+            .transform(s => s?.trim() || undefined),
+          preferredChannel: z
+            .enum(["phone", "line", "whatsapp", "zalo", "email"])
+            .optional(),
+          preferredTime: z
+            .enum(["anytime", "daytime", "evening", "weekend"])
+            .optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        // 去重：一人同時只允許一筆進行中的開放諮詢（targetId=0 天然收斂）。
+        const existing = await getOpenMatchRequest(
+          ctx.user.id,
+          "general_inquiry",
+          0
+        );
+        if (existing) {
+          return { success: true, alreadySent: true } as const;
+        }
+        const initiatorType =
+          ctx.user.accountType === "worker"
+            ? "worker"
+            : ctx.user.accountType === "employer"
+              ? "employer"
+              : "other";
+        const matchId = await createMatchRequest({
+          initiatorUserId: ctx.user.id,
+          initiatorType,
+          targetType: "general_inquiry",
+          targetId: 0,
+          status: "new",
+          note: input.note ?? null,
+          preferredChannel: input.preferredChannel ?? null,
+          preferredTime: input.preferredTime ?? null,
+          inquiryCategory: input.inquiryCategory,
+          inquiryCity: input.inquiryCity ?? null,
+        });
+        await logAudit(ctx, {
+          action: "match.request.create",
+          entityType: "match_requests",
+          entityId: matchId,
+          meta: {
+            targetType: "general_inquiry",
+            inquiryCategory: input.inquiryCategory,
+          },
+        });
+        return { success: true, alreadySent: false } as const;
+      }),
   }),
 
   // ─── 移工自助：公開履歷 + 自填經歷（P2）──────────────────────────────────
@@ -4292,10 +4381,13 @@ export const appRouter = router({
         const rows = await getAllMatchRequests(input?.status);
         return Promise.all(
           rows.map(async r => {
-            const [initiator, summary] = await Promise.all([
-              getUserById(r.initiatorUserId),
-              resolveMatchTargetSummary(r.targetType, r.targetId),
-            ]);
+            const initiator = await getUserById(r.initiatorUserId);
+            // 開放諮詢無標的：摘要取自意向自身的 inquiry* 欄位（§8）。
+            const summary =
+              r.targetType === "general_inquiry"
+                ? null
+                : await resolveMatchTargetSummary(r.targetType, r.targetId);
+            const isInquiry = r.targetType === "general_inquiry";
             return {
               ...r,
               createdAt: r.createdAt?.toISOString() ?? null,
@@ -4303,9 +4395,13 @@ export const appRouter = router({
               initiatorName: initiator?.name ?? null,
               initiatorEmail: initiator?.email ?? null,
               initiatorPhone: initiator?.phone ?? null,
-              targetJobType: summary?.jobType ?? null,
-              targetCity: summary?.city ?? null,
-              targetLabel: summary?.label ?? null,
+              targetJobType: isInquiry
+                ? (r.inquiryCategory ?? null)
+                : (summary?.jobType ?? null),
+              targetCity: isInquiry
+                ? (r.inquiryCity ?? null)
+                : (summary?.city ?? null),
+              targetLabel: isInquiry ? "免費諮詢" : (summary?.label ?? null),
             };
           })
         );

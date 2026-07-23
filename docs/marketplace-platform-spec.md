@@ -188,6 +188,7 @@
 - 任何一方發起「媒合意向 / 我有興趣」→ 建立 `match_requests`（狀態 `new → staff_handling → introduced → matched / closed`）。
 - 雙方在平台上**看不到彼此私密聯絡資訊**；由 Staff 判斷後**手動揭露**或線下安排。
 - 揭露動作寫入稽核（誰、何時、揭露了什麼）。
+- **後半段（點擊之後的業務線索管線）詳見 `docs/marketplace-lead-pipeline.md`**：聯絡偏好捕捉、即時 ack、指派/SLA/觸及狀態、雙邊接續、去重、結案分類與業務工作台（第一階段 lead-gen → 業務手動媒合的核心骨架）。
 
 ### 7.6 多語系（P0 框架，全程）
 

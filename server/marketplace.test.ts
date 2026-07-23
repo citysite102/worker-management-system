@@ -283,6 +283,104 @@ describe("找工作（publicJobs，開放匿名瀏覽）", () => {
   });
 });
 
+describe("開放諮詢入口（submitInquiry，§8 lead-pipeline）", () => {
+  it("submitInquiry：未登入 → UNAUTHORIZED，不建立", async () => {
+    await expect(
+      anon().publicJobs.submitInquiry({ inquiryCategory: "caregiver" })
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(dbMock.createMatchRequest).not.toHaveBeenCalled();
+  });
+
+  it("submitInquiry：登入者送出 → 建立 general_inquiry（targetId=0，帶意向欄位）", async () => {
+    const res = await employer().publicJobs.submitInquiry({
+      inquiryCategory: "caregiver",
+      inquiryCity: "臺北市",
+      note: "想請一位住家看護，想了解流程",
+      preferredChannel: "line",
+      preferredTime: "evening",
+    });
+    expect(res).toMatchObject({ success: true, alreadySent: false });
+    expect(dbMock.createMatchRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initiatorType: "employer",
+        targetType: "general_inquiry",
+        targetId: 0,
+        status: "new",
+        inquiryCategory: "caregiver",
+        inquiryCity: "臺北市",
+        preferredChannel: "line",
+        preferredTime: "evening",
+      })
+    );
+  });
+
+  it("submitInquiry：已有進行中的諮詢 → 不重複建立（alreadySent）", async () => {
+    dbMock.getOpenMatchRequest.mockResolvedValueOnce({
+      id: 888,
+      status: "new",
+    });
+    const res = await worker().publicJobs.submitInquiry({
+      inquiryCategory: "unsure",
+    });
+    expect(res).toMatchObject({ success: true, alreadySent: true });
+    expect(dbMock.createMatchRequest).not.toHaveBeenCalled();
+  });
+
+  it("submitInquiry：去重以 general_inquiry / targetId=0 查詢", async () => {
+    await worker().publicJobs.submitInquiry({ inquiryCategory: "other" });
+    expect(dbMock.getOpenMatchRequest).toHaveBeenCalledWith(
+      10,
+      "general_inquiry",
+      0
+    );
+  });
+
+  it("myInterests：general_inquiry 列的 city/category 取自意向欄位、jobType=null", async () => {
+    dbMock.getMatchRequestsByInitiator.mockResolvedValueOnce([
+      {
+        id: 42,
+        status: "new",
+        note: "test",
+        createdAt: new Date(),
+        targetType: "general_inquiry",
+        targetId: 0,
+        inquiryCategory: "domestic_helper",
+        inquiryCity: "臺中市",
+      },
+    ]);
+    const rows = await worker().publicJobs.myInterests();
+    expect(rows[0]).toMatchObject({
+      targetType: "general_inquiry",
+      jobType: null,
+      city: "臺中市",
+      category: "domestic_helper",
+    });
+    // general_inquiry 不應觸發標的查詢（無標的）
+    expect(dbMock.getJobPostingById).not.toHaveBeenCalled();
+  });
+
+  it("myInterests：inquiryCategory=unsure → category 回 null（不對應公開三桶）", async () => {
+    dbMock.getMatchRequestsByInitiator.mockResolvedValueOnce([
+      {
+        id: 43,
+        status: "new",
+        note: null,
+        createdAt: new Date(),
+        targetType: "general_inquiry",
+        targetId: 0,
+        inquiryCategory: "unsure",
+        inquiryCity: null,
+      },
+    ]);
+    const rows = await worker().publicJobs.myInterests();
+    expect(rows[0]).toMatchObject({
+      targetType: "general_inquiry",
+      category: null,
+      city: null,
+    });
+  });
+});
+
 describe("媒合意向佇列（matchRequests，客服）權限與操作", () => {
   it("queue：未登入 → UNAUTHORIZED；移工 → FORBIDDEN；staff → 可用", async () => {
     await expect(anon().matchRequests.queue()).rejects.toMatchObject({

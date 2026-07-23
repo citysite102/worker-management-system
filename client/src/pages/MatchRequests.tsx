@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { MapPin, User, Mail, Phone, UserCheck, Inbox } from "lucide-react";
+import {
+  MapPin,
+  User,
+  Mail,
+  Phone,
+  UserCheck,
+  Inbox,
+  MessageCircle,
+} from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import {
   PageHeader,
@@ -24,6 +32,24 @@ const JOB_TYPE_LABEL: Record<string, string> = {
   white_collar: "白領",
   intermediate: "中階技術",
   overseas_student: "僑外生",
+  // 開放諮詢的職類意向（公開三桶 + 還不確定）
+  other: "其他",
+  unsure: "待確認",
+};
+
+// 開放諮詢的聯絡偏好（供業務接手；後台 zh-TW）。
+const CHANNEL_LABEL: Record<string, string> = {
+  phone: "電話",
+  line: "LINE",
+  whatsapp: "WhatsApp",
+  zalo: "Zalo",
+  email: "Email",
+};
+const TIME_LABEL: Record<string, string> = {
+  anytime: "皆可",
+  daytime: "白天",
+  evening: "晚上",
+  weekend: "週末",
 };
 
 const STATUS_OPTIONS = [
@@ -125,6 +151,17 @@ export default function MatchRequests() {
                     )}
                     {m.initiatorPhone && (
                       <MetaItem icon={Phone}>{m.initiatorPhone}</MetaItem>
+                    )}
+                    {(m.preferredChannel || m.preferredTime) && (
+                      <MetaItem icon={MessageCircle}>
+                        {[
+                          m.preferredChannel &&
+                            CHANNEL_LABEL[m.preferredChannel],
+                          m.preferredTime && TIME_LABEL[m.preferredTime],
+                        ]
+                          .filter(Boolean)
+                          .join("・")}
+                      </MetaItem>
                     )}
                   </MetaRow>
                   {m.note && (

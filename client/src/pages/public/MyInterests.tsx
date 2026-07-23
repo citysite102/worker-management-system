@@ -39,9 +39,11 @@ export default function MyInterests() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold">
-                        {m.jobType
-                          ? t(`jobs.jobType.${m.jobType}`)
-                          : t("jobs.title")}
+                        {m.targetType === "general_inquiry"
+                          ? t("inquiry.myLabel")
+                          : m.jobType
+                            ? t(`jobs.jobType.${m.jobType}`)
+                            : t("jobs.title")}
                       </h3>
                       {m.category && (
                         <CategoryChip>

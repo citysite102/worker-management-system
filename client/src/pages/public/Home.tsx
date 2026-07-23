@@ -89,6 +89,13 @@ export default function PublicHome() {
               >
                 {t("home.ctaPostJob")}
               </Link>
+              <Link
+                href="/inquiry"
+                className="inline-flex items-center rounded-md border border-white/40 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
+                data-testid="cta-inquiry"
+              >
+                {t("inquiry.nav")}
+              </Link>
             </div>
 
             {/* 搜尋框：白卡浮在 navy 上，藍色只出現在搜尋鈕 */}

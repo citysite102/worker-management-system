@@ -1379,7 +1379,7 @@ export async function createMatchRequest(
  */
 export async function getOpenMatchRequest(
   initiatorUserId: number,
-  targetType: "job_posting" | "case_demand" | "worker",
+  targetType: "job_posting" | "case_demand" | "worker" | "general_inquiry",
   targetId: number
 ) {
   const db = await getDb();

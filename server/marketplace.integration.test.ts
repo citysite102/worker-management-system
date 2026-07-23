@@ -191,6 +191,54 @@ describe("媒合意向（match_requests，P3）", () => {
   });
 });
 
+describe("開放諮詢入口（submitInquiry / general_inquiry，§8）", () => {
+  it("送出諮詢 → 入列；去重；客服佇列與我的意向皆見；成交後可再送", async () => {
+    const caller = createCaller(); // admin：可代發起 + 客服操作
+
+    // 送出開放諮詢（無標的）
+    const r1 = await caller.publicJobs.submitInquiry({
+      inquiryCategory: "caregiver",
+      inquiryCity: "臺北市",
+      note: "想請住家看護，想了解流程與費用",
+      preferredChannel: "line",
+      preferredTime: "evening",
+    });
+    expect(r1.alreadySent).toBe(false);
+
+    // 一人同時只允許一筆進行中諮詢 → 去重
+    const r2 = await caller.publicJobs.submitInquiry({
+      inquiryCategory: "other",
+    });
+    expect(r2.alreadySent).toBe(true);
+
+    // 客服佇列：general_inquiry 摘要取自意向欄位（label=免費諮詢、city/jobType 回填）
+    const queue = await caller.matchRequests.queue();
+    const q = queue.find(m => m.targetType === "general_inquiry");
+    expect(q).toBeTruthy();
+    expect(q!.targetLabel).toBe("免費諮詢");
+    expect(q!.targetCity).toBe("臺北市");
+    expect(q!.targetJobType).toBe("caregiver");
+    // 聯絡偏好落地，供業務接手
+    expect(q!.preferredChannel).toBe("line");
+    expect(q!.preferredTime).toBe("evening");
+
+    // 我的意向：jobType=null、city/category 取自意向欄位
+    const mine = await caller.publicJobs.myInterests();
+    const inquiry = mine.find(x => x.targetType === "general_inquiry");
+    expect(inquiry).toBeTruthy();
+    expect(inquiry!.jobType).toBeNull();
+    expect(inquiry!.city).toBe("臺北市");
+    expect(inquiry!.category).toBe("caregiver");
+
+    // 成交（或關閉）後去重解除，可再送
+    await caller.matchRequests.updateStatus({ id: q!.id, status: "matched" });
+    const r3 = await caller.publicJobs.submitInquiry({
+      inquiryCategory: "unsure",
+    });
+    expect(r3.alreadySent).toBe(false);
+  });
+});
+
 describe("移工履歷 + 找移工（P2）", () => {
   it("履歷送審→通過→找移工看得到；經歷審核；雇主送意向", async () => {
     const caller = createCaller(); // admin：可代移工自填、亦可審核、亦可雇主瀏覽

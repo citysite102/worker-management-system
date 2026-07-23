@@ -73,14 +73,8 @@ oauth_identities(
 
 ## 帳號連結與 email 信任（安全）
 
-回呼查找順序：
-
-1. `(provider, providerUserId)` 命中 → 直接登入該 user（永遠安全）。
-2. 未命中但有 email：
-   - **不因 provider email 相同就自動合併**（防 pre-account-takeover）。
-   - Google `email_verified===true` 可視為較安全；LINE/FB 不保證 → 一律要求「先登入本地帳號，再於設定頁連結」。
-   - 無 email（LINE/FB 未過審常見）→ 建新帳號、之後再補 email。
-3. 皆未命中 → 建立新 `users`（`loginMethod=provider`、`openId=<provider>_<providerUserId>`、`accountType` 先 null，登入後引導選 worker/employer）。
+> 註：本節為原始設計脈絡；**實際實作見下方「帳號合併（已實作）」** —— 依你的指示已開啟「可信 email 自動合併」。
+> 上方的「Provider 對照」表為 2026-07 研究時的原始三家（含已移除的 LINE），保留作參考。
 
 ## 環境變數（§6）
 

@@ -138,6 +138,7 @@ export default function Login() {
                   <button
                     key={type}
                     type="button"
+                    data-testid={`register-as-${type}`}
                     onClick={() => setAccountType(type)}
                     className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
                       accountType === type
@@ -160,6 +161,7 @@ export default function Login() {
                 <input
                   value={name}
                   onChange={e => setName(e.target.value)}
+                  data-testid="login-name"
                   autoComplete="name"
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent"
                 />
@@ -226,6 +228,7 @@ export default function Login() {
             </button>
             <button
               type="button"
+              data-testid="login-toggle-mode"
               onClick={() => setMode(isRegister ? "login" : "register")}
               className="w-full text-center text-sm text-primary hover:underline"
             >

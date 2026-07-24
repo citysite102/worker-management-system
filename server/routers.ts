@@ -1058,65 +1058,15 @@ export const appRouter = router({
       return { success: true } as const;
     }),
 
-    // ─── Email/密碼 註冊（公開；社群/OAuth 走 /api/oauth 與後續 P1 供應商）────────
-    register: publicProcedure
-      .input(
-        z.object({
-          email: z
-            .string()
-            .trim()
-            .toLowerCase()
-            .email("Email 格式不正確")
-            .max(320),
-          password: z.string().min(8, "密碼至少 8 碼").max(200),
-          accountType: z.enum(["worker", "employer"]),
-          name: z
-            .string()
-            .trim()
-            .max(100)
-            .optional()
-            .transform(s => s?.trim() || undefined),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        const existing = await getUserByEmail(input.email);
-        if (existing) {
-          throw new TRPCError({ code: "CONFLICT", message: "此 Email 已註冊" });
-        }
-        const openId = newLocalOpenId();
-        const passwordHash = await hashPassword(input.password);
-        const id = await createUser({
-          openId,
-          email: input.email,
-          name: input.name ?? null,
-          loginMethod: "email",
-          role: "user",
-          accountType: input.accountType,
-          passwordHash,
-          lastSignedIn: new Date(),
-        });
-        await issueSession(ctx.req, ctx.res, {
-          openId,
-          name: input.name ?? null,
-        });
-        // 清掉 dev bypass 抑制旗標（若有），讓本地開發登入後狀態乾淨。
-        ctx.res.clearCookie(DEV_BYPASS_OFF_COOKIE, {
-          ...getSessionCookieOptions(ctx.req),
-          maxAge: -1,
-        });
-        await logAudit(ctx, {
-          action: "auth.register",
-          entityType: "users",
-          entityId: id,
-          actorUserId: id,
-          meta: { accountType: input.accountType, loginMethod: "email" },
-        });
-        return { success: true, id, accountType: input.accountType } as const;
-      }),
+    // ─── Email/密碼 註冊：一律走信箱 OTP 兩步驟（見下方 requestEmailOtp /
+    //     verifyEmailOtpAndRegister）。舊的一步 auth.register 已移除，避免繞過
+    //     信箱驗證直接建立未驗證帳號（可被拿來搶註他人信箱）。
 
     // ─── 信箱 OTP 註冊：步驟 1／寄驗證碼（公開）────────────────────────────────
-    // 「先驗證才建帳號」：此步不寫 users，只寄碼。Email 已註冊即擋，避免列舉外
-    //  也避免白費寄信。見 docs/feature-email-otp-verification.md。
+    // 「先驗證才建帳號」：此步不寫 users，只寄碼。
+    // 注意：Email 已註冊會回 CONFLICT，等於揭露該信箱已註冊（沿用註冊流程慣例，
+    // 換取「打錯字馬上知道」的體驗）；登入端才嚴格不洩漏。之後若要收斂列舉風險，
+    // 可改為一律回 { sent: true } 並僅在信中提示。
     requestEmailOtp: publicProcedure
       .input(
         z.object({
@@ -1211,17 +1161,35 @@ export const appRouter = router({
         }
         const openId = newLocalOpenId();
         const passwordHash = await hashPassword(input.password);
-        const id = await createUser({
-          openId,
-          email: input.email,
-          name: input.name ?? null,
-          loginMethod: "email",
-          role: "user",
-          accountType: input.accountType,
-          passwordHash,
-          emailVerified: 1, // 已通過信箱驗證
-          lastSignedIn: new Date(),
-        });
+        let id: number;
+        try {
+          id = await createUser({
+            openId,
+            email: input.email,
+            name: input.name ?? null,
+            loginMethod: "email",
+            role: "user",
+            accountType: input.accountType,
+            passwordHash,
+            emailVerified: 1, // 已通過信箱驗證
+            lastSignedIn: new Date(),
+          });
+        } catch (e) {
+          // 上面的 getUserByEmail 檢查非原子；靠 users.email 唯一索引擋兩個
+          // 並行 verify 同時建帳號的競態，重複鍵一律當成 CONFLICT。
+          await consumeEmailOtp(otp.id);
+          if (
+            e &&
+            typeof e === "object" &&
+            (e as { code?: string }).code === "ER_DUP_ENTRY"
+          ) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "此 Email 已註冊",
+            });
+          }
+          throw e;
+        }
         await consumeEmailOtp(otp.id);
         await issueSession(ctx.req, ctx.res, {
           openId,

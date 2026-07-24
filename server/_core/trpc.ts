@@ -80,14 +80,19 @@ export const employerProcedure = protectedProcedure.use(
 
 // ─── 信箱驗證 gating ───────────────────────────────────────────────────────────
 // 關鍵動作（表達意向、張貼需求單）要求「以 Email/密碼註冊者需已驗證信箱」。
-// 只在 loginMethod === "email" 時檢查 emailVerified：手機（whatsapp）/社群帳號
-// loginMethod 非 email，不受影響；舊 Email 帳號於 migration 已回填 emailVerified=1。
+// 只在「一般使用者且 loginMethod === email」時檢查 emailVerified：
+//   - 手機（whatsapp）/社群帳號 loginMethod 非 email → 不受影響
+//   - 內部人員 staff/admin 一律放行（可能以 email provisioned 但不必走公開站驗證流程）
+//   - 舊 Email 帳號於 migration 已回填 emailVerified=1
 export const requireEmailVerified = t.middleware(async opts => {
   const { ctx, next } = opts;
+  const u = ctx.user;
   if (
-    ctx.user &&
-    ctx.user.loginMethod === "email" &&
-    ctx.user.emailVerified !== 1
+    u &&
+    u.role !== "staff" &&
+    u.role !== "admin" &&
+    u.loginMethod === "email" &&
+    u.emailVerified !== 1
   ) {
     throw new TRPCError({
       code: "FORBIDDEN",

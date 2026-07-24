@@ -35,12 +35,16 @@ export function getLastStubEmail(to: string): EmailMessage | undefined {
 
 let sender: EmailSender | null = null;
 
-/** 取得目前的寄信器。尚未接正式服務 → StubEmailSender；正式環境用 stub 會警示。 */
+/**
+ * 取得目前的寄信器。尚未接正式服務 → StubEmailSender（僅開發/測試）。
+ * 正式環境沒有真實寄信器時直接丟錯，避免「信悄悄沒寄出、驗證碼永遠收不到」
+ * 且明碼驗證碼還累積在記憶體裡。接了正式服務商後改在此回傳其實作。
+ */
 export function getEmailSender(): EmailSender {
   if (sender) return sender;
   if (process.env.NODE_ENV === "production") {
-    console.error(
-      "[email] 未設定正式寄信服務，回退為 StubEmailSender —— 信件不會真的寄出！"
+    throw new Error(
+      "[email] 正式環境未設定寄信服務，拒絕以 StubEmailSender 靜默失敗"
     );
   }
   sender = new StubEmailSender();

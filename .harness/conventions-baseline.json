@@ -5,7 +5,6 @@
     "auth.logout",
     "auth.me",
     "auth.oauthProviders",
-    "auth.register",
     "auth.requestEmailOtp",
     "auth.verifyEmailOtpAndRegister",
     "auth.whatsappEnabled",

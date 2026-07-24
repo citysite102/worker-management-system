@@ -15,7 +15,8 @@ export const users = mysqlTable(
     id: int("id").autoincrement().primaryKey(),
     openId: varchar("openId", { length: 64 }).notNull().unique(),
     name: text("name"),
-    email: varchar("email", { length: 320 }),
+    // email 唯一（DB 層擋重複註冊的競態；NULL 可重複，手機/未填 email 帳號不受限）。
+    email: varchar("email", { length: 320 }).unique(),
     loginMethod: varchar("loginMethod", { length: 64 }),
     // ── 角色與帳號型別（P0 多角色）──────────────────────────────────────────────
     // role：內部人員權限層級（staff 於 P0 新增，附加於末尾以利相容 migration）

@@ -29,6 +29,11 @@ vi.mock("./db", () => ({
   createAuditLog: vi.fn().mockResolvedValue(undefined),
   getUserByEmail: vi.fn().mockResolvedValue(undefined),
   createUser: vi.fn().mockResolvedValue(501),
+  createEmailOtp: vi.fn().mockResolvedValue(801),
+  getLatestEmailOtp: vi.fn().mockResolvedValue(undefined),
+  bumpEmailOtpAttempts: vi.fn().mockResolvedValue(undefined),
+  consumeEmailOtp: vi.fn().mockResolvedValue(undefined),
+  deleteEmailOtps: vi.fn().mockResolvedValue(undefined),
 }));
 
 // 隔離 session 發放（不簽 JWT、不設 cookie）
@@ -325,49 +330,67 @@ describe("customers.create validation", () => {
   });
 });
 
-describe("auth.register / auth.login（Email/密碼）", () => {
+describe("auth 信箱 OTP 註冊 / auth.login（Email/密碼）", () => {
   async function db() {
     return await import("./db");
   }
 
-  it("register：新 Email 建立帳號、回傳 id 與 accountType", async () => {
+  it("requestEmailOtp：新 Email → 產碼、寄碼、回 { sent: true }", async () => {
     const d = await db();
     vi.mocked(d.getUserByEmail).mockResolvedValueOnce(undefined);
-    vi.mocked(d.createUser).mockResolvedValueOnce(501);
     const caller = appRouter.createCaller(createCtx());
-    const r = await caller.auth.register({
-      email: "New@Example.com",
-      password: "at-least-8",
-      accountType: "worker",
-    });
-    expect(r).toEqual({ success: true, id: 501, accountType: "worker" });
-    // email 應被正規化為小寫
-    expect(vi.mocked(d.createUser).mock.calls[0][0]).toMatchObject({
+    const r = await caller.auth.requestEmailOtp({ email: "New@Example.com" });
+    expect(r).toEqual({ sent: true });
+    // 單一有效碼：先刪舊碼再建新碼，且 email 正規化為小寫
+    expect(vi.mocked(d.deleteEmailOtps)).toHaveBeenCalledWith(
+      "new@example.com"
+    );
+    expect(vi.mocked(d.createEmailOtp).mock.calls[0][0]).toMatchObject({
       email: "new@example.com",
-      loginMethod: "email",
-      accountType: "worker",
     });
   });
 
-  it("register：Email 已存在 → CONFLICT", async () => {
+  it("requestEmailOtp：Email 已存在 → CONFLICT，不寄碼", async () => {
     const d = await db();
+    vi.mocked(d.createEmailOtp).mockClear(); // 清掉前一個 test 的呼叫紀錄
     vi.mocked(d.getUserByEmail).mockResolvedValueOnce({ id: 9 } as never);
     const caller = appRouter.createCaller(createCtx());
     await expect(
-      caller.auth.register({
-        email: "dup@example.com",
-        password: "at-least-8",
-        accountType: "employer",
-      })
+      caller.auth.requestEmailOtp({ email: "dup@example.com" })
     ).rejects.toThrow("此 Email 已註冊");
+    expect(vi.mocked(d.createEmailOtp)).not.toHaveBeenCalled();
   });
 
-  it("register：密碼太短被擋", async () => {
+  it("verifyEmailOtpAndRegister：沒有有效碼 → UNAUTHORIZED，不建帳號", async () => {
+    const d = await db();
+    vi.mocked(d.getLatestEmailOtp).mockResolvedValueOnce(undefined);
     const caller = appRouter.createCaller(createCtx());
     await expect(
-      caller.auth.register({
+      caller.auth.verifyEmailOtpAndRegister({
         email: "a@b.com",
+        code: "123456",
+        password: "at-least-8",
+        accountType: "worker",
+      })
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(vi.mocked(d.createUser)).not.toHaveBeenCalled();
+  });
+
+  it("verifyEmailOtpAndRegister：密碼太短 / 碼非 6 位被輸入驗證擋下", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    await expect(
+      caller.auth.verifyEmailOtpAndRegister({
+        email: "a@b.com",
+        code: "123456",
         password: "short",
+        accountType: "worker",
+      })
+    ).rejects.toThrow();
+    await expect(
+      caller.auth.verifyEmailOtpAndRegister({
+        email: "a@b.com",
+        code: "12",
+        password: "at-least-8",
         accountType: "worker",
       })
     ).rejects.toThrow();

@@ -128,11 +128,6 @@ import {
   bumpPhoneOtpAttempts,
   consumePhoneOtp,
   deletePhoneOtps,
-  createEmailOtp,
-  getLatestEmailOtp,
-  bumpEmailOtpAttempts,
-  consumeEmailOtp,
-  deleteEmailOtps,
 } from "./db";
 import {
   evaluateHealthChecks,
@@ -145,27 +140,24 @@ import {
 } from "@shared/healthCheck";
 import { storagePut } from "./storage";
 import { logAudit } from "./_core/audit";
-import { getUserByEmail, createUser } from "./db";
-import { hashPassword, verifyPassword } from "./_core/auth/password";
-import { issueSession, newLocalOpenId } from "./_core/auth/session";
+import { getUserByEmail } from "./db";
+import { verifyPassword } from "./_core/auth/password";
+import { issueSession } from "./_core/auth/session";
 import { enabledProviders } from "./_core/auth/oauthProviders";
 import {
   whatsappEnabled,
   generateOtp,
   hashOtp,
-  verifyOtpHash,
   normalizePhone as normalizeWaPhone,
   sendOtp,
   resolveWhatsappUser,
   OTP_TTL_MS,
-  OTP_MAX_ATTEMPTS,
 } from "./_core/auth/whatsapp";
+import { checkOtp } from "./_core/auth/otp";
 import {
-  EMAIL_OTP_TTL_MS,
-  EMAIL_OTP_RESEND_COOLDOWN_MS,
-  devFixedOtp,
-  sendEmailOtp,
-} from "./_core/auth/emailOtp";
+  requestEmailRegistrationOtp,
+  verifyEmailOtpAndCreateUser,
+} from "./_core/auth/emailRegister";
 import {
   validateTwPhone,
   normalizePhone,
@@ -1020,21 +1012,21 @@ export const appRouter = router({
           });
         }
         const otp = await getLatestPhoneOtp(phone);
-        if (
-          !otp ||
-          otp.consumedAt ||
-          otp.attempts >= OTP_MAX_ATTEMPTS ||
-          otp.expiresAt.getTime() < Date.now()
-        )
+        const verdict = checkOtp(otp, input.code, phone);
+        if (!verdict.ok) {
+          if (verdict.reason === "bad_code" && otp) {
+            await bumpPhoneOtpAttempts(otp.id);
+            throw new TRPCError({
+              code: "UNAUTHORIZED",
+              message: "驗證碼錯誤",
+            });
+          }
           throw new TRPCError({
             code: "UNAUTHORIZED",
             message: "驗證碼無效或已過期，請重新取得",
           });
-        if (!verifyOtpHash(input.code, phone, otp.codeHash)) {
-          await bumpPhoneOtpAttempts(otp.id);
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "驗證碼錯誤" });
         }
-        await consumePhoneOtp(otp.id);
+        await consumePhoneOtp(otp!.id);
         const user = await resolveWhatsappUser(phone);
         await issueSession(ctx.req, ctx.res, {
           openId: user.openId,
@@ -1078,35 +1070,7 @@ export const appRouter = router({
             .max(320),
         })
       )
-      .mutation(async ({ input }) => {
-        const existing = await getUserByEmail(input.email);
-        if (existing) {
-          throw new TRPCError({ code: "CONFLICT", message: "此 Email 已註冊" });
-        }
-        // 防轟炸：同信箱 30 秒內僅發一次（開發/E2E 固定碼模式不限制，便於測試）。
-        if (!devFixedOtp()) {
-          const last = await getLatestEmailOtp(input.email);
-          if (
-            last &&
-            !last.consumedAt &&
-            Date.now() - last.createdAt.getTime() < EMAIL_OTP_RESEND_COOLDOWN_MS
-          ) {
-            throw new TRPCError({
-              code: "TOO_MANY_REQUESTS",
-              message: "驗證碼剛寄出，請稍候再試",
-            });
-          }
-        }
-        const code = devFixedOtp() ?? generateOtp();
-        await deleteEmailOtps(input.email); // 單一有效碼
-        await createEmailOtp({
-          email: input.email,
-          codeHash: hashOtp(code, input.email),
-          expiresAt: new Date(Date.now() + EMAIL_OTP_TTL_MS),
-        });
-        await sendEmailOtp(input.email, code);
-        return { sent: true } as const;
-      }),
+      .mutation(({ input }) => requestEmailRegistrationOtp(input.email)),
 
     // ─── 信箱 OTP 註冊：步驟 2／驗碼並建帳號（公開）────────────────────────────
     // 驗碼成功才真正建立帳號（emailVerified=1）並發 session。取代舊 register 的前端呼叫。
@@ -1134,66 +1098,11 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ ctx, input }) => {
-        const otp = await getLatestEmailOtp(input.email);
-        if (
-          !otp ||
-          otp.consumedAt ||
-          otp.attempts >= OTP_MAX_ATTEMPTS ||
-          otp.expiresAt.getTime() < Date.now()
-        ) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "驗證碼無效或已過期，請重新取得",
-          });
-        }
-        if (!verifyOtpHash(input.code, input.email, otp.codeHash)) {
-          await bumpEmailOtpAttempts(otp.id);
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "驗證碼不正確",
-          });
-        }
-        // 驗碼成功 → 再次確認 Email 仍可用（防兩步之間被搶註的競態）。
-        const existing = await getUserByEmail(input.email);
-        if (existing) {
-          await consumeEmailOtp(otp.id);
-          throw new TRPCError({ code: "CONFLICT", message: "此 Email 已註冊" });
-        }
-        const openId = newLocalOpenId();
-        const passwordHash = await hashPassword(input.password);
-        let id: number;
-        try {
-          id = await createUser({
-            openId,
-            email: input.email,
-            name: input.name ?? null,
-            loginMethod: "email",
-            role: "user",
-            accountType: input.accountType,
-            passwordHash,
-            emailVerified: 1, // 已通過信箱驗證
-            lastSignedIn: new Date(),
-          });
-        } catch (e) {
-          // 上面的 getUserByEmail 檢查非原子；靠 users.email 唯一索引擋兩個
-          // 並行 verify 同時建帳號的競態，重複鍵一律當成 CONFLICT。
-          await consumeEmailOtp(otp.id);
-          if (
-            e &&
-            typeof e === "object" &&
-            (e as { code?: string }).code === "ER_DUP_ENTRY"
-          ) {
-            throw new TRPCError({
-              code: "CONFLICT",
-              message: "此 Email 已註冊",
-            });
-          }
-          throw e;
-        }
-        await consumeEmailOtp(otp.id);
+        // 深模組負責驗碼＋建帳號；路由只做 ctx 相關的收尾（發 session／清 cookie／稽核）。
+        const user = await verifyEmailOtpAndCreateUser(input);
         await issueSession(ctx.req, ctx.res, {
-          openId,
-          name: input.name ?? null,
+          openId: user.openId,
+          name: user.name,
         });
         ctx.res.clearCookie(DEV_BYPASS_OFF_COOKIE, {
           ...getSessionCookieOptions(ctx.req),
@@ -1202,15 +1111,19 @@ export const appRouter = router({
         await logAudit(ctx, {
           action: "auth.register",
           entityType: "users",
-          entityId: id,
-          actorUserId: id,
+          entityId: user.id,
+          actorUserId: user.id,
           meta: {
-            accountType: input.accountType,
+            accountType: user.accountType,
             loginMethod: "email",
             emailVerified: true,
           },
         });
-        return { success: true, id, accountType: input.accountType } as const;
+        return {
+          success: true,
+          id: user.id,
+          accountType: user.accountType,
+        } as const;
       }),
 
     // ─── Email/密碼 登入（公開）───────────────────────────────────────────────

@@ -31,3 +31,43 @@ export function verifyOtpHash(
     diff |= h.charCodeAt(i) ^ storedHash.charCodeAt(i);
   return diff === 0;
 }
+
+// ─── OTP 有效性判斷（手機 / 信箱共用的純判斷，避免各驗證流程各抄一份）──────────
+/** 一筆已發出的 OTP 紀錄（phoneOtps / emailOtps 皆符合此形狀）。 */
+export interface OtpRecordLike {
+  codeHash: string;
+  expiresAt: Date;
+  attempts: number;
+  consumedAt: Date | null;
+}
+
+/**
+ * 驗證裁決：
+ * - `ok`：碼正確且未過期/未用/未超次 → 呼叫端可消費。
+ * - `invalid_or_expired`：無碼 / 已用 / 超次 / 過期 → 呼叫端不必累加次數。
+ * - `bad_code`：紀錄有效但碼不符 → 呼叫端應累加 attempts。
+ */
+export type OtpVerdict =
+  | { ok: true }
+  | { ok: false; reason: "invalid_or_expired" }
+  | { ok: false; reason: "bad_code" };
+
+/** 純判斷：給一筆 OTP 紀錄、使用者輸入的碼與 salt（手機號/信箱），回裁決。 */
+export function checkOtp(
+  record: OtpRecordLike | null | undefined,
+  code: string,
+  salt: string
+): OtpVerdict {
+  if (
+    !record ||
+    record.consumedAt ||
+    record.attempts >= OTP_MAX_ATTEMPTS ||
+    record.expiresAt.getTime() < Date.now()
+  ) {
+    return { ok: false, reason: "invalid_or_expired" };
+  }
+  if (!verifyOtpHash(code, salt, record.codeHash)) {
+    return { ok: false, reason: "bad_code" };
+  }
+  return { ok: true };
+}

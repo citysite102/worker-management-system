@@ -12,9 +12,6 @@ import {
 import { TRPCError } from "@trpc/server";
 import {
   getAllManagers,
-  createManager,
-  deleteManager,
-  countDependentsByManager,
   getAllWorkers,
   getWorkerById,
   getWorkerByPermitNo,
@@ -111,9 +108,6 @@ import {
   getPendingExperiences,
   getEmploymentsByWorker,
   countApprovedPostingsByEmployer,
-  getAllProfiles,
-  searchWorkersForReconcile,
-  setProfileWorkerLink,
   getEmploymentById,
   getRatingByEmployment,
   createRating,
@@ -157,6 +151,8 @@ import { resolveTarget } from "./matchTarget";
 import { loadOwnedOrThrow, recordModeration } from "./mutationGuards";
 import { approvePostingToCase } from "./moderation";
 import { authRouter } from "./routers/auth";
+import { managersRouter } from "./routers/managers";
+import { reconcileRouter } from "./routers/reconcile";
 
 /** 需求單 P1 職缺欄位（見 docs/feature-demand-form-p1.md）；create/update 共用。 */
 // 空字串→null（可清空既有值，與 customers.publicDisplayName 一致），非空則 trim。
@@ -1193,35 +1189,7 @@ export const appRouter = router({
   }),
 
   // ─── Managers ──────────────────────────────────────────────────────────────
-  managers: router({
-    list: staffProcedure.query(async () => getAllManagers()),
-    create: staffProcedure
-      .input(z.object({ name: z.string().trim().min(1, "名稱為必填").max(50) }))
-      .mutation(async ({ input }) => {
-        const id = await createManager({ name: input.name });
-        return { success: true, id };
-      }),
-    delete: staffProcedure
-      .input(z.object({ id: z.number().int().positive() }))
-      .mutation(async ({ input }) => {
-        // 還有東西指派給這位負責人就不許刪。資料庫層的 FK 也會擋，但那會噴出
-        // 使用者看不懂的原始 SQL 錯誤，所以這裡先給可讀的訊息。
-        const deps = await countDependentsByManager(input.id);
-        const parts = [
-          deps.workers > 0 ? `${deps.workers} 位移工` : null,
-          deps.customers > 0 ? `${deps.customers} 個雇主` : null,
-          deps.cases > 0 ? `${deps.cases} 個案件` : null,
-        ].filter(Boolean);
-        if (parts.length > 0) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: `此負責人名下還有 ${parts.join("、")}，請先改派後再刪除`,
-          });
-        }
-        await deleteManager(input.id);
-        return { success: true };
-      }),
-  }),
+  managers: managersRouter,
 
   // ─── Workers ───────────────────────────────────────────────────────────────
   workers: router({
@@ -4083,84 +4051,6 @@ export const appRouter = router({
   // ─── 客服：帳號勾稽（自助移工帳號 ↔ 既有名冊，P2 收尾）────────────────────
   // 把自助移工的公開履歷連到既有 workers.id，連結後找移工詳情才會帶出該移工的
   // 平台可信工作紀錄（case_employments）。搜尋名冊屬內部操作，staff 可見真實資料。
-  reconcile: router({
-    // 所有公開履歷 + 帳號資訊 + 目前連結的名冊移工（含其平台紀錄筆數）
-    profiles: staffProcedure.query(async () => {
-      const rows = await getAllProfiles();
-      return Promise.all(
-        rows.map(async p => {
-          const [u, linkedWorker] = await Promise.all([
-            getUserById(p.userId),
-            p.workerId ? getWorkerById(p.workerId) : Promise.resolve(undefined),
-          ]);
-          const records = p.workerId
-            ? await getEmploymentsByWorker(p.workerId)
-            : [];
-          return {
-            id: p.id,
-            alias: p.alias,
-            nationality: p.nationality,
-            jobType: p.jobType,
-            moderationStatus: p.moderationStatus,
-            publishStatus: p.publishStatus,
-            accountEmail: u?.email ?? null,
-            accountName: u?.name ?? null,
-            workerId: p.workerId,
-            linkedWorkerName: linkedWorker
-              ? (linkedWorker.nameCn ??
-                linkedWorker.nameEn ??
-                linkedWorker.name)
-              : null,
-            recordCount: records.length,
-          };
-        })
-      );
-    }),
-    // 以姓名/證號搜尋既有名冊（供選擇要連結的移工）
-    searchWorkers: staffProcedure
-      .input(z.object({ query: z.string().trim().min(1).max(50) }))
-      .query(async ({ input }) => searchWorkersForReconcile(input.query)),
-    // 連結：把公開履歷連到既有名冊 workers.id
-    link: staffProcedure
-      .input(
-        z.object({
-          profileId: z.number().int().positive(),
-          workerId: z.number().int().positive(),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        const [profile, worker] = await Promise.all([
-          getProfileById(input.profileId),
-          getWorkerById(input.workerId),
-        ]);
-        if (!profile)
-          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此履歷" });
-        if (!worker)
-          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此移工" });
-        await setProfileWorkerLink(input.profileId, input.workerId);
-        await logAudit(ctx, {
-          action: "reconcile.link",
-          entityType: "worker_public_profiles",
-          entityId: input.profileId,
-          meta: { workerId: input.workerId },
-        });
-        return { success: true } as const;
-      }),
-    // 解除連結
-    unlink: staffProcedure
-      .input(z.object({ profileId: z.number().int().positive() }))
-      .mutation(async ({ ctx, input }) => {
-        const profile = await getProfileById(input.profileId);
-        if (!profile)
-          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此履歷" });
-        await setProfileWorkerLink(input.profileId, null);
-        await logAudit(ctx, {
-          action: "reconcile.unlink",
-          entityType: "worker_public_profiles",
-          entityId: input.profileId,
-        });
-        return { success: true } as const;
-      }),
-  }),
+  reconcile: reconcileRouter,
 });
 export type AppRouter = typeof appRouter;

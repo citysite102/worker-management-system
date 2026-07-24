@@ -33,6 +33,7 @@
 每開一個新功能，**依下列六階段推進，不可跳步**；每階段結束前先自我把關，關鍵階段跑 Code Review 再往下。
 
 1. **整理規格** — 先在 `docs/` 寫或更新該功能的規格（目標、使用者旅程、狀態機、範圍與非目標、待拍板項）。規格是後續測試與開發的唯一依據；不清楚處先與使用者確認，勿偷偷假設。
+   - **承重未知數先 grill**：若功能有「載體是哪張表／要不要新模型／權限與隱私邊界」這類會影響資料表與架構的地基決策，**先跑 `/grill-me`（grilling）跟使用者逐題釐清、並以既有程式碼查證，再定稿規格**。寧可多問，也不要照假設寫規格——一個錯誤的地基假設會讓整份規格與實作歪掉（前例：需求單載體險些誤判為 `jobPostings`，經 grilling 才確認是內部 `caseDemands`）。釐清結論寫進 `docs/` 並存進記憶。
 2. **確認資料庫欄位與影響範疇** — 對照 `drizzle/schema.ts` 盤點既有表/欄位，決定 additive 擴充或新表（沿用 int PK、`createdAt/updatedAt`、`YYYY-MM-DD` varchar 日期、int 表布林、外鍵索引慣例）；列出受影響的 procedure、前端頁面、migration 與部署順序（**先 migrate 再上程式碼**）。
 3. **先寫測試案例** — 依規格與權限矩陣先寫測試（`server/*.test.ts` 單元、`*.integration.test.ts` 真 DB、`vitest.client.config.ts` 前端元件、`e2e/*.spec.ts`）。涵蓋權限 gating、狀態轉移、邊界與去識別/隱私守衛。此時測試應為紅燈。
 4. **基於測試與規格開發** — 實作 schema/migration → procedure（角色中介層，勿新增 public）→ 前端（優先取用既有共用元件，禁硬編色碼，補 `data-testid`），逐步讓測試轉綠。

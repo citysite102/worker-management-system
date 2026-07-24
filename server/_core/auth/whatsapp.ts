@@ -2,11 +2,17 @@
 // 非 OAuth：輸入手機號 → 發 OTP（WhatsApp 訊息）→ 驗證 → 以手機號 resolve/建立帳號。
 // env 未設（token/phoneNumberId/template 缺）即停用（whatsappEnabled=false，路由/鈕隱藏）。
 // 設計文件：docs/feature-oauth-social-login.md「WhatsApp」節。
-import { createHmac, randomInt } from "node:crypto";
 import { getUserByPhone, createUser, markPhoneVerified } from "../../db";
+// OTP 產碼／HMAC 存碼／比對共用工具（手機與信箱共用）；re-export 維持既有匯入路徑。
+import {
+  OTP_TTL_MS,
+  OTP_MAX_ATTEMPTS,
+  generateOtp,
+  hashOtp,
+  verifyOtpHash,
+} from "./otp";
 
-export const OTP_TTL_MS = 5 * 60_000; // 5 分鐘
-export const OTP_MAX_ATTEMPTS = 5; // 同一碼最多驗證次數
+export { OTP_TTL_MS, OTP_MAX_ATTEMPTS, generateOtp, hashOtp, verifyOtpHash };
 
 interface WhatsappConfig {
   token: string;
@@ -33,31 +39,6 @@ export function whatsappConfig(): WhatsappConfig | null {
 
 export function whatsappEnabled(): boolean {
   return whatsappConfig() !== null;
-}
-
-/** 6 位數字 OTP（用 crypto，不用 Math.random）。 */
-export function generateOtp(): string {
-  return String(randomInt(0, 1_000_000)).padStart(6, "0");
-}
-
-/** 存 HMAC 後的碼（不存明碼）；同一碼綁手機號，避免跨號重放。 */
-export function hashOtp(code: string, phone: string): string {
-  const secret = process.env.JWT_SECRET ?? "dev-otp-secret";
-  return createHmac("sha256", secret).update(`${phone}:${code}`).digest("hex");
-}
-
-/** 常數時間比對（避免計時攻擊；長度相同才逐位比）。 */
-export function verifyOtpHash(
-  code: string,
-  phone: string,
-  storedHash: string
-): boolean {
-  const h = hashOtp(code, phone);
-  if (h.length !== storedHash.length) return false;
-  let diff = 0;
-  for (let i = 0; i < h.length; i++)
-    diff |= h.charCodeAt(i) ^ storedHash.charCodeAt(i);
-  return diff === 0;
 }
 
 /**

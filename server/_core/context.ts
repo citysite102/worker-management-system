@@ -57,6 +57,7 @@ export async function createContext(
       customerId: null,
       phone: null,
       phoneVerified: 0,
+      emailVerified: 1,
       preferredLang: null,
       passwordHash: null,
       createdAt: now,

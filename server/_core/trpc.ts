@@ -1,4 +1,4 @@
-import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '@shared/const';
+import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from "@shared/const";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
@@ -31,7 +31,7 @@ export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
-    if (!ctx.user || ctx.user.role !== 'admin') {
+    if (!ctx.user || ctx.user.role !== "admin") {
       throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
     }
 
@@ -41,7 +41,7 @@ export const adminProcedure = t.procedure.use(
         user: ctx.user,
       },
     });
-  }),
+  })
 );
 
 // ─── 公開媒合平台角色中介層（P0 WS3 / P1）──────────────────────────────────────
@@ -67,8 +67,7 @@ export const staffProcedure = protectedProcedure.use(
 export const employerProcedure = protectedProcedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
-    const isStaff =
-      ctx.user?.role === "staff" || ctx.user?.role === "admin";
+    const isStaff = ctx.user?.role === "staff" || ctx.user?.role === "admin";
     if (!ctx.user || (!isStaff && ctx.user.accountType !== "employer")) {
       throw new TRPCError({
         code: "FORBIDDEN",
@@ -79,12 +78,36 @@ export const employerProcedure = protectedProcedure.use(
   })
 );
 
+// ─── 信箱驗證 gating ───────────────────────────────────────────────────────────
+// 關鍵動作（表達意向、張貼需求單）要求「以 Email/密碼註冊者需已驗證信箱」。
+// 只在「一般使用者且 loginMethod === email」時檢查 emailVerified：
+//   - 手機（whatsapp）/社群帳號 loginMethod 非 email → 不受影響
+//   - 內部人員 staff/admin 一律放行（可能以 email provisioned 但不必走公開站驗證流程）
+//   - 舊 Email 帳號於 migration 已回填 emailVerified=1
+export const requireEmailVerified = t.middleware(async opts => {
+  const { ctx, next } = opts;
+  const u = ctx.user;
+  if (
+    u &&
+    u.role !== "staff" &&
+    u.role !== "admin" &&
+    u.loginMethod === "email" &&
+    u.emailVerified !== 1
+  ) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "請先完成信箱驗證才能使用此功能",
+    });
+  }
+  // 不覆寫 ctx（保留上游 protected/employer/worker 對 user 的非空收斂）。
+  return next();
+});
+
 /** 移工自助：需 accountType = worker（admin/staff 亦可代操作）。 */
 export const workerProcedure = protectedProcedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
-    const isStaff =
-      ctx.user?.role === "staff" || ctx.user?.role === "admin";
+    const isStaff = ctx.user?.role === "staff" || ctx.user?.role === "admin";
     if (!ctx.user || (!isStaff && ctx.user.accountType !== "worker")) {
       throw new TRPCError({
         code: "FORBIDDEN",

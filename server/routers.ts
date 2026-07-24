@@ -1,7 +1,4 @@
 import { z } from "zod";
-import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
-import { DEV_BYPASS_OFF_COOKIE } from "./_core/context";
 import { systemRouter } from "./_core/systemRouter";
 import {
   publicProcedure,
@@ -9,14 +6,12 @@ import {
   staffProcedure,
   employerProcedure,
   workerProcedure,
+  requireEmailVerified,
   router,
 } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import {
   getAllManagers,
-  createManager,
-  deleteManager,
-  countDependentsByManager,
   getAllWorkers,
   getWorkerById,
   getWorkerByPermitNo,
@@ -87,7 +82,6 @@ import {
   getJobPostingsByEmployer,
   updateJobPosting,
   getPendingJobPostings,
-  claimJobPostingForApproval,
   listApprovedJobPostings,
   listPublicOpenDemands,
   setDemandPublicHidden,
@@ -114,19 +108,11 @@ import {
   getPendingExperiences,
   getEmploymentsByWorker,
   countApprovedPostingsByEmployer,
-  getAllProfiles,
-  searchWorkersForReconcile,
-  setProfileWorkerLink,
   getEmploymentById,
   getRatingByEmployment,
   createRating,
   getRatingsByWorker,
   recomputeWorkerRating,
-  createPhoneOtp,
-  getLatestPhoneOtp,
-  bumpPhoneOtpAttempts,
-  consumePhoneOtp,
-  deletePhoneOtps,
 } from "./db";
 import {
   evaluateHealthChecks,
@@ -139,21 +125,6 @@ import {
 } from "@shared/healthCheck";
 import { storagePut } from "./storage";
 import { logAudit } from "./_core/audit";
-import { getUserByEmail, createUser } from "./db";
-import { hashPassword, verifyPassword } from "./_core/auth/password";
-import { issueSession, newLocalOpenId } from "./_core/auth/session";
-import { enabledProviders } from "./_core/auth/oauthProviders";
-import {
-  whatsappEnabled,
-  generateOtp,
-  hashOtp,
-  verifyOtpHash,
-  normalizePhone as normalizeWaPhone,
-  sendOtp,
-  resolveWhatsappUser,
-  OTP_TTL_MS,
-  OTP_MAX_ATTEMPTS,
-} from "./_core/auth/whatsapp";
 import {
   validateTwPhone,
   normalizePhone,
@@ -178,6 +149,10 @@ import {
 } from "@shared/publicView";
 import { resolveTarget } from "./matchTarget";
 import { loadOwnedOrThrow, recordModeration } from "./mutationGuards";
+import { approvePostingToCase } from "./moderation";
+import { authRouter } from "./routers/auth";
+import { managersRouter } from "./routers/managers";
+import { reconcileRouter } from "./routers/reconcile";
 
 /** 需求單 P1 職缺欄位（見 docs/feature-demand-form-p1.md）；create/update 共用。 */
 // 空字串→null（可清空既有值，與 customers.publicDisplayName 一致），非空則 trim。
@@ -713,43 +688,6 @@ function calcNextMedicalExamDate(
 }
 
 // ─── 公開媒合平台輔助（P1）────────────────────────────────────────────────────
-type MarketplaceQualType =
-  | "caregiver"
-  | "domestic_helper"
-  | "manufacturing"
-  | "agriculture"
-  | "construction"
-  | "white_collar"
-  | "intermediate"
-  | "overseas_student";
-
-/** 內部職類 → 案件命名用中文標籤。 */
-const QUAL_TYPE_LABEL: Record<MarketplaceQualType, string> = {
-  caregiver: "看護",
-  domestic_helper: "幫傭",
-  manufacturing: "製造業",
-  agriculture: "農業",
-  construction: "營造業",
-  white_collar: "白領",
-  intermediate: "中階技術",
-  overseas_student: "僑外生",
-};
-
-/** 需求單轉 case 時，依職類推斷案件資格類別（勞基法內外 / 專業評點）。 */
-function inferQualCategory(
-  qualType: MarketplaceQualType
-): "labor_in" | "labor_out" | "professional" {
-  if (
-    qualType === "white_collar" ||
-    qualType === "overseas_student" ||
-    qualType === "intermediate"
-  )
-    return "professional";
-  if (qualType === "caregiver" || qualType === "domestic_helper")
-    return "labor_out";
-  return "labor_in";
-}
-
 /** 雇主張貼／編輯需求單的共用欄位（規格 §7.3：職類/地點/人數/聘僱型態必填）。 */
 const jobPostingInput = z.object({
   jobType: z.enum([
@@ -947,202 +885,7 @@ const ACTIVE_MEMBER_STAGES = [
 
 export const appRouter = router({
   system: systemRouter,
-  auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
-    // 已啟用的社群登入 provider（憑證設定與否決定）；登入頁未登入即需，故 public。
-    oauthProviders: publicProcedure.query(() => enabledProviders()),
-    // WhatsApp OTP 是否啟用（前端決定是否顯示手機登入）。
-    whatsappEnabled: publicProcedure.query(() => whatsappEnabled()),
-    // 取得 OTP：發碼到手機（WhatsApp）。不揭露手機是否已註冊（一律回 sent）。
-    whatsappRequestOtp: publicProcedure
-      .input(z.object({ phone: z.string().trim().min(6).max(30) }))
-      .mutation(async ({ input }) => {
-        if (!whatsappEnabled())
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "WhatsApp 登入未啟用",
-          });
-        let phone: string;
-        try {
-          phone = normalizeWaPhone(input.phone);
-        } catch {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "手機號格式不正確",
-          });
-        }
-        const code = generateOtp();
-        await deletePhoneOtps(phone); // 單一有效碼
-        await createPhoneOtp({
-          phone,
-          codeHash: hashOtp(code, phone),
-          expiresAt: new Date(Date.now() + OTP_TTL_MS),
-        });
-        await sendOtp(phone, code);
-        return { sent: true } as const;
-      }),
-    // 驗證 OTP：成功即以手機號 resolve/建立帳號並發 session。
-    whatsappVerifyOtp: publicProcedure
-      .input(
-        z.object({
-          phone: z.string().trim().min(6).max(30),
-          code: z
-            .string()
-            .trim()
-            .regex(/^\d{6}$/, "驗證碼為 6 位數字"),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        if (!whatsappEnabled())
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "WhatsApp 登入未啟用",
-          });
-        let phone: string;
-        try {
-          phone = normalizeWaPhone(input.phone);
-        } catch {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "手機號格式不正確",
-          });
-        }
-        const otp = await getLatestPhoneOtp(phone);
-        if (
-          !otp ||
-          otp.consumedAt ||
-          otp.attempts >= OTP_MAX_ATTEMPTS ||
-          otp.expiresAt.getTime() < Date.now()
-        )
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "驗證碼無效或已過期，請重新取得",
-          });
-        if (!verifyOtpHash(input.code, phone, otp.codeHash)) {
-          await bumpPhoneOtpAttempts(otp.id);
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "驗證碼錯誤" });
-        }
-        await consumePhoneOtp(otp.id);
-        const user = await resolveWhatsappUser(phone);
-        await issueSession(ctx.req, ctx.res, {
-          openId: user.openId,
-          name: user.name,
-        });
-        return { ok: true } as const;
-      }),
-    logout: publicProcedure.mutation(async ({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      // 本地開發 bypass 模式：不設抑制旗標的話，context 會在下一個請求立刻重新
-      // 注入假 admin，讓登出看起來「完全沒作用」。設 dev_bypass_off 抑制注入，
-      // 直到重新登入（login/register 會清掉）或清 cookie。
-      if (
-        process.env.NODE_ENV !== "production" &&
-        process.env.DEV_AUTH_BYPASS === "1"
-      ) {
-        ctx.res.cookie(DEV_BYPASS_OFF_COOKIE, "1", cookieOptions);
-      }
-      await logAudit(ctx, { action: "auth.logout" });
-      return { success: true } as const;
-    }),
-
-    // ─── Email/密碼 註冊（公開；社群/OAuth 走 /api/oauth 與後續 P1 供應商）────────
-    register: publicProcedure
-      .input(
-        z.object({
-          email: z
-            .string()
-            .trim()
-            .toLowerCase()
-            .email("Email 格式不正確")
-            .max(320),
-          password: z.string().min(8, "密碼至少 8 碼").max(200),
-          accountType: z.enum(["worker", "employer"]),
-          name: z
-            .string()
-            .trim()
-            .max(100)
-            .optional()
-            .transform(s => s?.trim() || undefined),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        const existing = await getUserByEmail(input.email);
-        if (existing) {
-          throw new TRPCError({ code: "CONFLICT", message: "此 Email 已註冊" });
-        }
-        const openId = newLocalOpenId();
-        const passwordHash = await hashPassword(input.password);
-        const id = await createUser({
-          openId,
-          email: input.email,
-          name: input.name ?? null,
-          loginMethod: "email",
-          role: "user",
-          accountType: input.accountType,
-          passwordHash,
-          lastSignedIn: new Date(),
-        });
-        await issueSession(ctx.req, ctx.res, {
-          openId,
-          name: input.name ?? null,
-        });
-        // 清掉 dev bypass 抑制旗標（若有），讓本地開發登入後狀態乾淨。
-        ctx.res.clearCookie(DEV_BYPASS_OFF_COOKIE, {
-          ...getSessionCookieOptions(ctx.req),
-          maxAge: -1,
-        });
-        await logAudit(ctx, {
-          action: "auth.register",
-          entityType: "users",
-          entityId: id,
-          actorUserId: id,
-          meta: { accountType: input.accountType, loginMethod: "email" },
-        });
-        return { success: true, id, accountType: input.accountType } as const;
-      }),
-
-    // ─── Email/密碼 登入（公開）───────────────────────────────────────────────
-    login: publicProcedure
-      .input(
-        z.object({
-          email: z
-            .string()
-            .trim()
-            .toLowerCase()
-            .email("Email 格式不正確")
-            .max(320),
-          password: z.string().min(1).max(200),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        const user = await getUserByEmail(input.email);
-        const ok =
-          user && (await verifyPassword(input.password, user.passwordHash));
-        // 不區分「帳號不存在」與「密碼錯誤」，避免洩漏 email 是否註冊
-        if (!user || !ok) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "帳號或密碼錯誤",
-          });
-        }
-        await issueSession(ctx.req, ctx.res, {
-          openId: user.openId,
-          name: user.name,
-        });
-        // 清掉 dev bypass 抑制旗標（若有），讓本地開發登入後狀態乾淨。
-        ctx.res.clearCookie(DEV_BYPASS_OFF_COOKIE, {
-          ...getSessionCookieOptions(ctx.req),
-          maxAge: -1,
-        });
-        await logAudit(ctx, {
-          action: "auth.login",
-          actorUserId: user.id,
-          meta: { loginMethod: "email" },
-        });
-        return { success: true } as const;
-      }),
-  }),
+  auth: authRouter,
 
   // ─── Dashboard（統計總覽）────────────────────────────────────────────────────
   dashboard: router({
@@ -1446,35 +1189,7 @@ export const appRouter = router({
   }),
 
   // ─── Managers ──────────────────────────────────────────────────────────────
-  managers: router({
-    list: staffProcedure.query(async () => getAllManagers()),
-    create: staffProcedure
-      .input(z.object({ name: z.string().trim().min(1, "名稱為必填").max(50) }))
-      .mutation(async ({ input }) => {
-        const id = await createManager({ name: input.name });
-        return { success: true, id };
-      }),
-    delete: staffProcedure
-      .input(z.object({ id: z.number().int().positive() }))
-      .mutation(async ({ input }) => {
-        // 還有東西指派給這位負責人就不許刪。資料庫層的 FK 也會擋，但那會噴出
-        // 使用者看不懂的原始 SQL 錯誤，所以這裡先給可讀的訊息。
-        const deps = await countDependentsByManager(input.id);
-        const parts = [
-          deps.workers > 0 ? `${deps.workers} 位移工` : null,
-          deps.customers > 0 ? `${deps.customers} 個雇主` : null,
-          deps.cases > 0 ? `${deps.cases} 個案件` : null,
-        ].filter(Boolean);
-        if (parts.length > 0) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: `此負責人名下還有 ${parts.join("、")}，請先改派後再刪除`,
-          });
-        }
-        await deleteManager(input.id);
-        return { success: true };
-      }),
-  }),
+  managers: managersRouter,
 
   // ─── Workers ───────────────────────────────────────────────────────────────
   workers: router({
@@ -3300,6 +3015,7 @@ export const appRouter = router({
       }),
     // 建立需求單（submit=true 直接送審，否則存草稿）
     createPosting: employerProcedure
+      .use(requireEmailVerified)
       .input(jobPostingInput.extend({ submit: z.boolean().default(true) }))
       .mutation(async ({ ctx, input }) => {
         const { submit, ...data } = input;
@@ -3420,100 +3136,8 @@ export const appRouter = router({
             .transform(s => s?.trim() || undefined),
         })
       )
-      .mutation(async ({ ctx, input }) => {
-        const posting = await getJobPostingById(input.id);
-        if (!posting)
-          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此需求單" });
-        if (posting.status !== "pending_review")
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "此需求單非待審狀態，無法審核",
-          });
-
-        // 原子搶佔：把狀態標成 approved。兩個 staff 同時通過時只有一個搶得到，
-        // 另一個 claimed=false → 擋下，避免重複建立 case。
-        const claimed = await claimJobPostingForApproval(input.id);
-        if (!claimed)
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "此需求單已被處理，請重新整理",
-          });
-
-        try {
-          // 1) 決定雇主 customer：已勾稽用既有；否則自動建立一筆待驗證雇主 stub
-          let customerId = posting.customerId;
-          if (!customerId) {
-            const employer = await getUserById(posting.employerUserId);
-            customerId = await createCustomer({
-              employerType: "company",
-              name: employer?.name || `公開站雇主 #${posting.employerUserId}`,
-              contractStatus: "negotiating",
-              pricingTier: "standard",
-              managerId: input.managerId,
-              notes: "由公開站需求單審核通過時自動建立（待客服勾稽/驗證）。",
-            });
-          }
-
-          // 2) 建立案件（帶入公開縣市，供找工作頁顯示地點）
-          const jobLabel = QUAL_TYPE_LABEL[posting.jobType];
-          const caseName = input.caseName || `${jobLabel}－${posting.city}`;
-          const caseId = await createCase({
-            customerId,
-            name: caseName,
-            managerId: input.managerId,
-            status: "in_progress",
-            publicCity: posting.city,
-          });
-
-          // 3) 建立案件資格 + 媒合需求。
-          //    這張 demand 於公開站隱藏（publicHidden=1）：此職缺已由 job_posting
-          //    以 source="posting" 呈現；若 demand 也曝光會在找工作頁重複一張卡。
-          const qualId = await createQualification({
-            caseId,
-            label: `${jobLabel}（公開需求單）`,
-            category: inferQualCategory(posting.jobType),
-            qualType: posting.jobType,
-            quotaTotal: posting.headcount,
-            applicationStatus: "preparing",
-          });
-          await createDemand({
-            caseId,
-            label: `${jobLabel}－${posting.city}`,
-            qualificationId: qualId,
-            qualType: posting.jobType,
-            neededCount: posting.headcount,
-            status: "open",
-            publicHidden: 1,
-          });
-
-          // 4) 回填 case 連結與上架時間（狀態已於 claim 設為 approved）
-          await updateJobPosting(input.id, {
-            caseId,
-            publishedAt: new Date(),
-            rejectReason: null,
-          });
-          await recordModeration(
-            ctx,
-            {
-              entityType: "job_posting",
-              entityId: input.id,
-              action: "approve",
-            },
-            {
-              action: "moderation.posting.approve",
-              entityType: "job_postings",
-              meta: { caseId, customerId },
-            }
-          );
-          return { success: true, caseId } as const;
-        } catch (err) {
-          // 建 case 中途失敗 → 還原成待審，讓此單可重新審核（best-effort）。
-          await updateJobPosting(input.id, { status: "pending_review" }).catch(
-            () => {}
-          );
-          throw err;
-        }
-      }),
+      // 深模組負責「搶佔→建案件→回滾」的編排；路由只做輸入驗證與委派。
+      .mutation(({ ctx, input }) => approvePostingToCase(ctx, input)),
     // 退件（附結構化理由 + 補正說明；雇主可修改後重送）
     rejectPosting: staffProcedure
       .input(
@@ -3806,6 +3430,7 @@ export const appRouter = router({
     // 「我有興趣」→ 建立一筆媒合意向（match_request），交客服居中處理（P3）。
     // 雙方看不到彼此私密聯絡資訊；同一使用者對同一標的若已有進行中的意向則不重複建立。
     expressInterest: protectedProcedure
+      .use(requireEmailVerified)
       .input(
         z.object({
           source: z.enum(["posting", "demand"]),
@@ -4192,6 +3817,7 @@ export const appRouter = router({
       }),
     // 「送出媒合意向」→ match_request（targetType=worker），交客服居中。
     expressInterest: employerProcedure
+      .use(requireEmailVerified)
       .input(
         z.object({
           id: z.number().int().positive(),
@@ -4425,84 +4051,6 @@ export const appRouter = router({
   // ─── 客服：帳號勾稽（自助移工帳號 ↔ 既有名冊，P2 收尾）────────────────────
   // 把自助移工的公開履歷連到既有 workers.id，連結後找移工詳情才會帶出該移工的
   // 平台可信工作紀錄（case_employments）。搜尋名冊屬內部操作，staff 可見真實資料。
-  reconcile: router({
-    // 所有公開履歷 + 帳號資訊 + 目前連結的名冊移工（含其平台紀錄筆數）
-    profiles: staffProcedure.query(async () => {
-      const rows = await getAllProfiles();
-      return Promise.all(
-        rows.map(async p => {
-          const [u, linkedWorker] = await Promise.all([
-            getUserById(p.userId),
-            p.workerId ? getWorkerById(p.workerId) : Promise.resolve(undefined),
-          ]);
-          const records = p.workerId
-            ? await getEmploymentsByWorker(p.workerId)
-            : [];
-          return {
-            id: p.id,
-            alias: p.alias,
-            nationality: p.nationality,
-            jobType: p.jobType,
-            moderationStatus: p.moderationStatus,
-            publishStatus: p.publishStatus,
-            accountEmail: u?.email ?? null,
-            accountName: u?.name ?? null,
-            workerId: p.workerId,
-            linkedWorkerName: linkedWorker
-              ? (linkedWorker.nameCn ??
-                linkedWorker.nameEn ??
-                linkedWorker.name)
-              : null,
-            recordCount: records.length,
-          };
-        })
-      );
-    }),
-    // 以姓名/證號搜尋既有名冊（供選擇要連結的移工）
-    searchWorkers: staffProcedure
-      .input(z.object({ query: z.string().trim().min(1).max(50) }))
-      .query(async ({ input }) => searchWorkersForReconcile(input.query)),
-    // 連結：把公開履歷連到既有名冊 workers.id
-    link: staffProcedure
-      .input(
-        z.object({
-          profileId: z.number().int().positive(),
-          workerId: z.number().int().positive(),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        const [profile, worker] = await Promise.all([
-          getProfileById(input.profileId),
-          getWorkerById(input.workerId),
-        ]);
-        if (!profile)
-          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此履歷" });
-        if (!worker)
-          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此移工" });
-        await setProfileWorkerLink(input.profileId, input.workerId);
-        await logAudit(ctx, {
-          action: "reconcile.link",
-          entityType: "worker_public_profiles",
-          entityId: input.profileId,
-          meta: { workerId: input.workerId },
-        });
-        return { success: true } as const;
-      }),
-    // 解除連結
-    unlink: staffProcedure
-      .input(z.object({ profileId: z.number().int().positive() }))
-      .mutation(async ({ ctx, input }) => {
-        const profile = await getProfileById(input.profileId);
-        if (!profile)
-          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此履歷" });
-        await setProfileWorkerLink(input.profileId, null);
-        await logAudit(ctx, {
-          action: "reconcile.unlink",
-          entityType: "worker_public_profiles",
-          entityId: input.profileId,
-        });
-        return { success: true } as const;
-      }),
-  }),
+  reconcile: reconcileRouter,
 });
 export type AppRouter = typeof appRouter;

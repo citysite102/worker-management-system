@@ -64,6 +64,9 @@ export default defineConfig({
       // 自簽 session JWT 會帶入 appId=VITE_APP_ID，且 verifySession 要求 appId
       // 非空才算有效；E2E 未串 Manus，因此給一個非空值讓 Email/密碼 session 成立。
       VITE_APP_ID: process.env.VITE_APP_ID ?? "e2e-app",
+      // 信箱註冊 OTP：E2E 沒有真實信箱可收碼，故在非正式環境固定驗證碼，
+      // 讓測試能直接輸入。僅 NODE_ENV!==production 時生效（見 auth.requestEmailOtp）。
+      E2E_FIXED_OTP: "123456",
     },
   },
 });

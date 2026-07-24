@@ -5,6 +5,8 @@
 // 用法：元件內 `const { t } = useTranslation();` → `t("home.heroTitle")`。
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
+// 依功能就近的 i18n 命名空間（架構深化 D）：一個功能的四語言字串集中一檔。
+import { login as loginNs } from "./strings/login";
 
 export const SUPPORTED_LANGS = [
   { code: "zh-TW", label: "繁中" },
@@ -91,32 +93,6 @@ export const resources = {
             a: "介面支援繁體中文、English、Tiếng Việt、Bahasa Indonesia，履歷內容也提供機器翻譯，讓雙方都能用母語溝通。",
           },
         ],
-      },
-      login: {
-        title: "登入",
-        registerTitle: "註冊",
-        email: "電子郵件",
-        password: "密碼",
-        showPassword: "顯示密碼",
-        hidePassword: "隱藏密碼",
-        name: "姓名",
-        asWorker: "我是外籍工作者（求職）",
-        asEmployer: "我是雇主（找人）",
-        loginBtn: "登入",
-        registerBtn: "建立帳號",
-        toRegister: "還沒有帳號？註冊",
-        toLogin: "已有帳號？登入",
-        staffLogin: "員工登入",
-        orContinueWith: "或使用以下方式",
-        continueWith: "使用 {{provider}} 登入",
-        whatsappLogin: "用 WhatsApp 手機號登入",
-        sendCode: "發送驗證碼",
-        verifyCode: "驗證並登入",
-        changeNumber: "換號碼",
-        otpSent: "驗證碼已透過 WhatsApp 發送",
-        errorGeneric: "帳號或密碼錯誤",
-        successLogin: "登入成功",
-        successRegister: "帳號已建立",
       },
       jobs: {
         title: "找工作",
@@ -392,32 +368,6 @@ export const resources = {
             a: "The interface supports 繁體中文, English, Tiếng Việt and Bahasa Indonesia, and résumé content is machine-translated so both sides can communicate in their own language.",
           },
         ],
-      },
-      login: {
-        title: "Log in",
-        registerTitle: "Sign up",
-        email: "Email",
-        password: "Password",
-        showPassword: "Show password",
-        hidePassword: "Hide password",
-        name: "Name",
-        asWorker: "I'm a foreign worker (job seeker)",
-        asEmployer: "I'm an employer (hiring)",
-        loginBtn: "Log in",
-        registerBtn: "Create account",
-        toRegister: "No account? Sign up",
-        toLogin: "Have an account? Log in",
-        staffLogin: "Staff login",
-        orContinueWith: "Or continue with",
-        continueWith: "Continue with {{provider}}",
-        whatsappLogin: "Sign in with WhatsApp",
-        sendCode: "Send code",
-        verifyCode: "Verify & sign in",
-        changeNumber: "Change number",
-        otpSent: "Code sent via WhatsApp",
-        errorGeneric: "Incorrect email or password",
-        successLogin: "Logged in",
-        successRegister: "Account created",
       },
       jobs: {
         title: "Find Jobs",
@@ -702,32 +652,6 @@ export const resources = {
             a: "Giao diện hỗ trợ 繁體中文, English, Tiếng Việt và Bahasa Indonesia, nội dung hồ sơ cũng được dịch máy để cả hai bên giao tiếp bằng tiếng mẹ đẻ.",
           },
         ],
-      },
-      login: {
-        title: "Đăng nhập",
-        registerTitle: "Đăng ký",
-        email: "Email",
-        password: "Mật khẩu",
-        showPassword: "Hiện mật khẩu",
-        hidePassword: "Ẩn mật khẩu",
-        name: "Họ tên",
-        asWorker: "Tôi là lao động nước ngoài (tìm việc)",
-        asEmployer: "Tôi là nhà tuyển dụng",
-        loginBtn: "Đăng nhập",
-        registerBtn: "Tạo tài khoản",
-        toRegister: "Chưa có tài khoản? Đăng ký",
-        toLogin: "Đã có tài khoản? Đăng nhập",
-        staffLogin: "Đăng nhập nhân viên",
-        orContinueWith: "Hoặc tiếp tục với",
-        continueWith: "Tiếp tục với {{provider}}",
-        whatsappLogin: "Đăng nhập bằng số WhatsApp",
-        sendCode: "Gửi mã",
-        verifyCode: "Xác minh & đăng nhập",
-        changeNumber: "Đổi số",
-        otpSent: "Đã gửi mã qua WhatsApp",
-        errorGeneric: "Email hoặc mật khẩu không đúng",
-        successLogin: "Đăng nhập thành công",
-        successRegister: "Đã tạo tài khoản",
       },
       jobs: {
         title: "Tìm việc",
@@ -1015,32 +939,6 @@ export const resources = {
           },
         ],
       },
-      login: {
-        title: "Masuk",
-        registerTitle: "Daftar",
-        email: "Email",
-        password: "Kata sandi",
-        showPassword: "Tampilkan kata sandi",
-        hidePassword: "Sembunyikan kata sandi",
-        name: "Nama",
-        asWorker: "Saya pekerja asing (pencari kerja)",
-        asEmployer: "Saya pemberi kerja",
-        loginBtn: "Masuk",
-        registerBtn: "Buat akun",
-        toRegister: "Belum punya akun? Daftar",
-        toLogin: "Sudah punya akun? Masuk",
-        staffLogin: "Masuk staf",
-        orContinueWith: "Atau lanjutkan dengan",
-        continueWith: "Lanjutkan dengan {{provider}}",
-        whatsappLogin: "Masuk dengan nomor WhatsApp",
-        sendCode: "Kirim kode",
-        verifyCode: "Verifikasi & masuk",
-        changeNumber: "Ganti nomor",
-        otpSent: "Kode dikirim via WhatsApp",
-        errorGeneric: "Email atau kata sandi salah",
-        successLogin: "Berhasil masuk",
-        successRegister: "Akun dibuat",
-      },
       jobs: {
         title: "Cari Kerja",
         subtitle:
@@ -1256,6 +1154,12 @@ function initialLang(): LangCode {
   if (saved && SUPPORTED_LANGS.some(l => l.code === saved))
     return saved as LangCode;
   return "zh-TW";
+}
+
+// 把 per-feature 命名空間併回各語言的 common（目前先做 login；其餘功能字串仍內嵌於
+// 上方 resources，之後可同法逐一外移到 strings/*.ts）。keys.test.ts 仍守門 shape 一致。
+for (const { code } of SUPPORTED_LANGS) {
+  Object.assign(resources[code].common, loginNs[code]);
 }
 
 i18n.use(initReactI18next).init({

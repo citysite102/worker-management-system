@@ -212,11 +212,9 @@ class SDKServer {
       });
       const { openId, appId, name } = payload as Record<string, unknown>;
 
-      if (
-        !isNonEmptyString(openId) ||
-        !isNonEmptyString(appId) ||
-        !isNonEmptyString(name)
-      ) {
+      // openId 與 appId 是安全相關必要欄位；name 只是顯示用，允許為空
+      // （Email/密碼註冊時姓名為選填，無姓名帳號也必須能發出有效 session）。
+      if (!isNonEmptyString(openId) || !isNonEmptyString(appId)) {
         console.warn("[Auth] Session payload missing required fields");
         return null;
       }
@@ -224,7 +222,7 @@ class SDKServer {
       return {
         openId,
         appId,
-        name,
+        name: isNonEmptyString(name) ? name : "",
       };
     } catch (error) {
       console.warn("[Auth] Session verification failed", String(error));

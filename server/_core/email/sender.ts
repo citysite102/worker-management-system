@@ -1,7 +1,8 @@
 // ─── 寄信抽象介面（可插拔）────────────────────────────────────────────────────
 // 上層（信箱 OTP、未來的密碼重設/通知）只依賴 EmailSender 介面；正式服務商
-// （Resend/SendGrid/SMTP）之後各實作一個 EmailSender，靠環境變數挑選，不影響上層。
-// 本期只提供 StubEmailSender：把信件記在記憶體 + 印 log，讓開發/測試跑得動。
+// （Resend/SendGrid/SMTP）各實作一個 EmailSender，靠環境變數挑選，不影響上層。
+// 目前：設了 Resend 憑證 → 走 Resend；否則開發/測試用 StubEmailSender。
+import { ResendEmailSender, resendConfig } from "./resend";
 
 export interface EmailMessage {
   to: string;
@@ -36,15 +37,22 @@ export function getLastStubEmail(to: string): EmailMessage | undefined {
 let sender: EmailSender | null = null;
 
 /**
- * 取得目前的寄信器。尚未接正式服務 → StubEmailSender（僅開發/測試）。
- * 正式環境沒有真實寄信器時直接丟錯，避免「信悄悄沒寄出、驗證碼永遠收不到」
- * 且明碼驗證碼還累積在記憶體裡。接了正式服務商後改在此回傳其實作。
+ * 取得目前的寄信器（挑選順序）：
+ *   1. Resend（設了 RESEND_API_KEY + EMAIL_FROM）→ 真的寄信
+ *   2. 否則正式環境 → 丟錯，避免「信悄悄沒寄出、驗證碼永遠收不到」且明碼碼堆積
+ *   3. 否則（開發/測試）→ StubEmailSender
+ * 之後要加別家（SendGrid/SMTP）在這裡多一個分支即可，上層不動。
  */
 export function getEmailSender(): EmailSender {
   if (sender) return sender;
+  const resend = resendConfig();
+  if (resend) {
+    sender = new ResendEmailSender(resend);
+    return sender;
+  }
   if (process.env.NODE_ENV === "production") {
     throw new Error(
-      "[email] 正式環境未設定寄信服務，拒絕以 StubEmailSender 靜默失敗"
+      "[email] 正式環境未設定寄信服務（RESEND_API_KEY / EMAIL_FROM），拒絕以 StubEmailSender 靜默失敗"
     );
   }
   sender = new StubEmailSender();

@@ -7,7 +7,7 @@
 > - `users.email` **加唯一索引**，verify 端捕捉重複鍵 → CONFLICT（補強 §7.3 的競態）。
 > - `requireEmailVerified` 放行 staff/admin。
 > - OTP 效期 10 分鐘、6 碼、重寄冷卻 30 秒（§11-3）。
-> - 正式寄信服務商未接：`getEmailSender()` 於正式環境直接丟錯，不靜默回退。
+> - **寄信已接 Resend**：設 `RESEND_API_KEY` + `EMAIL_FROM` 即啟用真寄信；未設且正式環境 → 直接丟錯（不靜默回退），開發/測試 → StubEmailSender。見 §8。
 
 ## 1. 目標與背景
 
@@ -32,7 +32,7 @@
 
 **非目標**
 
-- 不做正式寄信服務商（Resend/SendGrid/SMTP）的整合與網域驗證 → 另立票，實作介面時再決定（§3 Q2）。
+- ~~不做正式寄信服務商整合~~ → **已接 Resend**（見 §8）；仍待維運：在 Resend 後台驗證寄件網域（SPF/DKIM）並設好 `RESEND_API_KEY` / `EMAIL_FROM`。SendGrid/SMTP 等其他家仍非目標。
 - 不驗證社群登入（Google/Facebook）的信箱 → 視為已驗證（§3 Q4）。
 - 不改動 WhatsApp 手機 OTP 流程，也不把兩者收攏成統一「聯絡方式驗證」（§3 Q4 的第三選項，未採用）。
 - 不做「忘記密碼／重設密碼」的信箱流程（雖可共用寄信介面，另立票）。
@@ -164,9 +164,13 @@ export interface EmailSender {
 }
 ```
 
-- **預設實作**：`StubEmailSender` — 開發/測試環境把信件內容（含 OTP）印到 log 或存進記憶體佇列，E2E 可讀取。**正式環境未設定寄信服務時，啟動即警示**（比照 `[OAuth] not configured` 的既有做法）。
-- 正式服務商（Resend/SendGrid/SMTP）之後各寫一個 `EmailSender` 實作，靠環境變數挑選；不影響上層流程。
-- OTP 信件文案需多語（沿用 i18n；越南文/印尼文較長，版面預留）。
+- **挑選順序**（`getEmailSender()`）：Resend（設了憑證）→ 正式環境無憑證則丟錯 → 開發/測試 `StubEmailSender`。
+- **正式實作：Resend**（`server/_core/email/resend.ts`，用 REST API `fetch`，不引 SDK）。需要的環境變數：
+  - `RESEND_API_KEY`：Resend 後台的 API key（`re_...`）。
+  - `EMAIL_FROM`：寄件者，如 `長誠媒合 <no-reply@your-domain.com>`；**網域需先在 Resend 驗證（SPF/DKIM）**，測試可用 `onboarding@resend.dev`。
+- `StubEmailSender`（開發/測試）：不真的寄，只記最後一封在記憶體 + 印 log（不印內文，避免洩漏碼）。
+- 之後要加別家（SendGrid/SMTP）→ 多寫一個 `EmailSender` 實作、在 `getEmailSender()` 多一個分支即可，上層不動。
+- OTP 信件目前 zh/en 雙語純文字 + 簡單 HTML；完整多語文案之後補。
 
 ## 9. 後端 procedure 設計
 

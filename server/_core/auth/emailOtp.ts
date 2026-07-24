@@ -18,11 +18,14 @@ export function devFixedOtp(): string | null {
   return fixed && /^\d{6}$/.test(fixed) ? fixed : null;
 }
 
-/** 寄出信箱驗證碼（暫用 zh/en 雙語純文字；正式多語文案之後補）。 */
+/** 寄出信箱驗證碼（zh/en 雙語；正式多語文案之後補）。 */
 export async function sendEmailOtp(email: string, code: string): Promise<void> {
   const subject = "長誠媒合 註冊驗證碼 / Verification code";
   const text =
     `您的註冊驗證碼是 ${code}，10 分鐘內有效，請勿轉告他人。\n` +
     `Your verification code is ${code}. It expires in 10 minutes.`;
-  await getEmailSender().send({ to: email, subject, text });
+  const html =
+    `<p>您的註冊驗證碼是 <strong style="font-size:20px;letter-spacing:2px">${code}</strong>，10 分鐘內有效，請勿轉告他人。</p>` +
+    `<p style="color:#6B7280">Your verification code is <strong>${code}</strong>. It expires in 10 minutes.</p>`;
+  await getEmailSender().send({ to: email, subject, text, html });
 }

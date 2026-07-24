@@ -51,7 +51,7 @@ for (const a of accounts) {
   );
   if (rows.length > 0) {
     await conn.execute(
-      `UPDATE users SET role = ?, accountType = ?, passwordHash = ?, loginMethod = 'email', name = ? WHERE id = ?`,
+      `UPDATE users SET role = ?, accountType = ?, passwordHash = ?, loginMethod = 'email', emailVerified = 1, name = ? WHERE id = ?`,
       [a.role, a.accountType, passwordHash, a.name, rows[0].id]
     );
     console.log(
@@ -60,8 +60,8 @@ for (const a of accounts) {
   } else {
     const openId = `local_seed_${a.accountType ?? a.role}`;
     await conn.execute(
-      `INSERT INTO users (openId, email, name, loginMethod, role, accountType, passwordHash, lastSignedIn)
-       VALUES (?, ?, ?, 'email', ?, ?, ?, NOW())`,
+      `INSERT INTO users (openId, email, name, loginMethod, role, accountType, passwordHash, emailVerified, lastSignedIn)
+       VALUES (?, ?, ?, 'email', ?, ?, ?, 1, NOW())`,
       [openId, a.email, a.name, a.role, a.accountType, passwordHash]
     );
     console.log(

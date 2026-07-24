@@ -9,6 +9,7 @@ import {
   staffProcedure,
   employerProcedure,
   workerProcedure,
+  requireEmailVerified,
   router,
 } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
@@ -127,6 +128,11 @@ import {
   bumpPhoneOtpAttempts,
   consumePhoneOtp,
   deletePhoneOtps,
+  createEmailOtp,
+  getLatestEmailOtp,
+  bumpEmailOtpAttempts,
+  consumeEmailOtp,
+  deleteEmailOtps,
 } from "./db";
 import {
   evaluateHealthChecks,
@@ -154,6 +160,12 @@ import {
   OTP_TTL_MS,
   OTP_MAX_ATTEMPTS,
 } from "./_core/auth/whatsapp";
+import {
+  EMAIL_OTP_TTL_MS,
+  EMAIL_OTP_RESEND_COOLDOWN_MS,
+  devFixedOtp,
+  sendEmailOtp,
+} from "./_core/auth/emailOtp";
 import {
   validateTwPhone,
   normalizePhone,
@@ -1098,6 +1110,137 @@ export const appRouter = router({
           entityId: id,
           actorUserId: id,
           meta: { accountType: input.accountType, loginMethod: "email" },
+        });
+        return { success: true, id, accountType: input.accountType } as const;
+      }),
+
+    // ─── 信箱 OTP 註冊：步驟 1／寄驗證碼（公開）────────────────────────────────
+    // 「先驗證才建帳號」：此步不寫 users，只寄碼。Email 已註冊即擋，避免列舉外
+    //  也避免白費寄信。見 docs/feature-email-otp-verification.md。
+    requestEmailOtp: publicProcedure
+      .input(
+        z.object({
+          email: z
+            .string()
+            .trim()
+            .toLowerCase()
+            .email("Email 格式不正確")
+            .max(320),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const existing = await getUserByEmail(input.email);
+        if (existing) {
+          throw new TRPCError({ code: "CONFLICT", message: "此 Email 已註冊" });
+        }
+        // 防轟炸：同信箱 30 秒內僅發一次（開發/E2E 固定碼模式不限制，便於測試）。
+        if (!devFixedOtp()) {
+          const last = await getLatestEmailOtp(input.email);
+          if (
+            last &&
+            !last.consumedAt &&
+            Date.now() - last.createdAt.getTime() < EMAIL_OTP_RESEND_COOLDOWN_MS
+          ) {
+            throw new TRPCError({
+              code: "TOO_MANY_REQUESTS",
+              message: "驗證碼剛寄出，請稍候再試",
+            });
+          }
+        }
+        const code = devFixedOtp() ?? generateOtp();
+        await deleteEmailOtps(input.email); // 單一有效碼
+        await createEmailOtp({
+          email: input.email,
+          codeHash: hashOtp(code, input.email),
+          expiresAt: new Date(Date.now() + EMAIL_OTP_TTL_MS),
+        });
+        await sendEmailOtp(input.email, code);
+        return { sent: true } as const;
+      }),
+
+    // ─── 信箱 OTP 註冊：步驟 2／驗碼並建帳號（公開）────────────────────────────
+    // 驗碼成功才真正建立帳號（emailVerified=1）並發 session。取代舊 register 的前端呼叫。
+    verifyEmailOtpAndRegister: publicProcedure
+      .input(
+        z.object({
+          email: z
+            .string()
+            .trim()
+            .toLowerCase()
+            .email("Email 格式不正確")
+            .max(320),
+          code: z
+            .string()
+            .trim()
+            .regex(/^\d{6}$/, "驗證碼為 6 位數字"),
+          password: z.string().min(8, "密碼至少 8 碼").max(200),
+          accountType: z.enum(["worker", "employer"]),
+          name: z
+            .string()
+            .trim()
+            .max(100)
+            .optional()
+            .transform(s => s?.trim() || undefined),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const otp = await getLatestEmailOtp(input.email);
+        if (
+          !otp ||
+          otp.consumedAt ||
+          otp.attempts >= OTP_MAX_ATTEMPTS ||
+          otp.expiresAt.getTime() < Date.now()
+        ) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "驗證碼無效或已過期，請重新取得",
+          });
+        }
+        if (!verifyOtpHash(input.code, input.email, otp.codeHash)) {
+          await bumpEmailOtpAttempts(otp.id);
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "驗證碼不正確",
+          });
+        }
+        // 驗碼成功 → 再次確認 Email 仍可用（防兩步之間被搶註的競態）。
+        const existing = await getUserByEmail(input.email);
+        if (existing) {
+          await consumeEmailOtp(otp.id);
+          throw new TRPCError({ code: "CONFLICT", message: "此 Email 已註冊" });
+        }
+        const openId = newLocalOpenId();
+        const passwordHash = await hashPassword(input.password);
+        const id = await createUser({
+          openId,
+          email: input.email,
+          name: input.name ?? null,
+          loginMethod: "email",
+          role: "user",
+          accountType: input.accountType,
+          passwordHash,
+          emailVerified: 1, // 已通過信箱驗證
+          lastSignedIn: new Date(),
+        });
+        await consumeEmailOtp(otp.id);
+        await issueSession(ctx.req, ctx.res, {
+          openId,
+          name: input.name ?? null,
+        });
+        ctx.res.clearCookie(DEV_BYPASS_OFF_COOKIE, {
+          ...getSessionCookieOptions(ctx.req),
+          maxAge: -1,
+        });
+        await logAudit(ctx, {
+          action: "auth.register",
+          entityType: "users",
+          entityId: id,
+          actorUserId: id,
+          meta: {
+            accountType: input.accountType,
+            loginMethod: "email",
+            emailVerified: true,
+          },
         });
         return { success: true, id, accountType: input.accountType } as const;
       }),
@@ -3300,6 +3443,7 @@ export const appRouter = router({
       }),
     // 建立需求單（submit=true 直接送審，否則存草稿）
     createPosting: employerProcedure
+      .use(requireEmailVerified)
       .input(jobPostingInput.extend({ submit: z.boolean().default(true) }))
       .mutation(async ({ ctx, input }) => {
         const { submit, ...data } = input;
@@ -3806,6 +3950,7 @@ export const appRouter = router({
     // 「我有興趣」→ 建立一筆媒合意向（match_request），交客服居中處理（P3）。
     // 雙方看不到彼此私密聯絡資訊；同一使用者對同一標的若已有進行中的意向則不重複建立。
     expressInterest: protectedProcedure
+      .use(requireEmailVerified)
       .input(
         z.object({
           source: z.enum(["posting", "demand"]),
@@ -4192,6 +4337,7 @@ export const appRouter = router({
       }),
     // 「送出媒合意向」→ match_request（targetType=worker），交客服居中。
     expressInterest: employerProcedure
+      .use(requireEmailVerified)
       .input(
         z.object({
           id: z.number().int().positive(),

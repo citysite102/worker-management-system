@@ -6,6 +6,8 @@
     "auth.me",
     "auth.oauthProviders",
     "auth.register",
+    "auth.requestEmailOtp",
+    "auth.verifyEmailOtpAndRegister",
     "auth.whatsappEnabled",
     "auth.whatsappRequestOtp",
     "auth.whatsappVerifyOtp",
@@ -14,5 +16,5 @@
     "publicJobs.get",
     "publicJobs.list"
   ],
-  "untestedProcedures": ["auth.me", "publicJobs.get"]
+  "untestedProcedures": ["auth.me"]
 }

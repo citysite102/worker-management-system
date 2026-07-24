@@ -94,6 +94,7 @@ const ADMIN_CTX_USER: TrpcContext["user"] = {
   customerId: null,
   phone: null,
   phoneVerified: 0,
+  emailVerified: 1,
   preferredLang: null,
   passwordHash: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),

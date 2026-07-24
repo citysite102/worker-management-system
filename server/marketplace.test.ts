@@ -79,6 +79,7 @@ function makeUser(overrides: Partial<User>): User {
     customerId: null,
     phone: null,
     phoneVerified: 0,
+    emailVerified: 1,
     preferredLang: null,
     passwordHash: null,
     createdAt: now,
@@ -274,6 +275,35 @@ describe("找工作（publicJobs，開放匿名瀏覽）", () => {
     });
     await expect(
       worker().publicJobs.expressInterest({ source: "demand", id: 3 })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  // ─── 信箱驗證 gating（requireEmailVerified）──────────────────────────────────
+  it("expressInterest：未驗證信箱的 Email 帳號 → FORBIDDEN（在觸及標的查詢前擋下）", async () => {
+    const unverified = caller(
+      makeUser({ id: 10, accountType: "worker", emailVerified: 0 })
+    );
+    await expect(
+      unverified.publicJobs.expressInterest({ source: "posting", id: 1 })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    // 被中介層擋下，未進到標的查詢與建立
+    expect(dbMock.getJobPostingById).not.toHaveBeenCalled();
+    expect(dbMock.createMatchRequest).not.toHaveBeenCalled();
+  });
+
+  it("expressInterest：WhatsApp 手機帳號（loginMethod!=email）不受 gating 影響", async () => {
+    dbMock.getJobPostingById.mockResolvedValueOnce(undefined);
+    const wa = caller(
+      makeUser({
+        id: 11,
+        accountType: "worker",
+        loginMethod: "whatsapp",
+        emailVerified: 0,
+      })
+    );
+    // 通過 gating → 因標的不存在改為 NOT_FOUND（證明未被 FORBIDDEN 擋）
+    await expect(
+      wa.publicJobs.expressInterest({ source: "posting", id: 1 })
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 

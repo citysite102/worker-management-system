@@ -34,6 +34,7 @@ function makeUser(overrides: Partial<User>): User {
     customerId: null,
     phone: null,
     phoneVerified: 0,
+    emailVerified: 1,
     preferredLang: null,
     passwordHash: null,
     createdAt: now,

@@ -30,6 +30,9 @@ export const users = mysqlTable(
     // 聯絡與偏好（手機/WhatsApp OTP、介面語言）
     phone: varchar("phone", { length: 20 }),
     phoneVerified: int("phoneVerified").default(0).notNull(), // 0/1（沿用專案以 int 表布林的慣例）
+    // emailVerified：Email/密碼註冊經信箱 OTP 驗證後為 1；社群登入建立/合併時直接 1；
+    // WhatsApp 手機帳號 loginMethod 非 email，gating 不檢查此旗標（見 emailOtps 與 docs/feature-email-otp-verification.md）。
+    emailVerified: int("emailVerified").default(0).notNull(), // 0/1
     preferredLang: mysqlEnum("preferredLang", ["zh-TW", "vi", "id", "en"]),
     // Email/密碼登入用（scrypt 雜湊；社群/OAuth 帳號為 null）。見 server/_core/auth。
     passwordHash: varchar("passwordHash", { length: 255 }),
@@ -1117,3 +1120,24 @@ export const phoneOtps = mysqlTable(
 );
 export type PhoneOtp = typeof phoneOtps.$inferSelect;
 export type InsertPhoneOtp = typeof phoneOtps.$inferInsert;
+
+// ─── Email OTPs（Email/密碼註冊的信箱一次性驗證碼）────────────────────────────────
+// 比照 phoneOtps：發碼時存「HMAC 後的碼」（不存明碼）+ 到期 + 嘗試次數。
+// 「先驗證才建帳號」：驗碼成功前不寫 users 列（見 docs/feature-email-otp-verification.md）。
+export const emailOtps = mysqlTable(
+  "email_otps",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    email: varchar("email", { length: 320 }).notNull(), // 已 trim/lowercase
+    codeHash: varchar("codeHash", { length: 128 }).notNull(), // HMAC-SHA256(email:code)
+    expiresAt: timestamp("expiresAt").notNull(),
+    attempts: int("attempts").notNull().default(0), // 驗證嘗試次數（超過即失效）
+    consumedAt: timestamp("consumedAt"), // 已用（成功驗證）時間；null＝未用
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => ({
+    emailIdx: index("email_otps_email_idx").on(t.email),
+  })
+);
+export type EmailOtp = typeof emailOtps.$inferSelect;
+export type InsertEmailOtp = typeof emailOtps.$inferInsert;

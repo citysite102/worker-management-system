@@ -57,6 +57,8 @@ import {
   InsertOAuthIdentity,
   phoneOtps,
   InsertPhoneOtp,
+  emailOtps,
+  InsertEmailOtp,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1883,4 +1885,53 @@ export async function consumePhoneOtp(id: number): Promise<void> {
     .update(phoneOtps)
     .set({ consumedAt: new Date() })
     .where(eq(phoneOtps.id, id));
+}
+
+// ─── Email OTP（信箱一次性驗證碼；比照上方 phoneOtps）──────────────────────────
+
+/** 清掉某信箱的舊 OTP（發新碼前呼叫，維持單一有效碼）。 */
+export async function deleteEmailOtps(email: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(emailOtps).where(eq(emailOtps.email, email));
+}
+
+/** 建立一筆信箱 OTP。 */
+export async function createEmailOtp(data: InsertEmailOtp): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return insertedId(await db.insert(emailOtps).values(data));
+}
+
+/** 取某信箱最新一筆 OTP（到期/嘗試次數在呼叫端判斷）。 */
+export async function getLatestEmailOtp(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(emailOtps)
+    .where(eq(emailOtps.email, email))
+    .orderBy(desc(emailOtps.createdAt))
+    .limit(1);
+  return rows[0];
+}
+
+/** 驗證失敗：累加嘗試次數。 */
+export async function bumpEmailOtpAttempts(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(emailOtps)
+    .set({ attempts: sql`${emailOtps.attempts} + 1` })
+    .where(eq(emailOtps.id, id));
+}
+
+/** 驗證成功：標記已用（防重放）。 */
+export async function consumeEmailOtp(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(emailOtps)
+    .set({ consumedAt: new Date() })
+    .where(eq(emailOtps.id, id));
 }

@@ -46,11 +46,15 @@ export default function Login() {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [accountType, setAccountType] = useState<"worker" | "employer">(
     "worker"
   );
+  // 註冊分兩步：form（填資料）→ otp（輸入寄到信箱的驗證碼）。
+  const [regStage, setRegStage] = useState<"form" | "otp">("form");
+  const [otpCode, setOtpCode] = useState("");
 
   const afterAuth = async () => {
     await utils.auth.me.invalidate();
@@ -71,7 +75,16 @@ export default function Login() {
     onError: () => toast.error(t("login.errorGeneric")),
   });
 
-  const registerMut = trpc.auth.register.useMutation({
+  // 註冊步驟 1：寄信箱驗證碼（成功→切到 otp 步驟）。
+  const requestOtpMut = trpc.auth.requestEmailOtp.useMutation({
+    onSuccess: () => {
+      setRegStage("otp");
+      toast.success(t("login.emailOtpSent"));
+    },
+    onError: e => toast.error(e.message),
+  });
+  // 註冊步驟 2：驗碼並建立帳號（成功→自動登入）。
+  const verifyRegisterMut = trpc.auth.verifyEmailOtpAndRegister.useMutation({
     onSuccess: async () => {
       toast.success(t("login.successRegister"));
       await afterAuth();
@@ -95,19 +108,49 @@ export default function Login() {
     onError: e => toast.error(e.message),
   });
 
-  const pending = loginMut.isPending || registerMut.isPending;
+  const pending =
+    loginMut.isPending ||
+    requestOtpMut.isPending ||
+    verifyRegisterMut.isPending;
   const isRegister = mode === "register";
+
+  /** 切換登入／註冊，並重置註冊步驟與輸入。 */
+  const switchMode = () => {
+    setMode(isRegister ? "login" : "register");
+    setRegStage("form");
+    setOtpCode("");
+    setPasswordConfirm("");
+  };
+
+  /** 回到填資料步驟（改用別的信箱）。 */
+  const backToForm = () => {
+    setRegStage("form");
+    setOtpCode("");
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isRegister)
-      registerMut.mutate({
-        email,
-        password,
-        name: name || undefined,
-        accountType,
-      });
-    else loginMut.mutate({ email, password });
+    if (!isRegister) {
+      loginMut.mutate({ email, password });
+      return;
+    }
+    // 註冊步驟 1：先在前端擋兩次密碼不一致，再寄驗證碼。
+    if (password !== passwordConfirm) {
+      toast.error(t("login.passwordMismatch"));
+      return;
+    }
+    requestOtpMut.mutate({ email });
+  };
+
+  const submitOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    verifyRegisterMut.mutate({
+      email,
+      code: otpCode,
+      password,
+      name: name || undefined,
+      accountType,
+    });
   };
 
   return (
@@ -128,113 +171,186 @@ export default function Login() {
           <h1 className="text-2xl font-bold tracking-tight text-center mb-6">
             {isRegister ? t("login.registerTitle") : t("login.title")}
           </h1>
-          <form
-            onSubmit={submit}
-            className="space-y-4 rounded-lg border border-border bg-card p-6"
-          >
-            {isRegister && (
-              <div className="grid grid-cols-2 gap-2">
-                {(["worker", "employer"] as const).map(type => (
-                  <button
-                    key={type}
-                    type="button"
-                    data-testid={`register-as-${type}`}
-                    onClick={() => setAccountType(type)}
-                    className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                      accountType === type
-                        ? "border-primary bg-accent text-accent-foreground"
-                        : "border-border text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {type === "worker"
-                      ? t("login.asWorker")
-                      : t("login.asEmployer")}
-                  </button>
-                ))}
-              </div>
-            )}
-            {isRegister && (
+          {regStage === "form" ? (
+            <form
+              onSubmit={submit}
+              className="space-y-4 rounded-lg border border-border bg-card p-6"
+            >
+              {isRegister && (
+                <div className="grid grid-cols-2 gap-2">
+                  {(["worker", "employer"] as const).map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      data-testid={`register-as-${type}`}
+                      onClick={() => setAccountType(type)}
+                      className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                        accountType === type
+                          ? "border-primary bg-accent text-accent-foreground"
+                          : "border-border text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {type === "worker"
+                        ? t("login.asWorker")
+                        : t("login.asEmployer")}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {isRegister && (
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">
+                    {t("login.name")}
+                  </label>
+                  <input
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    data-testid="login-name"
+                    autoComplete="name"
+                    className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-1.5">
-                  {t("login.name")}
+                  {t("login.email")}
                 </label>
                 <input
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  data-testid="login-name"
-                  autoComplete="name"
+                  type="email"
+                  required
+                  inputMode="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  data-testid="login-email"
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent"
                 />
               </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {t("login.email")}
-              </label>
-              <input
-                type="email"
-                required
-                inputMode="email"
-                autoComplete="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                data-testid="login-email"
-                className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {t("login.password")}
-              </label>
-              <div className="relative">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">
+                  {t("login.password")}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    minLength={isRegister ? 8 : undefined}
+                    autoComplete={
+                      isRegister ? "new-password" : "current-password"
+                    }
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    data-testid="login-password"
+                    className="w-full rounded-md border border-border bg-card px-3 py-2 pr-10 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(s => !s)}
+                    aria-label={
+                      showPassword
+                        ? t("login.hidePassword")
+                        : t("login.showPassword")
+                    }
+                    aria-pressed={showPassword}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              {isRegister && (
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">
+                    {t("login.passwordConfirm")}
+                  </label>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    value={passwordConfirm}
+                    onChange={e => setPasswordConfirm(e.target.value)}
+                    data-testid="login-password-confirm"
+                    className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent"
+                  />
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={pending}
+                data-testid="login-submit"
+                className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {isRegister ? t("login.registerBtn") : t("login.loginBtn")}
+              </button>
+              <button
+                type="button"
+                data-testid="login-toggle-mode"
+                onClick={switchMode}
+                className="w-full text-center text-sm text-primary hover:underline"
+              >
+                {isRegister ? t("login.toLogin") : t("login.toRegister")}
+              </button>
+            </form>
+          ) : (
+            <form
+              onSubmit={submitOtp}
+              className="space-y-4 rounded-lg border border-border bg-card p-6"
+              data-testid="register-otp-stage"
+            >
+              <p className="text-sm text-muted-foreground">
+                {t("login.emailOtpSentTo")}
+                <span className="font-medium text-foreground"> {email}</span>
+              </p>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">
+                  {t("login.emailOtpCode")}
+                </label>
                 <input
-                  type={showPassword ? "text" : "password"}
+                  value={otpCode}
+                  onChange={e => setOtpCode(e.target.value)}
+                  inputMode="numeric"
+                  maxLength={6}
                   required
-                  minLength={isRegister ? 8 : undefined}
-                  autoComplete={
-                    isRegister ? "new-password" : "current-password"
-                  }
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  data-testid="login-password"
-                  className="w-full rounded-md border border-border bg-card px-3 py-2 pr-10 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent"
+                  autoFocus
+                  placeholder="000000"
+                  data-testid="register-otp-code"
+                  className="w-full rounded-md border border-border bg-card px-3 py-2 text-center text-sm tracking-widest focus:outline-none focus:border-primary focus:ring-2 focus:ring-accent"
                 />
+              </div>
+              <button
+                type="submit"
+                disabled={pending || otpCode.length !== 6}
+                data-testid="register-otp-verify"
+                className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {t("login.emailOtpVerify")}
+              </button>
+              <div className="flex items-center justify-between text-sm">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(s => !s)}
-                  aria-label={
-                    showPassword
-                      ? t("login.hidePassword")
-                      : t("login.showPassword")
-                  }
-                  aria-pressed={showPassword}
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                  onClick={backToForm}
+                  data-testid="register-otp-back"
+                  className="text-muted-foreground hover:text-foreground"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {t("login.emailOtpChange")}
+                </button>
+                <button
+                  type="button"
+                  disabled={requestOtpMut.isPending}
+                  onClick={() => requestOtpMut.mutate({ email })}
+                  data-testid="register-otp-resend"
+                  className="text-primary hover:underline disabled:opacity-50"
+                >
+                  {t("login.emailOtpResend")}
                 </button>
               </div>
-            </div>
-            <button
-              type="submit"
-              disabled={pending}
-              data-testid="login-submit"
-              className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              {isRegister ? t("login.registerBtn") : t("login.loginBtn")}
-            </button>
-            <button
-              type="button"
-              data-testid="login-toggle-mode"
-              onClick={() => setMode(isRegister ? "login" : "register")}
-              className="w-full text-center text-sm text-primary hover:underline"
-            >
-              {isRegister ? t("login.toLogin") : t("login.toRegister")}
-            </button>
-          </form>
+            </form>
+          )}
 
           {/* 社群登入（Google/FB 一鍵）+ WhatsApp 手機 OTP；未設憑證 → 各自隱藏 */}
           {(oauthProviders.length > 0 || whatsappOn) && (

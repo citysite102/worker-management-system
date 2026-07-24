@@ -36,6 +36,17 @@ export type PublicDemandSource = {
   neededCount: number;
   publicCity: string | null;
   createdAt: Date | null;
+  // 需求單 P1 對外欄位（皆選填；未提供則對外為 null）。
+  label?: string | null; // 職稱
+  employerDisplayName?: string | null; // 雇主對外顯示名稱（去識別代稱）
+  district?: string | null;
+  employmentType?: string | null;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  expectedStartDate?: string | null;
+  requirements?: string | null;
+  publicDescription?: string | null;
+  notesForSeeker?: string | null; // 僅登入求職者可見（見 toPublicDemandDetail 的 includeSeekerNotes）
 };
 
 // ─── 內部小工具 ─────────────────────────────────────────────────────────────
@@ -111,6 +122,8 @@ export function toPublicJobCard(row: JobPosting): PublicListingCard {
   return {
     source: "posting",
     refId: row.id,
+    title: null, // 職缺目前無獨立職稱欄
+    employerDisplayName: null, // 卡片層不撈雇主；顯示名稱於詳情層帶出
     category: jobCategory(row.jobType as MarketplaceQualType),
     jobType: row.jobType,
     city: row.city,
@@ -129,20 +142,22 @@ export function toPublicDemandCard(row: PublicDemandSource): PublicListingCard {
   return {
     source: "demand",
     refId: row.id,
+    title: row.label ?? null, // 職稱沿用 label
+    employerDisplayName: row.employerDisplayName ?? null, // 去識別代稱
     category: jobCategory(row.qualType as MarketplaceQualType),
     jobType: row.qualType,
     city: row.publicCity,
-    district: null,
-    employmentType: null,
+    district: row.district ?? null,
+    employmentType: row.employmentType ?? null,
     headcount: row.neededCount,
-    publicDescription: null,
-    salaryMin: null,
-    salaryMax: null,
+    publicDescription: row.publicDescription ?? null,
+    salaryMin: row.salaryMin ?? null,
+    salaryMax: row.salaryMax ?? null,
     postedAt: row.createdAt?.toISOString() ?? null,
   } as PublicListingCard;
 }
 
-/** 自助雇主職缺（完整 row）＋雇主 row → 對外職缺詳情（雇主只露類型）。 */
+/** 自助雇主職缺（完整 row）＋雇主 row → 對外職缺詳情（雇主只露類型/代稱）。 */
 export function toPublicJobDetail(
   row: JobPosting,
   employer: Customer | null | undefined
@@ -150,6 +165,8 @@ export function toPublicJobDetail(
   return {
     source: "posting",
     refId: row.id,
+    title: null,
+    employerDisplayName: employer?.publicDisplayName ?? null,
     category: jobCategory(row.jobType as MarketplaceQualType),
     jobType: row.jobType,
     city: row.city,
@@ -162,30 +179,41 @@ export function toPublicJobDetail(
     salaryMin: row.salaryMin,
     salaryMax: row.salaryMax,
     expectedStartDate: row.expectedStartDate,
+    notesForSeeker: null, // 職缺無求職者備註
     postedAt: (row.publishedAt ?? row.createdAt)?.toISOString() ?? null,
   } as PublicListingDetail;
 }
 
-/** 既有需求單（投影或完整 row）＋雇主 row → 對外職缺詳情（雇主只露類型）。 */
+/**
+ * 既有需求單（投影或完整 row）＋雇主 row → 對外職缺詳情（雇主只露類型/代稱）。
+ * notesForSeeker 僅在 includeSeekerNotes=true（登入求職者）時帶出，否則 null。
+ */
 export function toPublicDemandDetail(
   row: PublicDemandSource,
-  employer: Customer | null | undefined
+  employer: Customer | null | undefined,
+  opts: { includeSeekerNotes?: boolean } = {}
 ): PublicListingDetail {
   return {
     source: "demand",
     refId: row.id,
+    title: row.label ?? null,
+    employerDisplayName:
+      employer?.publicDisplayName ?? row.employerDisplayName ?? null,
     category: jobCategory(row.qualType as MarketplaceQualType),
     jobType: row.qualType,
     city: row.publicCity,
-    district: null,
-    employmentType: null,
+    district: row.district ?? null,
+    employmentType: row.employmentType ?? null,
     employerType: toPublicEmployerType(employer),
     headcount: row.neededCount,
-    requirements: null,
-    publicDescription: null,
-    salaryMin: null,
-    salaryMax: null,
-    expectedStartDate: null,
+    requirements: row.requirements ?? null,
+    publicDescription: row.publicDescription ?? null,
+    salaryMin: row.salaryMin ?? null,
+    salaryMax: row.salaryMax ?? null,
+    expectedStartDate: row.expectedStartDate ?? null,
+    notesForSeeker: opts.includeSeekerNotes
+      ? (row.notesForSeeker ?? null)
+      : null,
     postedAt: row.createdAt?.toISOString() ?? null,
   } as PublicListingDetail;
 }

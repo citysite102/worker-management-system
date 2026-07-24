@@ -138,6 +138,70 @@ describe("既有內部需求單也要在找工作曝光", () => {
   });
 });
 
+describe("需求單 P1 職缺欄位：對外顯示與求職者備註閘門", () => {
+  it("staff 建帶新欄位需求單 → 公開卡片/詳情帶出；notesForSeeker 僅登入可見", async () => {
+    const caller = createCaller();
+    const managerId = await makeManager(caller);
+    // 建立時即設真名與對外顯示名稱（代稱）
+    const customerId = await makeCustomer(caller, managerId, {
+      name: "王大明家庭",
+      publicDisplayName: "北市・家庭看護",
+    });
+    const caseId = await makeCase(caller, customerId, managerId, {
+      name: "P1 案件",
+    });
+    await caller.cases.setPublicCity({ id: caseId, city: "臺北市" });
+
+    const demand = await caller.caseDemands.create({
+      caseId,
+      label: "住家看護（會煮飯）",
+      qualType: "caregiver",
+      neededCount: 1,
+      status: "open",
+      district: "大安區",
+      employmentType: "live_in",
+      salaryMin: 28000,
+      salaryMax: 32000,
+      expectedStartDate: "2026-05-01",
+      requirements: "需可煮飯",
+      publicDescription: "照顧行動不便長輩",
+      notesForSeeker: "面談前請先聯繫客服",
+      actualExpectedStartDate: "2026-06-15", // 機密：永不外露
+    });
+
+    // 公開卡片（匿名）
+    const anon = createCaller(null);
+    const jobs = await anon.publicJobs.list();
+    const card = jobs.find(j => j.source === "demand" && j.refId === demand.id);
+    expect(card).toBeTruthy();
+    expect(card!.title).toBe("住家看護（會煮飯）");
+    expect(card!.employerDisplayName).toBe("北市・家庭看護");
+    expect(card!.employmentType).toBe("live_in");
+    expect(card!.salaryMin).toBe(28000);
+
+    // 公開詳情（匿名）：帶對外欄位、但 notesForSeeker 與機密欄位不外露
+    const detailAnon = await anon.publicJobs.get({
+      source: "demand",
+      id: demand.id,
+    });
+    expect(detailAnon.requirements).toBe("需可煮飯");
+    expect(detailAnon.expectedStartDate).toBe("2026-05-01");
+    expect(detailAnon.employerDisplayName).toBe("北市・家庭看護");
+    expect(detailAnon.notesForSeeker).toBeNull(); // 未登入不給
+    // 機密欄位與真名絕不出現
+    const anonJson = JSON.stringify(detailAnon);
+    expect(anonJson).not.toContain("2026-06-15"); // actualExpectedStartDate
+    expect(anonJson).not.toContain("王大明");
+
+    // 公開詳情（登入）：notesForSeeker 帶出
+    const detailAuth = await caller.publicJobs.get({
+      source: "demand",
+      id: demand.id,
+    });
+    expect(detailAuth.notesForSeeker).toBe("面談前請先聯繫客服");
+  });
+});
+
 describe("媒合意向（match_requests，P3）", () => {
   it("表達興趣建立意向；重複不重複建立；客服可推進狀態", async () => {
     const caller = createCaller(); // admin：可代發起 + 客服操作

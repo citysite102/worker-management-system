@@ -245,3 +245,69 @@ describe("toPublicJobDetail / toPublicDemandDetail", () => {
     expect(out.employerType).toBeNull();
   });
 });
+
+// ─── 需求單 P1 對外欄位（職稱/顯示名稱/聘僱型態/薪資/求職者備註閘門）──────────────
+describe("需求單 P1 對外欄位（demand card/detail）", () => {
+  const richDemand = {
+    id: 9,
+    qualType: "caregiver" as const,
+    neededCount: 2,
+    publicCity: "桃園市",
+    createdAt: new Date("2026-03-01"),
+    label: "住家看護（會煮飯）",
+    employerDisplayName: "北市・家庭看護",
+    district: "中壢區",
+    employmentType: "live_in",
+    salaryMin: 28000,
+    salaryMax: 32000,
+    expectedStartDate: "2026-04-01",
+    requirements: "需可煮飯",
+    publicDescription: "照顧長輩",
+    notesForSeeker: "面談前請先聯繫客服",
+  };
+
+  it("需求單卡：帶職稱(label)/顯示名稱代稱/聘僱型態/薪資/區", () => {
+    const c = toPublicDemandCard(richDemand);
+    expect(c.title).toBe("住家看護（會煮飯）");
+    expect(c.employerDisplayName).toBe("北市・家庭看護");
+    expect(c.employmentType).toBe("live_in");
+    expect(c.salaryMin).toBe(28000);
+    expect(c.salaryMax).toBe(32000);
+    expect(c.district).toBe("中壢區");
+    expect(c.publicDescription).toBe("照顧長輩");
+  });
+
+  it("需求單詳情：帶 requirements/expectedStartDate；雇主顯示名稱取自客戶代稱", () => {
+    const customer = fullCustomer({
+      publicDisplayName: "某科技公司",
+    } as never);
+    const d = toPublicDemandDetail(richDemand, customer);
+    expect(d.requirements).toBe("需可煮飯");
+    expect(d.expectedStartDate).toBe("2026-04-01");
+    expect(d.employerDisplayName).toBe("某科技公司"); // 客戶代稱優先
+  });
+
+  it("求職者備註：預設（未登入）→ null", () => {
+    const d = toPublicDemandDetail(richDemand, null);
+    expect(d.notesForSeeker).toBeNull();
+  });
+
+  it("求職者備註：登入（includeSeekerNotes）→ 帶出", () => {
+    const d = toPublicDemandDetail(richDemand, null, {
+      includeSeekerNotes: true,
+    });
+    expect(d.notesForSeeker).toBe("面談前請先聯繫客服");
+  });
+
+  it("守門：詳情不含客戶真名（只給去識別代稱）", () => {
+    const customer = fullCustomer({
+      name: "王大明",
+      publicDisplayName: "北市家庭",
+    } as never);
+    const d = toPublicDemandDetail(richDemand, customer, {
+      includeSeekerNotes: true,
+    });
+    expectNoPii(d); // name 在黑名單
+    expect(JSON.stringify(d)).not.toContain("王大明");
+  });
+});

@@ -99,10 +99,14 @@ export type PublicProfileDetail = Public<
 /** 去識別雇主線索：只回「個人／公司」，其餘一律不給（純字串，供詳情內嵌）。 */
 export type PublicEmployerType = "individual" | "company";
 
-/** 職缺／需求單卡（對外）——posting 與 demand 共用同一形狀，維持既有回傳形狀。 */
+/** 職缺／需求單卡（對外）——posting 與 demand 共用同一形狀。 */
 export type PublicListingCard = Public<{
   source: "posting" | "demand";
   refId: number;
+  /** 職稱（需求單取自 label；職缺目前無獨立職稱）。 */
+  title: string | null;
+  /** 雇主對外顯示名稱（去識別代稱）；永不為真名。 */
+  employerDisplayName: string | null;
   category: JobCategory;
   jobType: string;
   city: string | null;
@@ -115,10 +119,12 @@ export type PublicListingCard = Public<{
   postedAt: string | null;
 }>;
 
-/** 職缺／需求單「詳情」（對外）——比列表卡多 requirements/expectedStartDate/去識別雇主類型。 */
+/** 職缺／需求單「詳情」（對外）——比列表卡多 requirements/expectedStartDate/去識別雇主類型/求職者備註。 */
 export type PublicListingDetail = Public<{
   source: "posting" | "demand";
   refId: number;
+  title: string | null;
+  employerDisplayName: string | null;
   category: JobCategory;
   jobType: string;
   city: string | null;
@@ -131,6 +137,8 @@ export type PublicListingDetail = Public<{
   salaryMin: number | null;
   salaryMax: number | null;
   expectedStartDate: string | null;
+  /** 案件情況備註(求職者用)：僅登入求職者/應徵者可見；未登入為 null。 */
+  notesForSeeker: string | null;
   postedAt: string | null;
 }>;
 
@@ -194,6 +202,9 @@ export const PUBLIC_PII_DENYLIST = [
   "managerId",
   // 自由文字（登入後才給）
   "selfIntro",
+  // 需求單內部/機密欄位（永不外露；守門回歸網）
+  "actualExpectedStartDate",
+  "notesForApplicant",
 ] as const;
 
 export type PublicPiiKey = (typeof PUBLIC_PII_DENYLIST)[number];

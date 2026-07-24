@@ -179,6 +179,30 @@ import {
 import { resolveTarget } from "./matchTarget";
 import { loadOwnedOrThrow, recordModeration } from "./mutationGuards";
 
+/** 需求單 P1 職缺欄位（見 docs/feature-demand-form-p1.md）；create/update 共用。 */
+// 空字串→null（可清空既有值，與 customers.publicDisplayName 一致），非空則 trim。
+const optionalTrimmed = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform(s => s?.trim() || null);
+const demandJobFields = {
+  district: optionalTrimmed(30),
+  employmentType: z
+    .enum(["live_in", "live_out", "institution", "other"])
+    .optional(),
+  salaryMin: z.number().int().min(0).optional(),
+  salaryMax: z.number().int().min(0).optional(),
+  expectedStartDate: optionalTrimmed(10),
+  actualExpectedStartDate: optionalTrimmed(10),
+  requirements: optionalTrimmed(2000),
+  publicDescription: optionalTrimmed(2000),
+  notesForSeeker: optionalTrimmed(2000),
+  notesForApplicant: optionalTrimmed(2000),
+};
+
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
 
 const workerInput = z.object({
@@ -334,6 +358,12 @@ const customerInput = z.object({
   employerType: z.enum(["individual", "company"]).default("company"),
   // 基本資料
   name: z.string().trim().min(2, "名稱至少 2 字").max(100, "名稱最多 100 字"),
+  // 對外顯示名稱（去識別代稱；真名 name 永不外露）。需求單 P1。
+  publicDisplayName: z
+    .string()
+    .max(100)
+    .optional()
+    .transform(s => s?.trim() || undefined),
   employerNo: z
     .string()
     .max(20)
@@ -1686,6 +1716,7 @@ export const appRouter = router({
       const id = await createCustomer({
         employerType: input.employerType,
         name: input.name,
+        publicDisplayName: input.publicDisplayName || null,
         employerNo: input.employerNo || null,
         phone: phone || null,
         landline: landline || null,
@@ -1748,6 +1779,7 @@ export const appRouter = router({
         await updateCustomer(id, {
           employerType: data.employerType,
           name: data.name,
+          publicDisplayName: data.publicDisplayName || null,
           employerNo: data.employerNo || null,
           phone: phone || null,
           landline: landline || null,
@@ -2848,6 +2880,7 @@ export const appRouter = router({
             .string()
             .optional()
             .transform(s => s?.trim() || undefined),
+          ...demandJobFields,
         })
       )
       .mutation(async ({ input }) => {
@@ -2876,6 +2909,7 @@ export const appRouter = router({
             .string()
             .optional()
             .transform(s => s?.trim() || undefined),
+          ...demandJobFields,
         })
       )
       .mutation(async ({ input }) => {
@@ -3724,7 +3758,7 @@ export const appRouter = router({
           id: z.number().int().positive(),
         })
       )
-      .query(async ({ input }): Promise<PublicListingDetail> => {
+      .query(async ({ ctx, input }): Promise<PublicListingDetail> => {
         if (input.source === "posting") {
           const p = await getJobPostingById(input.id);
           if (!p || p.status !== "approved")
@@ -3753,8 +3787,19 @@ export const appRouter = router({
             neededCount: d.neededCount,
             publicCity: c?.publicCity ?? null,
             createdAt: d.createdAt,
+            label: d.label,
+            district: d.district,
+            employmentType: d.employmentType,
+            salaryMin: d.salaryMin,
+            salaryMax: d.salaryMax,
+            expectedStartDate: d.expectedStartDate,
+            requirements: d.requirements,
+            publicDescription: d.publicDescription,
+            notesForSeeker: d.notesForSeeker,
           },
-          employer
+          employer,
+          // P1 簡化：任何登入者可見求職者備註；待 P3 role context 收緊為「求職者/應徵者」。
+          { includeSeekerNotes: !!ctx.user }
         );
       }),
     // 「我有興趣」：P1 先記錄意向（稽核）；仲介居中的完整媒合流程於 P3。

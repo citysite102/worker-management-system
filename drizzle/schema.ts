@@ -193,7 +193,9 @@ export const customers = mysqlTable(
       .default("company"),
 
     // ── 雇主基本資料（兩種類型共用）────────────────────────────────────────────
-    name: varchar("name", { length: 100 }).notNull(), // 雇主姓名 / 公司名稱
+    name: varchar("name", { length: 100 }).notNull(), // 雇主姓名 / 公司名稱（PII，永不外露）
+    // 對外顯示名稱（去識別匿名代稱，如「北市・家庭看護」）；真名 name 永不外露。見需求單 P1。
+    publicDisplayName: varchar("publicDisplayName", { length: 100 }),
     employerNo: varchar("employerNo", { length: 20 }), // 雇主編號（如 00033）
     phone: varchar("phone", { length: 20 }), // 行動電話
     landline: varchar("landline", { length: 20 }), // 市內電話
@@ -525,7 +527,24 @@ export const caseDemands = mysqlTable(
     // 公開媒合平台（P1）：既有需求單預設在公開「找工作」頁曝光（open/filling），
     // staff 可逐筆隱藏（1＝不公開）。已媒合滿/關閉本就不曝光。
     publicHidden: int("publicHidden").notNull().default(0), // 0/1
-    notes: text("notes"),
+    notes: text("notes"), // 案件情況備註(密)：僅後台
+    // ── 需求單 P1：職缺欄位（見 docs/feature-demand-form-p1.md）──────────────
+    // 職稱沿用 label；以下為新增。對外欄位透過 publicView 曝光，機密欄位永不外露。
+    district: varchar("district", { length: 30 }), // 工作區（選填，對外）
+    employmentType: mysqlEnum("employmentType", [
+      "live_in", // 住家（同住）
+      "live_out", // 不住家
+      "institution", // 機構
+      "other", // 其他
+    ]), // 聘僱型態（對外）
+    salaryMin: int("salaryMin"), // 薪資下限（選填，對外）
+    salaryMax: int("salaryMax"), // 薪資上限（選填，對外）
+    expectedStartDate: varchar("expectedStartDate", { length: 10 }), // 期望上工日 YYYY-MM-DD（對外）
+    actualExpectedStartDate: varchar("actualExpectedStartDate", { length: 10 }), // 實際預計上工日（僅後台，永不外露）
+    requirements: text("requirements"), // 條件要求（對外）
+    publicDescription: text("publicDescription"), // 公開說明（對外）
+    notesForSeeker: text("notesForSeeker"), // 案件情況備註(求職者用)：登入求職者/應徵者可見
+    notesForApplicant: text("notesForApplicant"), // 案件情況備註(應徵者用)：僅配對到的應徵者（閘門 P3）
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },

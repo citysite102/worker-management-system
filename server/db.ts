@@ -1322,9 +1322,18 @@ export async function listPublicOpenDemands() {
       status: caseDemands.status,
       publicCity: cases.publicCity,
       createdAt: caseDemands.createdAt,
+      // 需求單 P1 對外欄位（僅取對外安全欄位；機密欄位 actualExpectedStartDate/notes 不 join）
+      label: caseDemands.label,
+      district: caseDemands.district,
+      employmentType: caseDemands.employmentType,
+      salaryMin: caseDemands.salaryMin,
+      salaryMax: caseDemands.salaryMax,
+      publicDescription: caseDemands.publicDescription,
+      employerDisplayName: customers.publicDisplayName, // 去識別代稱（非真名）
     })
     .from(caseDemands)
     .innerJoin(cases, eq(caseDemands.caseId, cases.id))
+    .leftJoin(customers, eq(cases.customerId, customers.id))
     .where(
       and(
         inArray(caseDemands.status, ["open", "filling"]),

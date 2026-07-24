@@ -71,6 +71,34 @@ function parseProcedures(source) {
   return procedures;
 }
 
+/**
+ * 解析 routers.ts 及被掛載進 appRouter 的 per-domain 子路由檔（server/routers/*.ts），
+ * 讓拆檔後 procedure 仍被規約看見（路徑維持 <mount>.<proc>，如 auth.login）。
+ * 沒拆檔時退化為只解析 routers.ts，行為不變。
+ */
+function parseAllProcedures() {
+  const rootSrc = readFileSync(ROUTERS_FILE, "utf8");
+  const procs = parseProcedures(rootSrc);
+
+  // import { xRouter } from "./routers/<file>"
+  const importMap = new Map();
+  for (const m of rootSrc.matchAll(
+    /import\s*\{\s*(\w+)\s*\}\s*from\s*["']\.\/(routers\/[^"']+)["']/g
+  )) {
+    importMap.set(m[1], path.join(ROOT, "server", m[2] + ".ts"));
+  }
+  // 掛載點：`  <mount>: <xRouter>,`（頂層 2 空格縮排、變數名以 Router 結尾）
+  for (const m of rootSrc.matchAll(/^ {2}(\w+):\s*(\w+Router),?\s*$/gm)) {
+    const [, mount, varName] = m;
+    const file = importMap.get(varName);
+    if (!file || !existsSync(file)) continue;
+    for (const p of parseProcedures(readFileSync(file, "utf8"))) {
+      procs.push({ ...p, path: `${mount}.${p.path}` });
+    }
+  }
+  return procs;
+}
+
 // ─── 掃描測試檔，找出被呼叫過的 procedure 路徑 ──────────────────────────────
 
 function collectFiles(dir, predicate, acc = []) {
@@ -132,8 +160,7 @@ function findIllegalPublicCasts() {
 
 // ─── 主流程 ────────────────────────────────────────────────────────────────
 
-const source = readFileSync(ROUTERS_FILE, "utf8");
-const procedures = parseProcedures(source);
+const procedures = parseAllProcedures();
 
 if (procedures.length === 0) {
   console.error(

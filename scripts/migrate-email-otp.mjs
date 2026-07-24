@@ -25,9 +25,20 @@ await conn.execute(`
 `);
 
 console.log("→ users 加 emailVerified 欄位 …");
-await conn.execute(
-  "ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `emailVerified` int NOT NULL DEFAULT 0"
+// MySQL 不支援 ADD COLUMN IF NOT EXISTS，改用 information_schema 存在性守衛。
+const [col] = await conn.execute(
+  `SELECT COUNT(*) AS n FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'users'
+     AND column_name = 'emailVerified'`
 );
+if ((col[0]?.n ?? 0) > 0) {
+  console.log("  已存在，略過");
+} else {
+  await conn.execute(
+    "ALTER TABLE `users` ADD COLUMN `emailVerified` int NOT NULL DEFAULT 0"
+  );
+  console.log("  已新增");
+}
 
 console.log("→ grandfather 既有帳號為已驗證（一次性）…");
 const [res] = await conn.execute(

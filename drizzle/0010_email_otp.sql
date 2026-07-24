@@ -14,7 +14,9 @@ CREATE TABLE IF NOT EXISTS `email_otps` (
   INDEX `email_otps_email_idx` (`email`)
 );
 
-ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `emailVerified` int NOT NULL DEFAULT 0;
+-- 注意：MySQL 不支援 ADD COLUMN IF NOT EXISTS；重複套用請走 scripts/migrate-email-otp.mjs
+-- （有 information_schema 存在性守衛）。此檔為單次參考用。
+ALTER TABLE `users` ADD COLUMN `emailVerified` int NOT NULL DEFAULT 0;
 
 -- Grandfather（一次性，上線前執行）：既有帳號一律視為已驗證，避免上線瞬間把現有
 -- 使用者擋在關鍵動作外。舊的一步 register 已移除，之後不會再有 email 未驗證帳號。

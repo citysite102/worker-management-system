@@ -12,6 +12,8 @@ import {
 export type JobCardData = {
   source: "posting" | "demand";
   refId: number;
+  title?: string | null;
+  employerDisplayName?: string | null;
   category: JobCategory;
   jobType: string;
   city: string | null;
@@ -51,8 +53,13 @@ export function JobCard({
           )}
         </div>
         <h3 className="mt-3 font-semibold">
-          {t(`jobs.jobType.${job.jobType}`)}
+          {job.title || t(`jobs.jobType.${job.jobType}`)}
         </h3>
+        {job.employerDisplayName && (
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {job.employerDisplayName}
+          </p>
+        )}
         <div className="mt-2 space-y-1">
           <MetaItem icon={MapPin}>
             {job.city || t("jobs.cityNegotiable")}

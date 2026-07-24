@@ -121,8 +121,13 @@ export default function JobDetail() {
               <h1
                 className={`mt-3 text-3xl font-bold tracking-tight text-balance ${display}`}
               >
-                {t(`jobs.jobType.${d.jobType}`)}
+                {d.title || t(`jobs.jobType.${d.jobType}`)}
               </h1>
+              {d.employerDisplayName && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {d.employerDisplayName}
+                </p>
+              )}
               <p className="mt-2 flex items-center gap-1.5 text-muted-foreground">
                 <MapPin className="h-4 w-4 shrink-0" />
                 {d.city || t("jobs.cityNegotiable")}
@@ -146,6 +151,16 @@ export default function JobDetail() {
                   </h2>
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
                     {d.requirements}
+                  </p>
+                </section>
+              )}
+              {d.notesForSeeker && (
+                <section className="mt-6 border-t border-border pt-6">
+                  <h2 className="text-sm font-semibold">
+                    {t("jobs.detailSeekerNote")}
+                  </h2>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                    {d.notesForSeeker}
                   </p>
                 </section>
               )}

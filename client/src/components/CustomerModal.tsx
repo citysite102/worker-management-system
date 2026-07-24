@@ -39,6 +39,7 @@ interface CustomerFormData {
   employerType: string;
   // 基本資料
   name: string;
+  publicDisplayName: string; // 對外顯示名稱（去識別代稱）
   employerNo: string;
   phone: string;
   landline: string;
@@ -221,6 +222,7 @@ export function CustomerModal({
     defaultValues: {
       employerType: "company",
       name: "",
+      publicDisplayName: "",
       employerNo: "",
       phone: "",
       landline: "",
@@ -260,6 +262,7 @@ export function CustomerModal({
       reset({
         employerType: c.employerType ?? "company",
         name: c.name ?? "",
+        publicDisplayName: c.publicDisplayName ?? "",
         employerNo: c.employerNo ?? "",
         phone: c.phone ?? "",
         landline: c.landline ?? "",
@@ -293,6 +296,7 @@ export function CustomerModal({
       reset({
         employerType: "company",
         name: "",
+        publicDisplayName: "",
         employerNo: "",
         phone: "",
         landline: "",
@@ -397,6 +401,7 @@ export function CustomerModal({
   const buildPayload = (data: CustomerFormData, forceCreate = false) => ({
     employerType: data.employerType as "individual" | "company",
     name: data.name.trim(),
+    publicDisplayName: data.publicDisplayName.trim() || undefined,
     employerNo: data.employerNo.trim() || undefined,
     phone: data.phone.trim() || undefined,
     landline: data.landline.trim() || undefined,
@@ -626,6 +631,23 @@ export function CustomerModal({
                   className="mt-2 font-mono"
                 />
               </div>
+            </div>
+
+            {/* 對外顯示名稱（公開站代稱；真名永不外露） */}
+            <div>
+              <Label htmlFor="c-publicDisplayName">對外顯示名稱</Label>
+              <Input
+                id="c-publicDisplayName"
+                data-testid="customer-modal-public-display-name"
+                {...register("publicDisplayName")}
+                {...enterProps}
+                placeholder="公開站顯示的去識別代稱，如「北市・家庭看護」"
+                className="mt-2"
+                autoComplete="off"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                此名稱會顯示在公開媒合站；請勿含真實姓名等可識別資訊。留空則公開站不顯示雇主名稱。
+              </p>
             </div>
 
             {/* 行動電話 / 市內電話 */}

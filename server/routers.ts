@@ -177,6 +177,7 @@ import {
   type PublicProfileDetail,
 } from "@shared/publicView";
 import { resolveTarget } from "./matchTarget";
+import { loadOwnedOrThrow, recordModeration } from "./mutationGuards";
 
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
 
@@ -3255,10 +3256,13 @@ export const appRouter = router({
     getPosting: employerProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ ctx, input }) => {
-        const p = await getJobPostingById(input.id);
-        if (!p || p.employerUserId !== ctx.user.id)
-          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此需求單" });
-        return p;
+        return loadOwnedOrThrow(
+          getJobPostingById,
+          input.id,
+          ctx.user.id,
+          "employerUserId",
+          "找不到此需求單"
+        );
       }),
     // 建立需求單（submit=true 直接送審，否則存草稿）
     createPosting: employerProcedure
@@ -3307,9 +3311,13 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         const { id, submit, ...data } = input;
-        const existing = await getJobPostingById(id);
-        if (!existing || existing.employerUserId !== ctx.user.id)
-          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此需求單" });
+        const existing = await loadOwnedOrThrow(
+          getJobPostingById,
+          id,
+          ctx.user.id,
+          "employerUserId",
+          "找不到此需求單"
+        );
         if (existing.status !== "draft" && existing.status !== "rejected")
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -3450,18 +3458,19 @@ export const appRouter = router({
             publishedAt: new Date(),
             rejectReason: null,
           });
-          await insertModerationEvent({
-            entityType: "job_posting",
-            entityId: input.id,
-            action: "approve",
-            staffId: ctx.user.id,
-          });
-          await logAudit(ctx, {
-            action: "moderation.posting.approve",
-            entityType: "job_postings",
-            entityId: input.id,
-            meta: { caseId, customerId },
-          });
+          await recordModeration(
+            ctx,
+            {
+              entityType: "job_posting",
+              entityId: input.id,
+              action: "approve",
+            },
+            {
+              action: "moderation.posting.approve",
+              entityType: "job_postings",
+              meta: { caseId, customerId },
+            }
+          );
           return { success: true, caseId } as const;
         } catch (err) {
           // 建 case 中途失敗 → 還原成待審，讓此單可重新審核（best-effort）。
@@ -3507,19 +3516,20 @@ export const appRouter = router({
           status: "rejected",
           rejectReason: reason.slice(0, 300),
         });
-        await insertModerationEvent({
-          entityType: "job_posting",
-          entityId: input.id,
-          action: "reject",
-          reason,
-          staffId: ctx.user.id,
-        });
-        await logAudit(ctx, {
-          action: "moderation.posting.reject",
-          entityType: "job_postings",
-          entityId: input.id,
-          meta: { reasonCode: input.reasonCode },
-        });
+        await recordModeration(
+          ctx,
+          {
+            entityType: "job_posting",
+            entityId: input.id,
+            action: "reject",
+            reason,
+          },
+          {
+            action: "moderation.posting.reject",
+            entityType: "job_postings",
+            meta: { reasonCode: input.reasonCode },
+          }
+        );
         return { success: true } as const;
       }),
 
@@ -3555,17 +3565,18 @@ export const appRouter = router({
           moderationStatus: "approved",
           rejectReason: null,
         });
-        await insertModerationEvent({
-          entityType: "worker_profile",
-          entityId: input.id,
-          action: "approve",
-          staffId: ctx.user.id,
-        });
-        await logAudit(ctx, {
-          action: "moderation.profile.approve",
-          entityType: "worker_public_profiles",
-          entityId: input.id,
-        });
+        await recordModeration(
+          ctx,
+          {
+            entityType: "worker_profile",
+            entityId: input.id,
+            action: "approve",
+          },
+          {
+            action: "moderation.profile.approve",
+            entityType: "worker_public_profiles",
+          }
+        );
         return { success: true } as const;
       }),
     rejectProfile: staffProcedure
@@ -3588,18 +3599,19 @@ export const appRouter = router({
           moderationStatus: "rejected",
           rejectReason: input.reason ?? null,
         });
-        await insertModerationEvent({
-          entityType: "worker_profile",
-          entityId: input.id,
-          action: "reject",
-          reason: input.reason,
-          staffId: ctx.user.id,
-        });
-        await logAudit(ctx, {
-          action: "moderation.profile.reject",
-          entityType: "worker_public_profiles",
-          entityId: input.id,
-        });
+        await recordModeration(
+          ctx,
+          {
+            entityType: "worker_profile",
+            entityId: input.id,
+            action: "reject",
+            reason: input.reason,
+          },
+          {
+            action: "moderation.profile.reject",
+            entityType: "worker_public_profiles",
+          }
+        );
         return { success: true } as const;
       }),
 
@@ -3640,20 +3652,21 @@ export const appRouter = router({
           reviewStatus: input.approve ? "approved" : "rejected",
           rejectReason: input.approve ? null : (input.reason ?? null),
         });
-        await insertModerationEvent({
-          entityType: "worker_experience",
-          entityId: input.id,
-          action: input.approve ? "approve" : "reject",
-          reason: input.approve ? undefined : input.reason,
-          staffId: ctx.user.id,
-        });
-        await logAudit(ctx, {
-          action: input.approve
-            ? "moderation.experience.approve"
-            : "moderation.experience.reject",
-          entityType: "worker_experiences",
-          entityId: input.id,
-        });
+        await recordModeration(
+          ctx,
+          {
+            entityType: "worker_experience",
+            entityId: input.id,
+            action: input.approve ? "approve" : "reject",
+            reason: input.approve ? undefined : input.reason,
+          },
+          {
+            action: input.approve
+              ? "moderation.experience.approve"
+              : "moderation.experience.reject",
+            entityType: "worker_experiences",
+          }
+        );
         return { success: true } as const;
       }),
   }),
@@ -4016,9 +4029,13 @@ export const appRouter = router({
       .input(workerExperienceInput.extend({ id: z.number().int().positive() }))
       .mutation(async ({ ctx, input }) => {
         const { id, ...data } = input;
-        const e = await getExperienceById(id);
-        if (!e || e.userId !== ctx.user.id)
-          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此經歷" });
+        await loadOwnedOrThrow(
+          getExperienceById,
+          id,
+          ctx.user.id,
+          "userId",
+          "找不到此經歷"
+        );
         // 編輯後回到待審
         await updateExperience(id, {
           employerType: data.employerType,
@@ -4034,9 +4051,13 @@ export const appRouter = router({
     deleteExperience: workerProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ ctx, input }) => {
-        const e = await getExperienceById(input.id);
-        if (!e || e.userId !== ctx.user.id)
-          throw new TRPCError({ code: "NOT_FOUND", message: "找不到此經歷" });
+        await loadOwnedOrThrow(
+          getExperienceById,
+          input.id,
+          ctx.user.id,
+          "userId",
+          "找不到此經歷"
+        );
         await deleteExperience(input.id);
         return { success: true } as const;
       }),

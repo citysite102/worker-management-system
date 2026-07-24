@@ -17,7 +17,7 @@ export type LangCode = (typeof SUPPORTED_LANGS)[number]["code"];
 
 const LANG_KEY = "app-lang";
 
-const resources = {
+export const resources = {
   "zh-TW": {
     common: {
       nav: {
